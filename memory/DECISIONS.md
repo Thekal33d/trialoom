@@ -12,6 +12,8 @@ Statuses: **Accepted** (user instruction or explicit working decision), **Propos
 | D004 | 2026-10-26 | Accepted | Prioritize a complete test/reproduce/repair/verify/pay loop for existing web apps and an invited operator pool, following the PRD. | Capability validation reveals an infeasible dependency |
 | D005 | 2026-10-26 | Proposed | Use Remesso for USDC-on-Celo operator payouts, with separate buy resource purchasing. This is the PRD direction, subject to integration evidence. | Payment and resource spikes complete |
 | D006 | 2026-10-26 | Open | Choose language, web/API framework, database, job queue, auth, artifact storage, and deployment platform. | Before the application scaffold |
+| D007 | 2026-10-26 | Proposed | Target Build with buy for the hackathon; require a useful resource integration for that demonstration while keeping it optional for the general product. See [research and scope](../docs/HACKATHON.md). | Track confirmation and resource validation |
+| D008 | 2026-10-26 | Accepted | Follow the PRD's capability-first sequence. Prove execution, evidence, repair, payment recovery, and resource behavior before claiming an operational marketplace. | Evidence justifies a documented sequence change |
 
 ## Open product decisions from the PRD
 

@@ -38,6 +38,8 @@ The system needs a transactional relational ledger, private evidence storage, is
 
 The proposed 10% fee, recruitment targets of five builders and ten operators, twenty paid campaigns, review deadlines, claim leases, and performance targets are pilot hypotheses from the PRD. They are not observed traction, settled commercial terms, or tested service levels.
 
+Hackathon research, proposed track, and source-dated checklist live in [docs/HACKATHON.md](../docs/HACKATHON.md). Track-specific requirements do not silently change product scope. The [roadmap](../docs/ROADMAP.md) separates demo, pilot, and public-release gates; the [backlog](../docs/BACKLOG.md) holds tasks and dependencies.
+
 ## Source provenance
 
 [docs/PRD.md](../docs/PRD.md) is the unmodified user attachment: PRD v0.1, dated 2026-10-26.

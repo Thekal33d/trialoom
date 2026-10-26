@@ -2,13 +2,13 @@
 
 Last updated: 2026-10-26. Source: [PRD release acceptance scenarios](PRD.md#release-acceptance-scenarios).
 
-**Application checks have not run: no implementation exists.** Record command, date, tested commit/build, fixture, outcome, and sanitized artifact references when checks are implemented and executed. Preserve failed and blocked outcomes.
+**The local capability harness has run; marketplace release scenarios remain unimplemented.** Record command, date, tested commit/build, fixture, outcome, and sanitized artifact references. Preserve failed and blocked outcomes.
 
 ## Capability experiments
 
 | Task | Evidence needed | Result |
 | --- | --- | --- |
-| VAL-01 | Trace export, build/fixture metadata, assertions, two clean reproductions, redaction | Not run |
+| VAL-01 | Trace export, build/fixture metadata, assertions, two clean reproductions, redaction | Passed locally; [manifest](evidence/VAL-01.json) |
 | VAL-02 | Baseline failure, candidate pass, existing checks, independent verifier | Not run |
 | VAL-03 | Verified integration facts and persistent recovery under policy loss and crash after broadcast | Not run |
 | VAL-04 | Useful resource output, cost ceiling, receipt, isolation, timeout reconciliation | Not run |
@@ -47,5 +47,6 @@ These IDs correspond to the twelve numbered PRD scenarios. Each needs an impleme
 | --- | --- | --- | --- | --- | --- |
 | 2026-10-26 | SETUP-01 | `22e6ce0` | PRD byte comparison/hash, local links, staged diff | Passed | Original preserved; no application claims |
 | 2026-10-26 | SETUP-02 | Working tree for this documentation checkpoint | Local links/anchors, unique task IDs, FR/scenario coverage, PRD comparison/hash, diff checks | Passed | 12 Markdown files, 25 tasks, FR01–FR16, R01–R12; no application tests |
+| 2026-10-26 | VAL-01 | Content hashes in [manifest](evidence/VAL-01.json) | `npm test`; `npm run spike:reproduce`; Playwright trace CLI inspection | Passed | 8 checks; 2 clean browser runs; normal invitation 201, plus alias 400; seeded sensitive values removed; local fixture only |
 
 Raw private traces and credentials are not commit artifacts. Commit sanitized fixtures, test code, and approved evidence summaries; use access-controlled records for private artifacts when the platform exists.

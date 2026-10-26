@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "runId": "2026-10-26T22-36-14.113Z-e880c2a6",
+  "startedAt": "2026-10-26T22:36:14.114Z",
+  "finishedAt": "2026-10-26T22:36:18.901Z",
+  "sourceRevision": "7b1f1056476a0b1eb0acdbe11912e09ceef5e849",
+  "sourceTreeDirty": true,
+  "sourceFiles": [
+    {
+      "path": "spikes/browser-evidence/evidence.mjs",
+      "sha256": "efa557b5c1b47aea1dda75109d16276cb970127ece28a93e5a4db93fe099d6a5"
+    },
+    {
+      "path": "spikes/browser-evidence/fixture/app.js",
+      "sha256": "a089432744ee4333f12392270e6eceb8c46873c663120ffe4984c62b36c3f535"
+    },
+    {
+      "path": "spikes/browser-evidence/fixture/index.html",
+      "sha256": "4fbdf696428b8c40e19a19e1adf414bd0bbe9f8e2134f3784126af5f27069c05"
+    },
+    {
+      "path": "spikes/browser-evidence/fixture/validation.mjs",
+      "sha256": "3d3e5b0544a1d00b5eebe896c58d4e15943d87717e379e3bb614b7f84573f952"
+    },
+    {
+      "path": "spikes/browser-evidence/fixture.mjs",
+      "sha256": "50f5ab1bc12140c017714ab1830c6de13ea64e81143b81257ff25eb4a901561f"
+    },
+    {
+      "path": "spikes/browser-evidence/playwright.config.mjs",
+      "sha256": "50355f1bff29227a535d2a0d6085a519a530d606f2e368283617a5d96327b1a6"
+    },
+    {
+      "path": "spikes/browser-evidence/run.mjs",
+      "sha256": "8b6d7d5999503ee1bb216e920db73dce965b9fd69d4f737e57ee2752340bff52"
+    },
+    {
+      "path": "spikes/browser-evidence/specs/harness.mjs",
+      "sha256": "32735ce3773c7a88ac7bd699dfc4f21ec8858e1111eb7eec6e2231bce3316d01"
+    },
+    {
+      "path": "spikes/browser-evidence/specs/reproduction.spec.mjs",
+      "sha256": "6b8db818a4c71a9ee46eaef07aacde13ac77be6dc66f7ba68126295cc74a1a33"
+    },
+    {
+      "path": "spikes/browser-evidence/tests/evidence.test.mjs",
+      "sha256": "067786803ec225fafdd0856db6f2101d5b903220979230b3e08da90b9d291462"
+    },
+    {
+      "path": "spikes/browser-evidence/tests/fixture.test.mjs",
+      "sha256": "d727f2980e4342303578b276778432b6eab91abea1225084b1ffcff7ce485d62"
+    }
+  ],
+  "lockfileSha256": "c81de327abdc73e5680abc131917077bcab1c836ce581cf774cea10be5b5f184",
+  "runtime": {
+    "node": "v24.11.1",
+    "platform": "darwin",
+    "architecture": "arm64",
+    "playwright": "1.64.1"
+  },
+  "independentOperator": false,
+  "limitation": "Controlled local fixture; no production sandbox, general PII sanitizer, or independent operator proof.",
+  "runs": [
+    {
+      "assignmentId": "baseline reproduction 1",
+      "buildId": "e6ac712e4c02b17a6b64daa2a8e9060980fc126611fe14a9742ba864d20fecd4",
+      "executionOutcome": "completed",
+      "productOutcome": "failed"
+    },
+    {
+      "assignmentId": "baseline reproduction 2",
+      "buildId": "e6ac712e4c02b17a6b64daa2a8e9060980fc126611fe14a9742ba864d20fecd4",
+      "executionOutcome": "completed",
+      "productOutcome": "failed"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "replay-1.trace.zip",
+      "sha256": "7e23bdea165c1fa3e8a7b932d0617b9270ee40fda1ac8f0e47a1aa8767961d20",
+      "bytes": 15232
+    },
+    {
+      "path": "replay-1.json",
+      "sha256": "2771018d6048fd75d3cde489f28e6fe987ce6d119347e0ffc40198a5acdbe5f7",
+      "bytes": 2229
+    },
+    {
+      "path": "replay-2.trace.zip",
+      "sha256": "864fadab4dc9d59f7321f25c392c21e61617203eb0ee201cd80556310d6c2f3b",
+      "bytes": 15161
+    },
+    {
+      "path": "replay-2.json",
+      "sha256": "e97da66ccbb4b065a6f08404f6cb94700325f8dd6f9d4c7e8a7b078608859edc",
+      "bytes": 2229
+    }
+  ]
+}

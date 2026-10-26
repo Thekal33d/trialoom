@@ -25,3 +25,14 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Limitations: event setup, integrations, app code, funding, remote publication, and deployment remain undone. Track and technical stack are not confirmed choices.
 - Next: VAL-01 runner/evidence experiment; VAL-03/VAL-04 provider validation; VAL-02 regression verification; VAL-05 stack decision.
 - Commit subject: `docs: map delivery milestones and Celo hackathon readiness`.
+
+## 2026-10-26 — VAL-01 — Browser reproduction and evidence export
+
+- Added a deliberately defective loopback invitation fixture, clean-context Chromium journeys, structured expected/actual assertions, fixture/build IDs, and source fingerprints.
+- Added text-only trace export that removes seeded credential/name canaries, updates changed resource hashes/references, rejects unsupported content, and verifies exported file hashes. Raw traces remain ignored.
+- Pinned Node/Playwright/ZIP tooling and documented setup, replay, and boundaries. Preserved a sanitized manifest in `docs/evidence/VAL-01.json`.
+- Validation: `npm test` passed 8 checks; `npm run spike:reproduce` passed both fresh replays, each observing normal invitation 201 and plus-address rejection 400. Playwright's trace inspector checks exported actions, requests, and attachments.
+- Resolved environment restrictions by running the owned loopback server with the required permission. The first real trace export correctly refused an unsupported attachment; explicit fixture-JSON support was added and tested before successful export.
+- Limitations: synthetic fixture, known-value redaction, browser-state isolation only; no production sandbox, independent operator, customer data, or payment proof. A separately created `eezex/` nested repository is outside this work and is excluded from commits.
+- Commit subject: `feat: prove browser reproduction and sanitized evidence export`.
+- Next: VAL-02 baseline/candidate regression verification.

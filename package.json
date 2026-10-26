@@ -1,0 +1,16 @@
+{
+  "name": "trialoom",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "browser:install": "PLAYWRIGHT_BROWSERS_PATH=.cache/ms-playwright playwright install chromium --no-shell",
+    "test": "node --test spikes/browser-evidence/tests/*.test.mjs",
+    "spike:reproduce": "node spikes/browser-evidence/run.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "fflate": "0.8.3"
+  }
+}

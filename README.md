@@ -22,7 +22,9 @@ The project is being developed with the Celo agentic hackathon in mind. USDC on 
 | [Agent instructions](AGENTS.md) | Working and commit protocol for future coding sessions |
 | [Claude entry point](CLAUDE.md) | Loads the shared agent instructions |
 
-This repository currently contains planning and project memory. Application code, infrastructure, and integrations have not been implemented. See the status file for the current handoff; there are no application install or run commands yet.
+The first local browser/evidence experiment is implemented in [spikes/browser-evidence](spikes/browser-evidence/README.md). It reproduces a seeded invitation defect twice, exports sanitized traces and structured assertions, and verifies artifact hashes. This is a capability harness; marketplace application code, infrastructure, and payment integrations are still pending.
+
+With Node 24, run `npm ci --ignore-scripts`, `npm run browser:install`, `npm test`, then `npm run spike:reproduce`. See the experiment README for trace inspection and limits.
 
 ## Working rhythm
 

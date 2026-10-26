@@ -14,6 +14,7 @@ Statuses: **Accepted** (user instruction or explicit working decision), **Propos
 | D006 | 2026-10-26 | Open | Choose language, web/API framework, database, job queue, auth, artifact storage, and deployment platform. | Before the application scaffold |
 | D007 | 2026-10-26 | Proposed | Target Build with buy for the hackathon; require a useful resource integration for that demonstration while keeping it optional for the general product. See [research and scope](../docs/HACKATHON.md). | Track confirmation and resource validation |
 | D008 | 2026-10-26 | Accepted | Follow the PRD's capability-first sequence. Prove execution, evidence, repair, payment recovery, and resource behavior before claiming an operational marketplace. | Evidence justifies a documented sequence change |
+| D009 | 2026-10-26 | Accepted | Use Node 24, pinned Playwright Test/Chromium, and fflate for the disposable capability harness. Text-only traces, explicit synthetic-canary redaction, and content hashes make the experiment inspectable. This does not select the marketplace stack or establish a production security boundary. | VAL-05 architecture decision |
 
 ## Open product decisions from the PRD
 

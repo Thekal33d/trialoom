@@ -4,7 +4,7 @@ Last updated: 2026-10-26 (Africa/Lagos).
 
 ## State
 
-**M0 complete: project foundation established. M1 capability validation is next.** The workspace started empty. The repository contains planning and persistent memory; no application code or deployed product exists yet.
+**M1 in progress: VAL-01 complete.** The local browser/evidence harness reproduces the seeded defect and exports verified evidence. There is no deployed marketplace application yet.
 
 | Area | State | Evidence |
 | --- | --- | --- |
@@ -13,14 +13,15 @@ Last updated: 2026-10-26 (Africa/Lagos).
 | Build roadmap and tracked work | Established | [Roadmap](../docs/ROADMAP.md), [backlog](../docs/BACKLOG.md) |
 | Requirement/scenario coverage | Mapped; not implemented | [Validation register](../docs/VALIDATION.md) |
 | Hackathon alignment | Researched; track proposed | [Dated source notes and checklist](../docs/HACKATHON.md) |
-| Stack, application, tests, and infrastructure | Not started | No code scaffold or application checks exist |
+| Browser/evidence harness | Working locally | [Experiment](../spikes/browser-evidence/README.md), [manifest](../docs/evidence/VAL-01.json) |
+| Marketplace stack, application, infrastructure | Not started | Spike tooling selected; product architecture open |
 | Celo, Remesso, buy integrations | Not started | Proposed integrations only |
 | Git remote and public repository | Not configured | Local checkpoint history only |
 | Event enrollment and deployment | Not performed | No entry or live demo |
 
 ## Next action
 
-**VAL-01:** build a disposable, controlled invitation fixture and browser evidence experiment. Pin the build/fixture, reproduce the plus-address defect twice in clean sessions, and export a redacted trace and assertions. Continue with **VAL-02** to verify the regression test across baseline/candidate revisions.
+**VAL-02:** deliver a narrow patch and run the same regression on the immutable baseline and patched candidate. Check that ordinary invitations and rejection rules still work. Record separate-process verification honestly; a local harness does not establish independent operator ownership.
 
 **VAL-03** and **VAL-04** can independently begin with official provider-documentation checks and controlled recovery experiments. **VAL-05** records the stack choice after those constraints are understood. See [BACKLOG.md](../docs/BACKLOG.md) for acceptance conditions and dependencies.
 
@@ -36,7 +37,8 @@ No dependency blocks local capability work. Registration, wallet funding, and de
 
 - SETUP-01: original PRD byte comparison/hash and local links passed; preserved source hard breaks have a file-specific Git attribute.
 - SETUP-02: documentation links, requirement/scenario coverage, and diff checks are recorded in [BUILD_LOG.md](BUILD_LOG.md).
-- No application or payment tests have run. Planning completion does not establish integration readiness.
+- VAL-01: 8 Node checks pass; two fresh Chromium journeys reproduced the defect. The export contains sanitized traces, explicit product failures, build hashes, and artifact integrity records.
+- No marketplace acceptance or payment tests have run; local evidence does not establish integration readiness.
 
 ## Handoff convention
 

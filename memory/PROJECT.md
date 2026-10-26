@@ -25,6 +25,8 @@ Start with Chromium and recorded desktop/mobile viewports, not claims of real-de
 
 The system needs a transactional relational ledger, private evidence storage, isolated runners, and durable job/payment recovery. Specific language, framework, database, queue, hosting, and authentication products are not yet chosen.
 
+The disposable browser/evidence experiment uses Node 24 and Playwright Test (D009). This local harness is separate from the eventual marketplace architecture.
+
 ## Money and trust
 
 - PRD direction: USDC on Celo, with Remesso for approved operator payments and a separate optional buy resource adapter. These are intended integrations, not completed capabilities.

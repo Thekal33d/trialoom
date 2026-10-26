@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Trialoom invitation fixture</title>
+    <style>
+      body { font: 18px/1.5 system-ui, sans-serif; margin: 4rem auto; padding: 0 1.5rem; max-width: 36rem; color: #202d26; background: #f6f5ef; }
+      label, input, button { display: block; font: inherit; }
+      input { box-sizing: border-box; width: 100%; margin: .5rem 0 1rem; padding: .65rem; }
+      button { padding: .65rem 1rem; background: #174b38; color: white; border: 0; border-radius: .25rem; }
+      small { color: #526059; } [role=status] { min-height: 2rem; }
+    </style>
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <small>Controlled test fixture · no emails are sent</small>
+    <h1>Invite a teammate</h1>
+    <p>Workspace owner: <span id="owner">Loading…</span></p>
+    <form>
+      <label for="email">Teammate email</label>
+      <input id="email" name="email" type="email" required autocomplete="off">
+      <button type="submit">Send invitation</button>
+    </form>
+    <p role="status" data-outcome="idle" aria-live="polite"></p>
+    <ul aria-label="Invitations"></ul>
+  </body>
+</html>

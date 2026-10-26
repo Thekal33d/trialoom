@@ -4,7 +4,7 @@ Last updated: 2026-10-26 (Africa/Lagos).
 
 ## State
 
-**M1 in progress: VAL-01 complete.** The local browser/evidence harness reproduces the seeded defect and exports verified evidence. There is no deployed marketplace application yet.
+**M1 in progress: VAL-01 complete; VAL-02 technical proof passed.** The harness reproduces the seeded defect, exports evidence, and demonstrates a regression fix. Independent operator review remains open. There is no deployed marketplace application yet.
 
 | Area | State | Evidence |
 | --- | --- | --- |
@@ -14,6 +14,7 @@ Last updated: 2026-10-26 (Africa/Lagos).
 | Requirement/scenario coverage | Mapped; not implemented | [Validation register](../docs/VALIDATION.md) |
 | Hackathon alignment | Researched; track proposed | [Dated source notes and checklist](../docs/HACKATHON.md) |
 | Browser/evidence harness | Working locally | [Experiment](../spikes/browser-evidence/README.md), [manifest](../docs/evidence/VAL-01.json) |
+| Repair verification | Technical gate passed; independent review pending | [Repair evidence](../docs/evidence/VAL-02.json) |
 | Marketplace stack, application, infrastructure | Not started | Spike tooling selected; product architecture open |
 | Celo, Remesso, buy integrations | Not started | Proposed integrations only |
 | Git remote and public repository | Not configured | Local checkpoint history only |
@@ -21,9 +22,9 @@ Last updated: 2026-10-26 (Africa/Lagos).
 
 ## Next action
 
-**VAL-02:** deliver a narrow patch and run the same regression on the immutable baseline and patched candidate. Check that ordinary invitations and rejection rules still work. Record separate-process verification honestly; a local harness does not establish independent operator ownership.
+**VAL-03:** validate current Remesso SDK/deployment/token support and design the controlled payment-recovery experiment. In **VAL-04**, evaluate the useful paid-resource path and its evidence/uncertain-settlement behavior. Begin with documentation and local controls before any funded experiment.
 
-**VAL-03** and **VAL-04** can independently begin with official provider-documentation checks and controlled recovery experiments. **VAL-05** records the stack choice after those constraints are understood. See [BACKLOG.md](../docs/BACKLOG.md) for acceptance conditions and dependencies.
+**VAL-02 remains open only for independent operator review:** have a different operator reproduce the recorded baseline/candidate result against the pinned source hashes and record their identity/conflicts and evidence. A separate process from this session does not satisfy that requirement. **VAL-05** records the product stack after execution/payment/resource constraints are understood. See [BACKLOG.md](../docs/BACKLOG.md).
 
 ## Dependencies to resolve before implementation or submission
 
@@ -38,7 +39,10 @@ No dependency blocks local capability work. Registration, wallet funding, and de
 - SETUP-01: original PRD byte comparison/hash and local links passed; preserved source hard breaks have a file-specific Git attribute.
 - SETUP-02: documentation links, requirement/scenario coverage, and diff checks are recorded in [BUILD_LOG.md](BUILD_LOG.md).
 - VAL-01: 8 Node checks pass; two fresh Chromium journeys reproduced the defect. The export contains sanitized traces, explicit product failures, build hashes, and artifact integrity records.
+- VAL-02: baseline regression fails twice for the seeded defect; the same candidate regression passes twice. All 13 supporting checks pass on both builds, including negative acceptance-gate cases. Baseline source remains unchanged.
 - No marketplace acceptance or payment tests have run; local evidence does not establish integration readiness.
+
+The unrelated nested `eezex/` repository is untracked in this repository and is excluded from these checkpoints.
 
 ## Handoff convention
 

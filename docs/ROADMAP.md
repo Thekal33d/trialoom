@@ -7,7 +7,7 @@ The product target is an invited marketplace. The hackathon target is a demonstr
 | Milestone | Deliverable | Exit evidence | State |
 | --- | --- | --- | --- |
 | M0 — Project foundation | PRD, persistent memory, incremental commits, roadmap, backlog, hackathon notes | Linked documents and checkpoint commits | Complete |
-| M1 — Capability validation | Seeded browser journey, reproducible defect, regression fix, payment recovery experiment, resource evaluation | Replay/export artifacts, baseline/candidate results, recovery outcomes, stack decision | In progress: VAL-01 complete |
+| M1 — Capability validation | Seeded browser journey, reproducible defect, regression fix, payment recovery experiment, resource evaluation | Replay/export artifacts, baseline/candidate results, recovery outcomes, stack decision | In progress: VAL-01 complete; VAL-02 technical proof passed, independent review pending |
 | M2 — Internal alpha | Projects/builds, versioned terms, operator API, bounded claims, evidence review, ledger, provider adapters | Repeatable seeded campaign through settlement; concurrency and restart checks pass | Not started |
 | H — Hackathon demonstration | Usable slice of M1/M2 with selected event requirements | [Hackathon checklist](HACKATHON.md) and verified demo evidence | Not started; track proposed |
 | M3 — Invited pilot | Three launch services, reviewer coverage, appeals, caps, exports, retention, real customers | All PRD release scenarios pass; controls and measured metrics support launch | Not started |

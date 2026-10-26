@@ -1,0 +1,169 @@
+{
+  "schemaVersion": 1,
+  "runId": "2026-10-26T22-38-35.897Z-18f8f599",
+  "verifiedAt": "2026-10-26T22:38:45.275Z",
+  "technicalVerdict": "verified",
+  "independentOperator": false,
+  "marketplaceAcceptance": "pending-independent-operator-review",
+  "sourceRevision": "6727655b27e0a66da27fd1dc3a44010c5c59a8a6",
+  "sourceTreeDirty": true,
+  "sourceFiles": [
+    {
+      "path": "spikes/browser-evidence/evidence.mjs",
+      "sha256": "efa557b5c1b47aea1dda75109d16276cb970127ece28a93e5a4db93fe099d6a5"
+    },
+    {
+      "path": "spikes/browser-evidence/fixture/app.js",
+      "sha256": "a089432744ee4333f12392270e6eceb8c46873c663120ffe4984c62b36c3f535"
+    },
+    {
+      "path": "spikes/browser-evidence/fixture/index.html",
+      "sha256": "4fbdf696428b8c40e19a19e1adf414bd0bbe9f8e2134f3784126af5f27069c05"
+    },
+    {
+      "path": "spikes/browser-evidence/fixture/validation.mjs",
+      "sha256": "3d3e5b0544a1d00b5eebe896c58d4e15943d87717e379e3bb614b7f84573f952"
+    },
+    {
+      "path": "spikes/browser-evidence/fixture.mjs",
+      "sha256": "50f5ab1bc12140c017714ab1830c6de13ea64e81143b81257ff25eb4a901561f"
+    },
+    {
+      "path": "spikes/browser-evidence/patches/accept-plus-alias.patch",
+      "sha256": "deb146b7cea8239932b46b982626a60e17090576e9510931b19734f2ceccb333"
+    },
+    {
+      "path": "spikes/browser-evidence/playwright.config.mjs",
+      "sha256": "50355f1bff29227a535d2a0d6085a519a530d606f2e368283617a5d96327b1a6"
+    },
+    {
+      "path": "spikes/browser-evidence/repair-gate.mjs",
+      "sha256": "705beccdc6d94bc997f5332777996ded2b7286bf4dacbf7cd53cfe9d2d2dada0"
+    },
+    {
+      "path": "spikes/browser-evidence/run.mjs",
+      "sha256": "8b6d7d5999503ee1bb216e920db73dce965b9fd69d4f737e57ee2752340bff52"
+    },
+    {
+      "path": "spikes/browser-evidence/specs/harness.mjs",
+      "sha256": "32735ce3773c7a88ac7bd699dfc4f21ec8858e1111eb7eec6e2231bce3316d01"
+    },
+    {
+      "path": "spikes/browser-evidence/specs/regression.spec.mjs",
+      "sha256": "9c526ca426a9cbf2a4be4fce1a9c159bd1912beb12d93cfcd46681d2a55c2a6c"
+    },
+    {
+      "path": "spikes/browser-evidence/specs/reproduction.spec.mjs",
+      "sha256": "6b8db818a4c71a9ee46eaef07aacde13ac77be6dc66f7ba68126295cc74a1a33"
+    },
+    {
+      "path": "spikes/browser-evidence/tests/evidence.test.mjs",
+      "sha256": "067786803ec225fafdd0856db6f2101d5b903220979230b3e08da90b9d291462"
+    },
+    {
+      "path": "spikes/browser-evidence/tests/fixture.test.mjs",
+      "sha256": "d727f2980e4342303578b276778432b6eab91abea1225084b1ffcff7ce485d62"
+    },
+    {
+      "path": "spikes/browser-evidence/tests/repair-gate.test.mjs",
+      "sha256": "947d68467a7fc50d7e3ce55280c99abac86e5a9471bbe961b62b36a59d1f83f4"
+    },
+    {
+      "path": "spikes/browser-evidence/verify-repair.mjs",
+      "sha256": "6a9f61d132d9296f2550a09845736af2838ffa73276d2fd93d08616da9407f8e"
+    }
+  ],
+  "baselineBuild": {
+    "id": "e6ac712e4c02b17a6b64daa2a8e9060980fc126611fe14a9742ba864d20fecd4",
+    "files": [
+      {
+        "path": "app.js",
+        "sha256": "a089432744ee4333f12392270e6eceb8c46873c663120ffe4984c62b36c3f535"
+      },
+      {
+        "path": "index.html",
+        "sha256": "4fbdf696428b8c40e19a19e1adf414bd0bbe9f8e2134f3784126af5f27069c05"
+      },
+      {
+        "path": "validation.mjs",
+        "sha256": "3d3e5b0544a1d00b5eebe896c58d4e15943d87717e379e3bb614b7f84573f952"
+      }
+    ]
+  },
+  "candidateBuild": {
+    "id": "4063983fd32e105d2804343ab5901f5c17cb260adeb98166f9aaffd46d89b66b",
+    "files": [
+      {
+        "path": "app.js",
+        "sha256": "a089432744ee4333f12392270e6eceb8c46873c663120ffe4984c62b36c3f535"
+      },
+      {
+        "path": "index.html",
+        "sha256": "4fbdf696428b8c40e19a19e1adf414bd0bbe9f8e2134f3784126af5f27069c05"
+      },
+      {
+        "path": "validation.mjs",
+        "sha256": "4b84c0e77b56344ee2d0c469ee6b4cb6eda31982c75fd891150990ee2d152a2d"
+      }
+    ]
+  },
+  "changedFiles": [
+    "validation.mjs"
+  ],
+  "patchSha256": "deb146b7cea8239932b46b982626a60e17090576e9510931b19734f2ceccb333",
+  "lockfileSha256": "c81de327abdc73e5680abc131917077bcab1c836ce581cf774cea10be5b5f184",
+  "regression": {
+    "baselineExit": 1,
+    "candidateExit": 0,
+    "baselineFailures": 2,
+    "candidatePasses": 2
+  },
+  "requiredChecks": [
+    {
+      "label": "baseline",
+      "exitCode": 0
+    },
+    {
+      "label": "candidate",
+      "exitCode": 0
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "repair.patch",
+      "sha256": "deb146b7cea8239932b46b982626a60e17090576e9510931b19734f2ceccb333",
+      "bytes": 518
+    },
+    {
+      "path": "baseline-1.json",
+      "sha256": "9c3ea8f4c4862866519c868c1a26eb367ca12791f7784e8409c26f9caaf725f3",
+      "bytes": 1959
+    },
+    {
+      "path": "baseline-2.json",
+      "sha256": "fc164905eb0ac2cb87750093d0186981fa74ed0bd959d07bf83c3ce1a525b36e",
+      "bytes": 1959
+    },
+    {
+      "path": "candidate-1.trace.zip",
+      "sha256": "f25a2f8947c8b7aaddfa1c7d9ae9401bad862dabd6e59ecd80672a32a67089b6",
+      "bytes": 15011
+    },
+    {
+      "path": "candidate-1.json",
+      "sha256": "a2a25472fac8768aff069752ce8b47b932ed1fdb348d6dcf78b23edaf83765a5",
+      "bytes": 2158
+    },
+    {
+      "path": "candidate-2.trace.zip",
+      "sha256": "d1f629a90c44108ad8657e84285d303804e99e8541163029377707d080927ac3",
+      "bytes": 14852
+    },
+    {
+      "path": "candidate-2.json",
+      "sha256": "011befa06c0ff1dae4926b9de2b73f9295bd27135541d7f0665feb5e63b74508",
+      "bytes": 2158
+    }
+  ],
+  "limitations": "Separate local processes, same operator. Independent review remains outstanding. Baseline failure traces stay private under the narrow export policy."
+}

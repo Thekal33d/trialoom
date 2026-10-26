@@ -11,7 +11,7 @@ States: **Ready**, **In progress**, **Blocked**, **Not started**, **Done**, **De
 | SETUP-01 | M0 | Repository and persistent memory | Done | — | PRD preserved byte-for-byte; linked memory/instructions; commit `22e6ce0` |
 | SETUP-02 | M0 | Roadmap, backlog, hackathon notes, validation register | Done | SETUP-01 | Dated sources; mapped requirements; truthful status and next action; documentation checkpoint |
 | VAL-01 | M1 | Runner and evidence spike | Done | SETUP-02 | Two clean Chromium reproductions, build/fixture IDs, assertions, sanitized traces and verified hashes; [recorded evidence](evidence/VAL-01.json) |
-| VAL-02 | M1 | Repair verification spike | Ready | VAL-01 | Patch and regression test failing on baseline/passing on candidate; existing checks and independent verifier |
+| VAL-02 | M1 | Repair verification spike | In progress | VAL-01 | Technical proof passed: baseline fails twice, candidate passes twice, supporting checks pass on both; [evidence](evidence/VAL-02.json). Independent operator review remains pending |
 | VAL-03 | M1 | Remesso and recovery spike | Ready | SETUP-02 | Verify current SDK/deployment/token support; persistent journal; policy loss; crash after broadcast reconciles without duplicate transfer; conditions/limits documented |
 | VAL-04 | M1 | Paid resource capability spike | Ready | SETUP-02 | Useful service, isolation, trace export, quote/cap enforcement, uncertain-settlement recovery; distinguish technical proof from paid receipts |
 | VAL-05 | M1 | Architecture and stack decision | Not started | VAL-01, VAL-03, VAL-04 | Choose web/API/runtime, relational database, outbox/queue, auth, storage, isolation, hosting; record tradeoffs and local run approach |

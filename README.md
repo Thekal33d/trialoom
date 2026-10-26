@@ -24,7 +24,7 @@ The project is being developed with the Celo agentic hackathon in mind. USDC on 
 
 The first local browser/evidence experiment is implemented in [spikes/browser-evidence](spikes/browser-evidence/README.md). It reproduces a seeded invitation defect twice, exports sanitized traces and structured assertions, and verifies artifact hashes. This is a capability harness; marketplace application code, infrastructure, and payment integrations are still pending.
 
-With Node 24, run `npm ci --ignore-scripts`, `npm run browser:install`, `npm test`, then `npm run spike:reproduce`. See the experiment README for trace inspection and limits.
+With Node 24, run `npm ci --ignore-scripts`, `npm run browser:install`, `npm test`, then `npm run spike:reproduce`. Run `npm run spike:verify` to prove the same regression fails on the original fixture and passes on a patched copy. See the experiment README for trace inspection and limits.
 
 ## Working rhythm
 

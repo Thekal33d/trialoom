@@ -36,3 +36,15 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Limitations: synthetic fixture, known-value redaction, browser-state isolation only; no production sandbox, independent operator, customer data, or payment proof. A separately created `eezex/` nested repository is outside this work and is excluded from commits.
 - Commit subject: `feat: prove browser reproduction and sanitized evidence export`.
 - Next: VAL-02 baseline/candidate regression verification.
+- Checkpoint: `6727655`.
+
+## 2026-10-26 — VAL-02 — Technical repair verification
+
+- Added a reviewable patch accepting plus aliases, applied only to a disposable copy of the pinned fixture. The original defective fixture remains available for replay.
+- Ran the same regression in separate processes: baseline failed twice at the expected 201-versus-400 assertion; candidate passed twice. Both builds passed all 13 supporting checks.
+- Added negative gate checks for baseline false positives, unrelated failures, missing/mismatched evidence, and failed existing checks. Technical success explicitly leaves independent operator acceptance pending.
+- Exported the patch, structured baseline/candidate results, sanitized candidate traces, source/build fingerprints, and artifact hashes; committed the summary in `docs/evidence/VAL-02.json`. Baseline diagnostic traces remain private under the narrow export policy.
+- Validation: `npm run spike:verify` exited successfully after the required baseline failures, candidate passes, supporting checks, unchanged-baseline check, and export hash checks. An initial output-directory collision was fixed before the successful run.
+- Limitation: all execution came from the same operator. VAL-02 is still in progress until another operator supplies independent review; no payout or marketplace acceptance is claimed.
+- Commit subject: `feat: verify repairs against baseline and candidate builds`.
+- Next: VAL-03 payment capability/recovery validation and VAL-04 resource-provider validation.

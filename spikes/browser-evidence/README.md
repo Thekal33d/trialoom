@@ -11,6 +11,7 @@ npm ci --ignore-scripts
 npm run browser:install
 npm test
 npm run spike:reproduce
+npm run spike:verify
 ```
 
 The runner prints its export directory under `artifacts/browser-evidence/<run-id>/export/`. Each invocation has a unique directory and never overwrites earlier evidence. Chromium is stored in the project's ignored `.cache/` directory.
@@ -22,6 +23,16 @@ PLAYWRIGHT_BROWSERS_PATH=.cache/ms-playwright npx playwright show-trace artifact
 ```
 
 The trace viewer inspects recorded actions; it does not re-execute the journey. Rerun `npm run spike:reproduce` to perform two fresh browser journeys. See [Playwright's trace viewer documentation](https://playwright.dev/docs/trace-viewer).
+
+## Repair verification
+
+`npm run spike:verify` copies the original fixture into a unique private artifact directory, checks and applies [the repair patch](patches/accept-plus-alias.patch) there, and verifies that only `validation.mjs` changed. The committed defective fixture remains intact for future reproduction.
+
+The verifier runs the exact same regression specification in separate processes against both builds. Two baseline failures are required and must match the observed 400 response where 201 was expected. The two candidate replays must pass. Supporting Node checks must pass on both versions. A baseline that also passes, an unrelated failure, missing replay, different build, or failing required check cannot qualify the repair.
+
+The command succeeds only when that technical gate passes. It exports the patch, baseline/candidate evidence, sanitized candidate traces, build/source fingerprints, and artifact hashes under `artifacts/repair-verification/<run-id>/export/`. Raw baseline failure traces include diagnostic attachments outside the current export policy and remain private; baseline observations are exported as structured JSON. [VAL-01](../../docs/evidence/VAL-01.json) also records the sanitized baseline reproduction traces.
+
+**Independent operator review remains pending.** A separate process is useful for fresh execution but is not independent ownership or review. The verifier explicitly returns `marketplaceAcceptance: pending-independent-operator-review`; it cannot authorize a payable. The fixture patch demonstrates this one defect, not comprehensive email-address validation.
 
 ## What gets demonstrated
 

@@ -1,0 +1,10 @@
+diff --git a/validation.mjs b/validation.mjs
+--- a/validation.mjs
++++ b/validation.mjs
+@@ -1,4 +1,4 @@
+-// Deliberate seed defect: the local-part pattern excludes valid plus aliases.
++// Support plus aliases without changing the fixture's other validation rules.
+ export function isValidInvitationEmail(email) {
+-  return typeof email === 'string' && /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
++  return typeof email === 'string' && /^[a-zA-Z0-9._+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
+ }

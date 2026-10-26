@@ -1,0 +1,110 @@
+{
+  "task": "VAL-04",
+  "runId": "2026-10-26T22-55-01.753Z-56030caf",
+  "recordedAt": "2026-10-26T22:55:13.056Z",
+  "mode": "actual buy SDK signatures and local USDC settlement; simulated provider responses",
+  "versions": {
+    "buyCore": "0.8.4",
+    "viem": "2.57.7",
+    "node": "v24.11.1"
+  },
+  "fork": {
+    "currentBlockNumber": "0x4d651f1",
+    "currentBlockTimestamp": 1793055304,
+    "currentBlockHash": "0x923854b2a80ea21f2940edab3b7980d4c2edb59b439675c39b57b4cf82a83743",
+    "hardFork": "Prague",
+    "transactionOrder": "fees",
+    "environment": {
+      "baseFee": "0x1b7e3f7071",
+      "chainId": 42220,
+      "gasLimit": "0x1c9c380",
+      "gasPrice": "0x1bb9da3a71"
+    },
+    "forkConfig": {
+      "forkUrl": "https://forno.celo.org/",
+      "forkBlockNumber": 81154542,
+      "forkRetryBackoff": 1000
+    }
+  },
+  "domainSeparator": "0xb2ce31d2838445fa765a491f550e7c78ac7280ab0f3bc9d6063a86df9c3fb578",
+  "quoteSource": "docs/evidence/VAL-04-quotes.json",
+  "checks": [
+    "ephemeral resource payer has no delegated contract code",
+    "live quote signing domain matches the token contract",
+    "lost-response: public authorization persisted before dispatch",
+    "lost-response: signed x402 authorization settles on local USDC",
+    "lost-response: uncertain settlement retains commitment",
+    "lost-response: fresh process matches nonce and exact transfer",
+    "lost-response: paid cost does not become a builder charge without validated output",
+    "provider-500: public authorization persisted before dispatch",
+    "provider-500: signed x402 authorization settles on local USDC",
+    "provider failure surfaces without paid retry",
+    "provider-500: uncertain settlement retains commitment",
+    "provider-500: fresh process matches nonce and exact transfer",
+    "provider-500: paid cost does not become a builder charge without validated output",
+    "each resource intent dispatches and settles only once"
+  ],
+  "recoveries": [
+    {
+      "id": "lost-response",
+      "authorizationNonce": "0xd520ec6b2dda27303110da33a8a78f248ea395550f216840a178b718c8024063",
+      "state": "settled",
+      "transactionHash": "0x7fffe67c3c941c2ddf3744d354692c2e4562be438c8fcaa4f95c9bab73e32c55",
+      "blockNumber": "81154549",
+      "blockHash": "0xaf97c20fb48308090c07795c19e8e5f193a026ca45121e81ad0002e2ff2562a8",
+      "evidenceFinality": "included",
+      "amountUnits": "3606"
+    },
+    {
+      "id": "provider-500",
+      "authorizationNonce": "0x0914c0db78a8ca8d5cdbf3dec163486f27c5961d80ca289ba0e92ee53f6514d9",
+      "state": "settled",
+      "transactionHash": "0xd1a1aa2843aeede30ea8d50cf3d62749b39e5e426cce83cc44711b5c51e16a30",
+      "blockNumber": "81154550",
+      "blockHash": "0x20c1313d5d321a6657cad6f0041c814a9fad78587885735fcfe6c2cbba31f3ab",
+      "evidenceFinality": "included",
+      "amountUnits": "3606"
+    }
+  ],
+  "accounting": {
+    "ceilingUnits": "10000",
+    "availableUnits": "2788",
+    "committedUnits": "0",
+    "spentUnits": "7212",
+    "builderChargeUnits": "0"
+  },
+  "providerPaidRequests": 0,
+  "simulatedPaidRequests": 2,
+  "resourceAllocated": false,
+  "limitations": [
+    "No real browser or VM was purchased; isolation, CDP and trace export remain unverified",
+    "Local included receipts only; real Celo finality and provider reconciliation not proven",
+    "Single-writer journal, synthetic resource outcomes; no production ledger or reimbursement implemented"
+  ],
+  "sources": {
+    "package.json": "0171cf66a08564de7cca06a45a903f6bf40d9ff9016fc80e1fe100b4ee71d521",
+    "package-lock.json": "84b1976f6901fabb67c563c9987ab866373e1ba6f221bab762aba438b0a4c6c9",
+    "docs/evidence/VAL-04-quotes.json": "bacca682506a70ea1959b868368b279b5ed4ff4e1befceabc1125362f2e6baa0",
+    "spikes/resources/quotes.mjs": "28110aa05910afb4f019ae8bf81f41ef4e87e802218851583df2cdd786914fae",
+    "spikes/resources/quote.mjs": "c40d9ebf0faed3f6fa694dc1b779391d4cdda951e898ec6dda53d00aecd5a26d",
+    "spikes/resources/journal.mjs": "a604b80403eabbb402c89d4373e5e4afbdb0e8806addf3dc2daff2982152bae6",
+    "spikes/resources/purchase.mjs": "917d2dd4c497a71f2c8b04f8c79cfd5db29811e0dbd4c19cbd56f51e10f2240c",
+    "spikes/resources/reconcile.mjs": "6b3f54b0cf7ca3aa36cbae786a7a60be9cd3cff79a4f3b97b35741493d716984",
+    "spikes/resources/recover.mjs": "b15c37d1c82a105ecf17c627d7ff8a38a225bae93b9795035b90c097283e2f6f",
+    "spikes/resources/run.mjs": "ff92713f5653782f582cb2e167edce3824a353095452db96361a2595ef1f34fa",
+    "spikes/resources/tests/resources.test.mjs": "3c9a4d30bd8c4e14e7d8f93c2fe8f53ca91c9f2190c56f16e89353671e71af80",
+    "spikes/payments/local.mjs": "7a56cdcc87e5a1cb039c5f392359cfbde0e96a3f530c8a9f50b19b21e8dd1434",
+    "spikes/payments/journal.mjs": "5a63eff4b7ba72814e433fa0c43497e6f783de183e454f4246aecfe2e0ca64a3"
+  },
+  "supportingTests": {
+    "command": "npm test",
+    "recordedAt": "2026-10-26T22:57:12.993Z",
+    "passed": 28,
+    "failed": 0,
+    "resourceCases": 13,
+    "sources": {
+      "spikes/resources/tests/resources.test.mjs": "0055c56f9572a270c36a5d0c4dcdff2b0ed0b9ccb44e2cf7d87a0e8a382154f0"
+    },
+    "note": "Exact-receipt negative cases and post-response journal-failure case were added after the fork run; this field records the subsequent passing suite."
+  }
+}

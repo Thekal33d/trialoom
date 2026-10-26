@@ -59,3 +59,15 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Provider discovery also observed unsigned buy quotes; VAL-04 remains in progress for controls and resource-output evidence.
 - Commit subject: `feat: prove Remesso payout recovery on a local Celo fork`.
 - Next: finish VAL-04 quote caps and uncertain-settlement controls, retaining funded provisioning as a separate gate.
+
+## 2026-10-26 — VAL-04 — Resource quotes, bounded purchasing, and recovery controls
+
+- Read the official buy documentation, inspected pinned buy-core 0.8.4, and recorded unsigned live 402 offers: browser one minute at 3,606 USDC base units; e2-micro VM one hour at 16,753. These are dated quotes, not fixed prices or purchases.
+- Added a simulation-only resource adapter with pinned quote terms, successful funding lookup, per-purchase cap, shared ceiling, private durable reservations, and public authorization persistence before dispatch. One intent cannot be retried as a new purchase after uncertain responses or journal reopening.
+- Added chain reconciliation requiring nonce plus exact transfer in a successful canonical receipt. Unused authorization releases only after expiry at a finalized block; missing/RPC/term evidence retains liability. No resource output means zero builder charges in the fixture.
+- Validation: 14 fork checks passed with real SDK signatures and actual local USDC transfers, followed by a lost response or simulated HTTP 500 and fresh-process recovery. `npm test` passed all 28 checks, including 13 resource cases and negative receipt/quote tests. The live quote command cannot sign; the paid harness rejects live provider URLs.
+- Failures resolved: the first unit fixture lacked the x402 envelope's required `error` field; corrected before passing tests. Initial local settlement failed with the public Anvil payer, whose mainnet state contains EIP-7702 delegated code. Read-only checks confirmed the quoted domain/type hash; using a fresh ephemeral EOA passed. Account-type compatibility remains a production check.
+- Preserved sanitized quotes and recovery evidence in `docs/evidence/VAL-04-quotes.json` and `VAL-04.json`. Signed payloads/keys are excluded. SDK install audit reported zero vulnerabilities; this is not a security audit.
+- Limitations: no real resource allocation, provider receipt, output/trace export, isolation, finality timing, multi-worker journal, or production reimbursement proof. VAL-04 remains in progress. D012 permits architecture selection while these gates remain explicit.
+- Commit subject: `feat: validate buy resource caps and uncertain settlement recovery`.
+- Next: VAL-05 architecture/stack decision, followed by ALPHA-01; finish independent review and funded resource proof separately.

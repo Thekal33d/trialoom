@@ -28,6 +28,8 @@ With Node 24, run `npm ci --ignore-scripts`, `npm run browser:install`, `npm tes
 
 With Anvil installed, `npm run spike:payments` exercises local payment recovery without spending mainnet funds.
 
+The [buy experiment](spikes/resources/README.md) adds unsigned live quotes (`npm run spike:resource-quotes`) and a local x402 recovery test (`npm run spike:resources`). Its signed requests reach only a simulated provider. Actual browser/VM provisioning remains pending.
+
 ## Working rhythm
 
 Read the project memory and current status before changing the project. Complete one coherent step, run the checks appropriate to it, update the tracking files, and commit that step. Keep proposed work distinct from verified behavior. Git history is the authoritative record of commits.

@@ -1,0 +1,253 @@
+{
+  "task": "VAL-04",
+  "mode": "unsigned-live-quotes",
+  "results": [
+    {
+      "id": "browser",
+      "url": "https://gateway.usebuy.ai/v1/browser/sessions",
+      "request": {
+        "durationMinutes": 1
+      },
+      "receivedAt": "2026-10-26T22:53:07.911Z",
+      "serverDate": "Mon, 26 Oct 2026 22:53:07 GMT",
+      "status": 402,
+      "paid": false,
+      "bodySha256": "85428094af42328b585e1eb0b469d0c1c9faf627d8ee2ede2bf9a82d86dc6037",
+      "envelope": {
+        "x402Version": 1,
+        "accepts": [
+          {
+            "scheme": "exact",
+            "network": "celo",
+            "maxAmountRequired": "3606",
+            "resource": "https://gateway.usebuy.ai/v1/browser/sessions",
+            "description": "Rent an isolated agent browser through buy-gateway",
+            "mimeType": "application/json",
+            "payTo": "0x20faAca5F980E29639A0FCC6dcA6988E18ed333B",
+            "maxTimeoutSeconds": 300,
+            "asset": "0xcebA9300f2b948710d2653dD7B07f33A8B32118C",
+            "extra": {
+              "name": "USDC",
+              "version": "2",
+              "gateway": {
+                "capability": "browser.sessions.create",
+                "provider": "buy-browser-worker",
+                "pricingModel": "duration",
+                "durationMinutes": 1
+              }
+            }
+          },
+          {
+            "scheme": "exact",
+            "network": "celo",
+            "maxAmountRequired": "3606",
+            "resource": "https://gateway.usebuy.ai/v1/browser/sessions",
+            "description": "Rent an isolated agent browser through buy-gateway",
+            "mimeType": "application/json",
+            "payTo": "0x20faAca5F980E29639A0FCC6dcA6988E18ed333B",
+            "maxTimeoutSeconds": 300,
+            "asset": "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e",
+            "extra": {
+              "name": "Tether USD",
+              "version": "1",
+              "gateway": {
+                "capability": "browser.sessions.create",
+                "provider": "buy-browser-worker",
+                "pricingModel": "duration",
+                "durationMinutes": 1
+              }
+            }
+          },
+          {
+            "scheme": "exact",
+            "network": "celo",
+            "maxAmountRequired": "3606",
+            "resource": "https://gateway.usebuy.ai/v1/browser/sessions",
+            "description": "Rent an isolated agent browser through buy-gateway",
+            "mimeType": "application/json",
+            "payTo": "0x20faAca5F980E29639A0FCC6dcA6988E18ed333B",
+            "maxTimeoutSeconds": 300,
+            "asset": "0xD2ab3C9A02DBBAB236BfEC45D1d755DF4267F771",
+            "extra": {
+              "name": "Tether America USD",
+              "version": "1",
+              "gateway": {
+                "capability": "browser.sessions.create",
+                "provider": "buy-browser-worker",
+                "pricingModel": "duration",
+                "durationMinutes": 1
+              }
+            }
+          },
+          {
+            "scheme": "exact",
+            "network": "celo-sepolia",
+            "maxAmountRequired": "3606",
+            "resource": "https://gateway.usebuy.ai/v1/browser/sessions",
+            "description": "Rent an isolated agent browser through buy-gateway (sandbox: Celo Sepolia test funds)",
+            "mimeType": "application/json",
+            "payTo": "0x20faAca5F980E29639A0FCC6dcA6988E18ed333B",
+            "maxTimeoutSeconds": 300,
+            "asset": "0x01C5C0122039549AD1493B8220cABEdD739BC44E",
+            "extra": {
+              "name": "USDC",
+              "version": "2",
+              "gateway": {
+                "capability": "browser.sessions.create",
+                "provider": "buy-browser-worker",
+                "pricingModel": "duration",
+                "sandbox": true,
+                "durationMinutes": 1
+              }
+            }
+          }
+        ],
+        "error": ""
+      },
+      "selected": {
+        "scheme": "exact",
+        "network": "celo",
+        "maxAmountRequired": "3606",
+        "resource": "https://gateway.usebuy.ai/v1/browser/sessions",
+        "description": "Rent an isolated agent browser through buy-gateway",
+        "mimeType": "application/json",
+        "payTo": "0x20faAca5F980E29639A0FCC6dcA6988E18ed333B",
+        "maxTimeoutSeconds": 300,
+        "asset": "0xcebA9300f2b948710d2653dD7B07f33A8B32118C",
+        "extra": {
+          "name": "USDC",
+          "version": "2",
+          "gateway": {
+            "capability": "browser.sessions.create",
+            "provider": "buy-browser-worker",
+            "pricingModel": "duration",
+            "durationMinutes": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "vm",
+      "url": "https://usebuy.ai/google/vm",
+      "request": {
+        "script": "uname -a",
+        "machineType": "e2-micro"
+      },
+      "receivedAt": "2026-10-26T22:53:08.253Z",
+      "serverDate": "Mon, 26 Oct 2026 22:53:08 GMT",
+      "status": 402,
+      "paid": false,
+      "bodySha256": "f182e04d4f0d398221bbf1a03a96d2d87c950bbf56bc4863b2ace0284ae5b37e",
+      "envelope": {
+        "x402Version": 1,
+        "accepts": [
+          {
+            "scheme": "exact",
+            "network": "celo",
+            "maxAmountRequired": "16753",
+            "resource": "https://usebuy.ai/google/vm",
+            "description": "e2-micro VM, 1h, runs your script. The response usually takes about 60 s, occasionally several minutes; do not interrupt it, the payment settles first",
+            "mimeType": "application/json",
+            "payTo": "0x20faAca5F980E29639A0FCC6dcA6988E18ed333B",
+            "maxTimeoutSeconds": 300,
+            "asset": "0xcebA9300f2b948710d2653dD7B07f33A8B32118C",
+            "extra": {
+              "name": "USDC",
+              "version": "2",
+              "gce": {
+                "machineType": "e2-micro",
+                "seconds": 3600,
+                "spot": false,
+                "vcpu": 0.25,
+                "usdPerHour": 0.00837643,
+                "factor": 2,
+                "computedAtomic": "16753",
+                "minAtomic": "10000",
+                "floorApplied": false
+              }
+            }
+          },
+          {
+            "scheme": "exact",
+            "network": "celo",
+            "maxAmountRequired": "16753",
+            "resource": "https://usebuy.ai/google/vm",
+            "description": "e2-micro VM, 1h, runs your script. The response usually takes about 60 s, occasionally several minutes; do not interrupt it, the payment settles first",
+            "mimeType": "application/json",
+            "payTo": "0x20faAca5F980E29639A0FCC6dcA6988E18ed333B",
+            "maxTimeoutSeconds": 300,
+            "asset": "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e",
+            "extra": {
+              "name": "Tether USD",
+              "version": "1",
+              "gce": {
+                "machineType": "e2-micro",
+                "seconds": 3600,
+                "spot": false,
+                "vcpu": 0.25,
+                "usdPerHour": 0.00837643,
+                "factor": 2,
+                "computedAtomic": "16753",
+                "minAtomic": "10000",
+                "floorApplied": false
+              }
+            }
+          },
+          {
+            "scheme": "exact",
+            "network": "celo",
+            "maxAmountRequired": "16753",
+            "resource": "https://usebuy.ai/google/vm",
+            "description": "e2-micro VM, 1h, runs your script. The response usually takes about 60 s, occasionally several minutes; do not interrupt it, the payment settles first",
+            "mimeType": "application/json",
+            "payTo": "0x20faAca5F980E29639A0FCC6dcA6988E18ed333B",
+            "maxTimeoutSeconds": 300,
+            "asset": "0xD2ab3C9A02DBBAB236BfEC45D1d755DF4267F771",
+            "extra": {
+              "name": "Tether America USD",
+              "version": "1",
+              "gce": {
+                "machineType": "e2-micro",
+                "seconds": 3600,
+                "spot": false,
+                "vcpu": 0.25,
+                "usdPerHour": 0.00837643,
+                "factor": 2,
+                "computedAtomic": "16753",
+                "minAtomic": "10000",
+                "floorApplied": false
+              }
+            }
+          }
+        ],
+        "error": ""
+      },
+      "selected": {
+        "scheme": "exact",
+        "network": "celo",
+        "maxAmountRequired": "16753",
+        "resource": "https://usebuy.ai/google/vm",
+        "description": "e2-micro VM, 1h, runs your script. The response usually takes about 60 s, occasionally several minutes; do not interrupt it, the payment settles first",
+        "mimeType": "application/json",
+        "payTo": "0x20faAca5F980E29639A0FCC6dcA6988E18ed333B",
+        "maxTimeoutSeconds": 300,
+        "asset": "0xcebA9300f2b948710d2653dD7B07f33A8B32118C",
+        "extra": {
+          "name": "USDC",
+          "version": "2",
+          "gce": {
+            "machineType": "e2-micro",
+            "seconds": 3600,
+            "spot": false,
+            "vcpu": 0.25,
+            "usdPerHour": 0.00837643,
+            "factor": 2,
+            "computedAtomic": "16753",
+            "minAtomic": "10000",
+            "floorApplied": false
+          }
+        }
+      }
+    }
+  ]
+}

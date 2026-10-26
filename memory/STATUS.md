@@ -4,7 +4,7 @@ Last updated: 2026-10-26 (Africa/Lagos).
 
 ## State
 
-**M1 in progress: VAL-01 and VAL-03 complete locally; VAL-02 technical proof passed.** Browser evidence, regression verification, and Remesso crash recovery have executable proofs. Independent operator review remains open. There is no deployed marketplace application yet.
+**M1 in progress: browser, repair, payout recovery, and resource-payment controls have local proofs.** VAL-01 and VAL-03 are complete locally. VAL-02 independent operator review and VAL-04 real resource provisioning remain open. There is no deployed marketplace application yet.
 
 | Area | State | Evidence |
 | --- | --- | --- |
@@ -17,15 +17,15 @@ Last updated: 2026-10-26 (Africa/Lagos).
 | Repair verification | Technical gate passed; independent review pending | [Repair evidence](../docs/evidence/VAL-02.json) |
 | Marketplace stack, application, infrastructure | Not started | Spike tooling selected; product architecture open |
 | Celo / Remesso capability | Passed on local Celo fork | [Experiment](../spikes/payments/README.md), [19-check evidence](../docs/evidence/VAL-03.json); production integration pending |
-| buy resource capability | In progress | Live unsigned quotes observed; paid allocation and resource output pending |
+| buy resource capability | Local controls passed; provisioning pending | [Experiment](../spikes/resources/README.md), [quotes](../docs/evidence/VAL-04-quotes.json), [14-check fork evidence](../docs/evidence/VAL-04.json) |
 | Git remote and public repository | Not configured | Local checkpoint history only |
 | Event enrollment and deployment | Not performed | No entry or live demo |
 
 ## Next action
 
-**VAL-04:** finish buy quote/cap and uncertain-settlement controls using its pinned SDK and simulated paid transport. Keep paid provisioning, runner isolation, and trace export explicitly pending until a funded resource is exercised.
+**VAL-05:** choose and record the marketplace architecture and stack using the proven local runner and provider constraints, then prepare ALPHA-01 scaffolding. A transactional relational ledger/outbox, shared signer coordination, private artifacts, and isolated execution are required. Keep the live buy adapter disabled pending useful paid-resource evidence.
 
-**VAL-02 remains open only for independent operator review:** have a different operator reproduce the recorded baseline/candidate result against the pinned source hashes and record their identity/conflicts and evidence. A separate process from this session does not satisfy that requirement. **VAL-05** records the product stack after execution/payment/resource constraints are understood. See [BACKLOG.md](../docs/BACKLOG.md).
+**VAL-02 remains open only for independent operator review:** have a different operator reproduce the baseline/candidate result against pinned source hashes and record their identity/conflicts and evidence. A separate process from this session does not satisfy that requirement. **VAL-04** still needs a funded browser session, useful journey output, trace export, isolation/cleanup checks, and an actual provider receipt; its [experiment notes](../spikes/resources/README.md) define the next funded gate. These gaps do not block architecture selection (D012). See [BACKLOG.md](../docs/BACKLOG.md).
 
 ## Dependencies to resolve before implementation or submission
 
@@ -42,6 +42,8 @@ No dependency blocks local capability work. Registration, wallet funding, and de
 - VAL-01: 8 Node checks pass; two fresh Chromium journeys reproduced the defect. The export contains sanitized traces, explicit product failures, build hashes, and artifact integrity records.
 - VAL-02: baseline regression fails twice for the seeded defect; the same candidate regression passes twice. All 13 supporting checks pass on both builds, including negative acceptance-gate cases. Baseline source remains unchanged.
 - VAL-03: 19 fork checks passed: actual USDC policy payment, crash immediately after broadcast, fresh-process recovery, one recipient payment/nonce, receipt validation, revocation preserving debt. Two local-signing guard checks added.
+- VAL-04: live unsigned browser/VM quotes recorded; 14 fork checks passed with real SDK EIP-3009 signatures/local USDC settlement and simulated lost/500 responses. Fresh processes matched exact receipts without another purchase. No provider resource was allocated.
+- Latest `npm test`: 28 passing checks, including 13 resource-control cases. Signed resource transport is restricted to the simulation fixture.
 - No marketplace acceptance or production payment tests have run; local evidence does not establish production readiness.
 
 The unrelated nested `eezex/` repository is untracked in this repository and is excluded from these checkpoints.

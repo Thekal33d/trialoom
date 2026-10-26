@@ -11,9 +11,12 @@
     "test": "node --test spikes/*/tests/*.test.mjs",
     "spike:reproduce": "node spikes/browser-evidence/run.mjs",
     "spike:verify": "node spikes/browser-evidence/verify-repair.mjs",
-    "spike:payments": "node spikes/payments/run.mjs"
+    "spike:payments": "node spikes/payments/run.mjs",
+    "spike:resource-quotes": "node spikes/resources/quote.mjs",
+    "spike:resources": "node spikes/resources/run.mjs"
   },
   "devDependencies": {
+    "@celo/buy-core": "0.8.4",
     "@playwright/test": "1.64.1",
     "fflate": "0.8.3",
     "remesso-sdk": "0.3.0",

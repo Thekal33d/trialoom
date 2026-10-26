@@ -48,3 +48,14 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Limitation: all execution came from the same operator. VAL-02 is still in progress until another operator supplies independent review; no payout or marketplace acceptance is claimed.
 - Commit subject: `feat: verify repairs against baseline and candidate builds`.
 - Next: VAL-03 payment capability/recovery validation and VAL-04 resource-provider validation.
+
+## 2026-10-26 — VAL-03 — Remesso USDC policy and durable recovery
+
+- Checked current official Remesso documentation and pinned SDK 0.3.0 / viem 2.57.7. Verified USDC address/decimals and deployed Remesso code on an owned Celo fork.
+- Added an executable local-only payout experiment with guarded public Anvil accounts, private durable journals, a separate synthetic payable, and child-process fault injection immediately after broadcast.
+- Validation: 19 integration checks passed. A replacement worker reconciled the original transaction; another retry reused it. Recipient balance rose exactly 250,000 USDC base units and the sender consumed one nonce. Changed terms, debit/policy limits, disallowed recipient, invalid precision, incorrect receipt amount, and corrupt journals refused. Revocation retained accepted debt as blocked.
+- `npm test` passed all 15 supporting checks, including two remote-signing guard tests. Git diff checks passed. Committed the reviewed summary, not signed raw journals, at `docs/evidence/VAL-03.json`.
+- Limitations: local-fork funds and synthetic acceptance only; file storage is single-writer. Real backend/finality, multi-worker coordination, transactional application ledger/outbox, and pausing claims remain unimplemented. No mainnet payment, public deployment, or hackathon enrollment occurred.
+- Provider discovery also observed unsigned buy quotes; VAL-04 remains in progress for controls and resource-output evidence.
+- Commit subject: `feat: prove Remesso payout recovery on a local Celo fork`.
+- Next: finish VAL-04 quote caps and uncertain-settlement controls, retaining funded provisioning as a separate gate.

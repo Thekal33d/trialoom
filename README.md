@@ -22,9 +22,11 @@ The project is being developed with the Celo agentic hackathon in mind. USDC on 
 | [Agent instructions](AGENTS.md) | Working and commit protocol for future coding sessions |
 | [Claude entry point](CLAUDE.md) | Loads the shared agent instructions |
 
-The first local browser/evidence experiment is implemented in [spikes/browser-evidence](spikes/browser-evidence/README.md). It reproduces a seeded invitation defect twice, exports sanitized traces and structured assertions, and verifies artifact hashes. This is a capability harness; marketplace application code, infrastructure, and payment integrations are still pending.
+The local [browser/evidence experiment](spikes/browser-evidence/README.md) reproduces a seeded invitation defect twice, exports sanitized traces, and verifies a regression repair. The [Remesso experiment](spikes/payments/README.md) proves USDC policy payments and crash recovery on a local Celo fork. Marketplace application code, infrastructure, and production integrations are still pending.
 
 With Node 24, run `npm ci --ignore-scripts`, `npm run browser:install`, `npm test`, then `npm run spike:reproduce`. Run `npm run spike:verify` to prove the same regression fails on the original fixture and passes on a patched copy. See the experiment README for trace inspection and limits.
+
+With Anvil installed, `npm run spike:payments` exercises local payment recovery without spending mainnet funds.
 
 ## Working rhythm
 

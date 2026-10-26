@@ -1,0 +1,100 @@
+{
+  "task": "VAL-03",
+  "runId": "2026-10-26T22-49-08.031Z-0e9a9232",
+  "recordedAt": "2026-10-26T22:49:24.481Z",
+  "environment": "owned loopback Anvil Celo mainnet fork; no mainnet transactions",
+  "versions": {
+    "node": "v24.11.1",
+    "remesso": "0.3.0",
+    "viem": "2.57.7",
+    "anvil": {
+      "currentBlockNumber": "0x4d65090",
+      "currentBlockTimestamp": 1793054951,
+      "currentBlockHash": "0xa2115b8428963d27d54ba741ee88dd203a5978ed5d7e814298d80b55e26b0961",
+      "hardFork": "Prague",
+      "transactionOrder": "fees",
+      "environment": {
+        "baseFee": "0x1b784794c4",
+        "chainId": 42220,
+        "gasLimit": "0x1c9c380",
+        "gasPrice": "0x1bb3e25ec4"
+      },
+      "forkConfig": {
+        "forkUrl": "https://forno.celo.org/",
+        "forkBlockNumber": 81154189,
+        "forkRetryBackoff": 1000
+      }
+    }
+  },
+  "token": {
+    "symbol": "USDC",
+    "address": "0xcebA9300f2b948710d2653dD7B07f33A8B32118C",
+    "decimals": 6,
+    "currency": "USD",
+    "directAllowed": true,
+    "feeCurrency": "0x2F25deB3848C207fc8E0c34035B3Ba7fC157602B",
+    "minPerRun": "1000000",
+    "maxPerRun": "1000000000"
+  },
+  "contracts": {
+    "RemessoAgentAllowance": {
+      "address": "0xA6351fAeEb097698289586C4D6188530300DB209",
+      "codeHash": "0x9d66aee151da0eae9e5ad2f6f533e1c3e45d8f9a648ff83fed1c6fe189b64123"
+    },
+    "RemessoExecutorV5": {
+      "address": "0x3C357af3300f383Ea49B6D6ED8e084199a92bEd8",
+      "codeHash": "0x32be39d31e7197dc115837ba3478de826fa4d0119f07ae6a69761d400fe283bc"
+    }
+  },
+  "policyId": "17",
+  "checks": [
+    "USDC address and six decimals verified on fork",
+    "RemessoAgentAllowance deployed code exists on fork",
+    "RemessoExecutorV5 deployed code exists on fork",
+    "USDC policy quote succeeds without reserving allowance",
+    "max debit refuses without transfer",
+    "policy limit refuses without transfer",
+    "recipient allowlist refuses without transfer",
+    "token precision refuses without transfer",
+    "worker exits immediately after broadcast",
+    "signed intent survives crash before outcome was saved",
+    "fresh worker reconciles original hash",
+    "fresh worker retry reuses original transfer",
+    "recipient received exactly one payout and signer used one nonce",
+    "same key with changed amount refuses",
+    "receipt validates exact payer recipient token amount policy memo",
+    "wrong receipt amount refuses",
+    "local test builder code appears in transaction suffix",
+    "revoked policy blocks payment while accepted obligation survives",
+    "corrupt SDK journal fails closed"
+  ],
+  "payout": {
+    "key": "trialoom:2026-10-26T22-49-08.031Z-0e9a9232:fee",
+    "hash": "0x2f09b1d713843788321bca02a80cf0fbc9ba33187075d6cc583e689d29941faf",
+    "nonce": 228,
+    "amountUnits": "250000",
+    "recipientBalanceDeltaUnits": "250000",
+    "receiptEventId": "42220:0xa6351faeeb097698289586c4d6188530300db209:0x2f09b1d713843788321bca02a80cf0fbc9ba33187075d6cc583e689d29941faf:0",
+    "evidenceFinality": "included"
+  },
+  "recovery": {
+    "crashExitCode": 73,
+    "persistedStatusAtCrash": "sent",
+    "recoveredStatus": "included",
+    "originalTransactionReused": true
+  },
+  "limitations": [
+    "Synthetic acceptance, single writer; not the marketplace ledger/outbox",
+    "Production Remesso backend, multi-worker coordination and real Celo finality/reorgs not tested",
+    "Test builder code is not hackathon attribution or enrollment",
+    "USDC minted only on disposable local fork"
+  ],
+  "sources": {
+    "package.json": "5b35e6673d556b6075d429a055c98272eefef7277455e449a629d82c5eb72cb6",
+    "package-lock.json": "516a3a575d5c0e07a82b35e20708179124551e815a24867dab76c2b616465124",
+    "spikes/payments/local.mjs": "7a56cdcc87e5a1cb039c5f392359cfbde0e96a3f530c8a9f50b19b21e8dd1434",
+    "spikes/payments/journal.mjs": "5a63eff4b7ba72814e433fa0c43497e6f783de183e454f4246aecfe2e0ca64a3",
+    "spikes/payments/worker.mjs": "2dcbc4970bbc403cd5df4d1834af659313084195949afcec1943eae146ee065f",
+    "spikes/payments/run.mjs": "e401590a0756aa50f139c771292107a2e68dadb562ae2be2132ce0ef7c2b36b6"
+  }
+}

@@ -12,8 +12,8 @@ States: **Ready**, **In progress**, **Blocked**, **Not started**, **Done**, **De
 | SETUP-02 | M0 | Roadmap, backlog, hackathon notes, validation register | Done | SETUP-01 | Dated sources; mapped requirements; truthful status and next action; documentation checkpoint |
 | VAL-01 | M1 | Runner and evidence spike | Done | SETUP-02 | Two clean Chromium reproductions, build/fixture IDs, assertions, sanitized traces and verified hashes; [recorded evidence](evidence/VAL-01.json) |
 | VAL-02 | M1 | Repair verification spike | In progress | VAL-01 | Technical proof passed: baseline fails twice, candidate passes twice, supporting checks pass on both; [evidence](evidence/VAL-02.json). Independent operator review remains pending |
-| VAL-03 | M1 | Remesso and recovery spike | Ready | SETUP-02 | Verify current SDK/deployment/token support; persistent journal; policy loss; crash after broadcast reconciles without duplicate transfer; conditions/limits documented |
-| VAL-04 | M1 | Paid resource capability spike | Ready | SETUP-02 | Useful service, isolation, trace export, quote/cap enforcement, uncertain-settlement recovery; distinguish technical proof from paid receipts |
+| VAL-03 | M1 | Remesso and recovery spike | Done | SETUP-02 | 19 checks passed on local Celo fork: deployed code/USDC, durable journal, policy loss, actual crash after broadcast and fresh-process recovery without duplicate transfer. [Evidence](evidence/VAL-03.json), [production limits](../spikes/payments/README.md) |
+| VAL-04 | M1 | Paid resource capability spike | In progress | SETUP-02 | Live unsigned browser/VM quotes observed. SDK cap/recovery tests underway; useful paid output, isolation, and trace export remain pending |
 | VAL-05 | M1 | Architecture and stack decision | Not started | VAL-01, VAL-03, VAL-04 | Choose web/API/runtime, relational database, outbox/queue, auth, storage, isolation, hosting; record tradeoffs and local run approach |
 
 VAL-03/VAL-04 start with documentation and controlled environments. A later paid experiment needs its concrete wallet, amount, and funding authority established; this planning request does not provide those details.

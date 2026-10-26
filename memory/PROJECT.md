@@ -29,7 +29,7 @@ The disposable browser/evidence experiment uses Node 24 and Playwright Test (D00
 
 ## Money and trust
 
-- PRD direction: USDC on Celo, with Remesso for approved operator payments and a separate optional buy resource adapter. These are intended integrations, not completed capabilities.
+- PRD direction: USDC on Celo, with Remesso for approved operator payments and a separate optional buy resource adapter. Remesso policy payments and crash recovery are proven on a disposable local Celo fork (VAL-03); production integration and paid buy output remain pending.
 - A builder policy authorizes spending; it does not escrow or reserve funds. Campaign reservations live in Trialoom's ledger. Public secured-payment promises need a separate funding design.
 - Finalized charges + unpaid liabilities + outstanding maximum commitments must stay within the campaign ceiling. Resources and platform fees participate in this invariant.
 - Accepted work remains owed after insufficient funds, policy revocation, or cancellation. Payment retries reconcile the same operation identity.

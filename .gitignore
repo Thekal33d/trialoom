@@ -1,0 +1,40 @@
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*.p12
+*.keystore
+secrets/
+
+# Dependencies and generated output
+node_modules/
+.next/
+dist/
+build/
+coverage/
+.turbo/
+.cache/
+.venv/
+__pycache__/
+*.pyc
+*.tsbuildinfo
+
+# Local execution evidence may contain private customer data
+artifacts/
+playwright-report/
+test-results/
+*.log
+*.sqlite
+*.sqlite3
+*.db
+
+# Local deployment and editor state
+.vercel/
+.DS_Store
+.idea/
+.vscode/
+
+# Keep package-manager lockfiles and reviewed, sanitized demo evidence tracked.

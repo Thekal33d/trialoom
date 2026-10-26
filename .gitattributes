@@ -1,0 +1,2 @@
+# Preserve intentional Markdown hard breaks in the verbatim source document.
+docs/PRD.md whitespace=-blank-at-eol

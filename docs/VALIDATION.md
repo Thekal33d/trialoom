@@ -1,8 +1,8 @@
 # Validation and evidence register
 
-Last updated: 2026-10-26. Source: [PRD release acceptance scenarios](PRD.md#release-acceptance-scenarios).
+Last updated: 2026-10-27. Source: [PRD release acceptance scenarios](PRD.md#release-acceptance-scenarios).
 
-**The local capability harness has run; marketplace release scenarios remain unimplemented.** Record command, date, tested commit/build, fixture, outcome, and sanitized artifact references. Preserve failed and blocked outcomes.
+**Local capability and application-scaffold checks have run; marketplace release scenarios remain unimplemented.** Record command, date, tested commit/build, fixture, outcome, and sanitized artifact references. Preserve failed and blocked outcomes.
 
 ## Capability experiments
 
@@ -12,6 +12,10 @@ Last updated: 2026-10-26. Source: [PRD release acceptance scenarios](PRD.md#rele
 | VAL-02 | Baseline failure, candidate pass, existing checks, independent verifier | Technical proof passed; [manifest](evidence/VAL-02.json). Independent operator review pending |
 | VAL-03 | Verified integration facts and persistent recovery under policy loss and crash after broadcast | 19 checks passed on local Celo fork; [evidence](evidence/VAL-03.json). Production backend/finality and concurrent workers untested |
 | VAL-04 | Useful resource output, cost ceiling, receipt, isolation, timeout reconciliation | [Unsigned live quotes](evidence/VAL-04-quotes.json), 13 control cases and [14 fork settlement/recovery checks](evidence/VAL-04.json) passed. Real allocation/output, isolation, trace export, and provider receipt pending |
+
+## Application foundation
+
+ALPHA-01 passed a clean lockfile install, lint/type/build checks, seven disposable-database checks, and 18 desktop/mobile browser checks. The demo exports a fixture summary and leaves independent acceptance/payment unavailable. [Evidence](evidence/ALPHA-01.json) records versions, source hashes, and limits. Queue lease tests cover the harmless smoke handler; they do not establish the assignment or financial invariants below.
 
 ## Release scenarios
 
@@ -51,5 +55,6 @@ These IDs correspond to the twelve numbered PRD scenarios. Each needs an impleme
 | 2026-10-26 | VAL-02 | Content hashes in [manifest](evidence/VAL-02.json) | `npm run spike:verify` | Technical proof passed | 2 baseline failures and 2 candidate passes; 13 supporting checks pass on each build; no independent operator claim |
 | 2026-10-26 | VAL-03 | Source hashes in [manifest](evidence/VAL-03.json) | `npm run spike:payments`; `npm test` | Local provider capability passed | 19 fork checks; remote-signing guards; actual 0.25 local USDC transfer exactly once after crash/restart; no mainnet funds |
 | 2026-10-26 | VAL-04 | Source hashes in [manifest](evidence/VAL-04.json) | `npm run spike:resource-quotes`; `npm run spike:resources`; `npm test` | Local controls passed; resource proof pending | 14 fork checks, 13 resource tests; complete suite 28 passed. Fresh ephemeral payer fixed delegated-code fixture incompatibility; no paid provider requests |
+| 2026-10-27 | ALPHA-01 | Source hashes in [manifest](evidence/ALPHA-01.json) | Clean install, lint/type/build, `npm test`, `npm run test:db`, `npm run test:e2e`, local worker smoke | Passed locally | 28 existing checks, seven database checks, 18 browser checks; zero detected axe violations on four routes/two viewports. CI configured but not run remotely; fixture-only app |
 
 Raw private traces and credentials are not commit artifacts. Commit sanitized fixtures, test code, and approved evidence summaries; use access-controlled records for private artifacts when the platform exists.

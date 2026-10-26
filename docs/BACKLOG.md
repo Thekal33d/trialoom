@@ -24,8 +24,8 @@ The local execution baseline and observed provider constraints are sufficient fo
 
 | ID | Work | State | Depends on | PRD coverage | Acceptance / evidence |
 | --- | --- | --- | --- | --- | --- |
-| ALPHA-01 | Application scaffold | In progress | VAL-05 | System design | Reproducible install/start/check commands, safe env template, migrations, appropriate CI |
-| ALPHA-02 | Roles, projects, builds, immutable terms | Not started | ALPHA-01 | FR01–FR03 | Role checks and authorized target/build; term changes affect future claims only |
+| ALPHA-01 | Application scaffold | Done | VAL-05 | System design | Verified clean install/build/start, safe local env/Compose, seven migration/worker checks, 18 desktop/mobile browser checks, CI configured; [evidence](evidence/ALPHA-01.json), [run guide](DEVELOPMENT.md) |
+| ALPHA-02 | Roles, projects, builds, immutable terms | Ready | ALPHA-01 | FR01–FR03 | Role checks and authorized target/build; term changes affect future claims only |
 | ALPHA-03 | Operator connection and qualification | Not started | ALPHA-02 | FR04–FR05 | Wallet control, seeded qualification, eligible work, versioned/scoped API, idempotent mutations |
 | ALPHA-04 | Ledger, claims, leases, cancellation | Not started | ALPHA-02 | FR06, FR14–FR15 | Concurrent claim cap, shared-wallet commitments, stale-attempt fencing, preserved obligations |
 | ALPHA-05 | Runner isolation and evidence | Not started | VAL-01, ALPHA-03, ALPHA-04 | FR07–FR08 | Target/redirect/DNS limits, scoped credentials, schema/hash/size checks, redaction, private storage |

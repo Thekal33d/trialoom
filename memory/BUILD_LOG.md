@@ -80,3 +80,15 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Validation: inspected source requirements and package versions; architecture maps all requested concerns. This checkpoint is a decision, not an implemented authentication, hosting, isolation, or payment claim.
 - Commit subject: `docs: select the Trialoom application architecture`.
 - Next: ALPHA-01 runnable scaffold and appropriate checks.
+
+## 2026-10-27 — ALPHA-01 — Runnable workspace and durable worker
+
+- Built a Next.js/React workspace with responsive overview, filter/search recovery, before/after evidence, downloadable demo report, payments explanation, and guide. Canopy is an example project; fixture results explicitly retain pending independent review and no payment authority. Bundled fonts locally and recorded the provisional visual direction in `.impeccable.md` while awaiting user preference.
+- Added an isolated loopback PostgreSQL 18.6 Compose service, private generated configuration, append-only checksum migrations, transaction helper, and separate Node worker. Durable `system.ping` jobs exercise deduplication, leases, stale-token fencing, atomic local effects, retries, and recorded exhaustion. No customer or financial tables/handlers are enabled.
+- Added Biome, strict TypeScript, documented install/start/migrate/worker/check commands, and pinned GitHub CI actions with a disposable database. CI is configured but not executed remotely; no Git remote exists.
+- Validation: clean `npm ci --ignore-scripts` and production build passed; lint and type checks passed; all 28 existing checks, seven database checks, and 18 desktop/mobile browser checks passed. Four routes at two viewports have no detected axe WCAG A/AA violations or document overflow. Inspected rendered desktop/mobile pages. The local smoke identity `alpha01-smoke` was enqueued and completed. Re-running setup preserved the ignored `.env` with mode 0600.
+- Resolved initial failures: browser scans caught insufficient muted-text contrast; darkened text and increased small labels, then reran successfully. Corrected a test's outdated heading locator. Loopback fixture tests initially hit sandbox `EPERM`; the authorized local-server run passed. Dependency installation reports zero known vulnerabilities; this is not a security audit.
+- Sanitized evidence, exact source hashes, commands, versions, and limitations are recorded in `docs/evidence/ALPHA-01.json`. The original PRD is unchanged. Generated browser artifacts and local credentials remain ignored; the unrelated `eezex/` repository is untouched.
+- Limitations: synthetic UI only; no authentication, real campaigns, acceptance/ledger, live payments/resources, private storage, runner isolation, or deployment. ALPHA-01 does not complete ALPHA-10 or any marketplace release scenario. Independent operator review and real resource provisioning remain open M1 gates.
+- Commit subject: `feat: scaffold the Trialoom workspace and durable worker`.
+- Next: ALPHA-02 invite-only sessions, workspace roles, persisted projects/builds, and immutable terms.

@@ -1,0 +1,258 @@
+{
+  "schemaVersion": 1,
+  "task": "ALPHA-01",
+  "verifiedAt": "2026-10-26T23:27:20.673Z",
+  "sourceRevision": "6d2892c3d58ceb1382d53795d2b4ad101ac8386f",
+  "sourceTreeDirty": true,
+  "scope": "Local application scaffold; synthetic presentation data and database-local smoke jobs only",
+  "runtime": {
+    "node": "v24.11.1",
+    "postgres": "18.6",
+    "next": "16.4.3",
+    "react": "19.3.1",
+    "pg": "8.23.1",
+    "typescript": "6.0.3",
+    "playwright": "1.64.1",
+    "axe": "4.14.0",
+    "biome": "2.6.3"
+  },
+  "checks": [
+    {
+      "command": "npm ci --ignore-scripts",
+      "result": "passed",
+      "auditKnownVulnerabilities": 0
+    },
+    {
+      "command": "npm run setup:local",
+      "result": "created private .env; repeat preserved existing file; mode 0600; ignored by Git"
+    },
+    {
+      "command": "npm run db:up; npm run db:migrate",
+      "result": "isolated loopback PostgreSQL healthy; 0001_runtime.sql applied"
+    },
+    {
+      "command": "npm run lint; npm run typecheck; npm run build",
+      "result": "passed"
+    },
+    {
+      "command": "npm test",
+      "passed": 28,
+      "failed": 0
+    },
+    {
+      "command": "npm run test:db",
+      "passed": 7,
+      "failed": 0,
+      "coverage": [
+        "concurrent migration and idempotent rerun",
+        "applied checksum drift",
+        "rollback leaves no job",
+        "concurrent deduplication and one local effect",
+        "expired lease fencing",
+        "worker restart in fresh process",
+        "exhaustion retains dead job"
+      ]
+    },
+    {
+      "command": "npm run test:e2e",
+      "passed": 18,
+      "failed": 0,
+      "viewports": [
+        {
+          "browser": "Chromium",
+          "width": 1440,
+          "height": 1000
+        },
+        {
+          "browser": "Chromium mobile emulation",
+          "width": 390,
+          "height": 664
+        }
+      ],
+      "coverage": [
+        "journey filters/search/empty recovery",
+        "evidence navigation",
+        "before/after comparison",
+        "demo JSON download",
+        "payments and mobile guide navigation",
+        "four-route axe WCAG A/AA scans",
+        "document overflow",
+        "health and migration readiness",
+        "missing database yields generic 503",
+        "security headers/noindex",
+        "business mutation route unavailable"
+      ],
+      "axeDetectedViolations": 0
+    },
+    {
+      "command": "npm run jobs:enqueue -- alpha01-smoke; npm run worker -- --once",
+      "result": "one local job enqueued and completed",
+      "jobId": "f895bd37-cf91-4f1e-bba1-0ab4c8215fae"
+    },
+    {
+      "command": "npm run start",
+      "result": "local production preview started on 127.0.0.1:3000"
+    }
+  ],
+  "ci": {
+    "configured": true,
+    "remoteExecuted": false,
+    "workflow": ".github/workflows/ci.yml"
+  },
+  "visualReview": {
+    "reviewed": true,
+    "privateScreenshots": "test-results/workspace--demo*/page.png",
+    "routes": [
+      "/demo",
+      "/demo/evidence",
+      "/demo/payments",
+      "/demo/guide"
+    ],
+    "visualDirection": "provisional, user preference unconfirmed"
+  },
+  "limitations": [
+    "No real accounts, projects, assignment acceptance, or financial ledger",
+    "No live payments, paid resource allocation, artifact storage, runner isolation, or deployment",
+    "Queue effect is database-local; external payment exactly-once behavior is not established",
+    "Independent operator review and useful paid-resource output remain open",
+    "Automated accessibility scans and Chromium emulation do not establish complete accessibility or real-device coverage"
+  ],
+  "sourceFiles": [
+    {
+      "path": ".env.example",
+      "sha256": "2a2e3b817066561cb1efe395817893a2eefb8a1f39dedace4fdcced98807f811"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "1e12035ba2ca5ed43097a17b7498f2afcd4a313928bfeb43a9b645cecf6792f0"
+    },
+    {
+      "path": "biome.json",
+      "sha256": "267adc89fa68280dd86722430c19a2a5b5074045550ee7df7c5e796e5c59162f"
+    },
+    {
+      "path": "compose.yaml",
+      "sha256": "118e8892fb1ffc7f742acce35e816148baee1dd4e3facbba1de57d83342e85ce"
+    },
+    {
+      "path": "db/migrations/0001_runtime.sql",
+      "sha256": "80682b750d72933ee94a919d504d8feed2d5ce86d4e3c46245995d9c357b9e32"
+    },
+    {
+      "path": "next-env.d.ts",
+      "sha256": "1862ac4bbbc5192d4bf562161df66ea547ed3e67173100656ab606ae9797db2b"
+    },
+    {
+      "path": "next.config.ts",
+      "sha256": "7e4df4dfba315d7163b67310d2db5c3d7f2ff17c435880428c969b1e1d5796ba"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "3a033ee5933297ee75220eea4e9707f4ebc6db58f41549434843ef4f93eab1c2"
+    },
+    {
+      "path": "package.json",
+      "sha256": "7af401fd53999e49f124db5a3a6983eb710d6f2e319757b9177ef05ba42fae0f"
+    },
+    {
+      "path": "playwright.config.ts",
+      "sha256": "5f860d457addca74a70ab7b63edb449ba6fc59f55596f97990375b8eb221015c"
+    },
+    {
+      "path": "scripts/enqueue.ts",
+      "sha256": "434d6e2b2113e79be90e024316486f97aaff3ced8deb7c20618a3603c72637e0"
+    },
+    {
+      "path": "scripts/migrate.ts",
+      "sha256": "feab793bd67138c66a65f1909c27b79d05bf603c081e5b27a259ff4f145ce4f8"
+    },
+    {
+      "path": "scripts/setup-local.mjs",
+      "sha256": "535b3be348b7c0271e16c13c3ae13f5b481ec688fd6fd247a2781ef9092eca4a"
+    },
+    {
+      "path": "src/app/api/demo/report/route.ts",
+      "sha256": "ed1e229c9f964ba781298a1fae937fadfd563cba75c2e3ef855d452a9d0b579b"
+    },
+    {
+      "path": "src/app/api/health/route.ts",
+      "sha256": "e861f95c5cf181b56bb65e9b5a9ab044b4778fc5eb6d9097b5c08a52b13adca5"
+    },
+    {
+      "path": "src/app/api/ready/route.ts",
+      "sha256": "d1a87bac1b8a8ce4aeb704548accdfdac0d67cad4e392761ac9e1d7172475d98"
+    },
+    {
+      "path": "src/app/demo/evidence/page.tsx",
+      "sha256": "b84d1a270ec182ed853e6a419aeb21a3b814519ce8880cca590c67ea4829b5f0"
+    },
+    {
+      "path": "src/app/demo/guide/page.tsx",
+      "sha256": "f21c861861ecc41ee1be030dcbf23e2b1ca85492caecd4252525803cb81de53c"
+    },
+    {
+      "path": "src/app/demo/page.tsx",
+      "sha256": "f30590dbdde42e1fc2692ac28ca5f4e8c269e617f900d1748c5db36def82d0af"
+    },
+    {
+      "path": "src/app/demo/payments/page.tsx",
+      "sha256": "5cf87be0bdc4297cdd85537280364e1b66ef29506306a3d93bd81e807c065379"
+    },
+    {
+      "path": "src/app/globals.css",
+      "sha256": "5a5eb1d23e32c0d1619cb8700994cd785218f269cbb3af1ab9911aac8b2205b2"
+    },
+    {
+      "path": "src/app/icon.svg",
+      "sha256": "96318a4e9c08f97ab765beb2c22bda0ddf0d86492b3bffd2c55ee423200ca21a"
+    },
+    {
+      "path": "src/app/layout.tsx",
+      "sha256": "f9e5cac9c814d29f32ada633909a773bba0b31455169f1458c75b419300ccf4f"
+    },
+    {
+      "path": "src/app/page.tsx",
+      "sha256": "17332aff66ebd92d84312852c8b2f61ab248f135b66b2abc36a394fc9c174447"
+    },
+    {
+      "path": "src/components/icons.tsx",
+      "sha256": "ded3090157954b69598f1e28afec5a48ab8d30159ce83563129c26a604c2d665"
+    },
+    {
+      "path": "src/components/workspace.tsx",
+      "sha256": "285d970d099fb0bff8437ec53b6d703e3c25d17d165b4f9c49d2446dffbdb7f5"
+    },
+    {
+      "path": "src/demo/data.ts",
+      "sha256": "fb256a436264ba86875e18ca6a51854f6c868d25fe179b5b8b94997839cedbae"
+    },
+    {
+      "path": "src/server/database.ts",
+      "sha256": "e01e33196cdda85cb6df45e8f739792d1cb3c33e92af7e6526faa77644e8b031"
+    },
+    {
+      "path": "src/server/jobs.ts",
+      "sha256": "a1a4bcd06c49bc723953e1dadb05b65d1109307aa3c592a629e61f6d11897972"
+    },
+    {
+      "path": "src/server/migrations.ts",
+      "sha256": "181c139e174afb7bf25ecb3ec8120423084fa31ab36b064b78d23361f5507513"
+    },
+    {
+      "path": "tests/backend.test.ts",
+      "sha256": "db3b95ffe1e99f65ea44d4696922f4c3f90b96f62c9f17d2c74f1067421c3acb"
+    },
+    {
+      "path": "tests/browser/workspace.spec.ts",
+      "sha256": "f06916c73e02c4023a375790eb4507e697e5ad7b7b467604ea915dc89c9d99b6"
+    },
+    {
+      "path": "tsconfig.json",
+      "sha256": "07ea5aae2e78809233b49771e534578ec5b249083dd45394614fcda8a24994a6"
+    },
+    {
+      "path": "workers/main.ts",
+      "sha256": "d5806625e76e2abdde0a5b641bc38572985120696bd0f520481371da7d1b1376"
+    }
+  ]
+}

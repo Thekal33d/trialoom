@@ -13,13 +13,44 @@
     "spike:verify": "node spikes/browser-evidence/verify-repair.mjs",
     "spike:payments": "node spikes/payments/run.mjs",
     "spike:resource-quotes": "node spikes/resources/quote.mjs",
-    "spike:resources": "node spikes/resources/run.mjs"
+    "spike:resources": "node spikes/resources/run.mjs",
+    "dev": "next dev --hostname 127.0.0.1",
+    "build": "next build",
+    "start": "next start --hostname 127.0.0.1",
+    "setup:local": "node scripts/setup-local.mjs",
+    "db:up": "docker compose up -d --wait",
+    "db:down": "docker compose down",
+    "db:migrate": "node --env-file-if-exists=.env scripts/migrate.ts",
+    "jobs:enqueue": "node --env-file-if-exists=.env scripts/enqueue.ts",
+    "worker": "node --env-file-if-exists=.env workers/main.ts",
+    "typecheck": "next typegen && tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "test:db": "node --env-file-if-exists=.env --test tests/backend.test.ts",
+    "test:e2e": "PLAYWRIGHT_BROWSERS_PATH=.cache/ms-playwright playwright test",
+    "check": "npm run lint && npm run typecheck && npm test"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@biomejs/biome": "2.6.3",
     "@celo/buy-core": "0.8.4",
     "@playwright/test": "1.64.1",
+    "@types/node": "24.19.2",
+    "@types/pg": "8.23.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "fflate": "0.8.3",
     "remesso-sdk": "0.3.0",
+    "typescript": "6.0.3",
     "viem": "2.57.7"
+  },
+  "dependencies": {
+    "@fontsource-variable/dm-sans": "5.3.0",
+    "@fontsource-variable/manrope": "5.3.0",
+    "next": "16.4.3",
+    "pg": "8.23.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "server-only": "0.0.1"
   }
 }

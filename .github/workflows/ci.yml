@@ -1,0 +1,45 @@
+name: Application checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18.6-alpine@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5
+        env:
+          POSTGRES_USER: trialoom
+          POSTGRES_PASSWORD: ci-only-disposable
+          POSTGRES_DB: trialoom_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U trialoom -d trialoom_dev"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://trialoom:ci-only-disposable@127.0.0.1:5432/trialoom_dev
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run check
+      - run: npm run test:db
+      - run: npm run db:migrate
+      - run: npm run build
+      - run: PLAYWRIGHT_BROWSERS_PATH=.cache/ms-playwright npx --no-install playwright install --with-deps chromium --no-shell
+      - run: npm run test:e2e

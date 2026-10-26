@@ -63,7 +63,7 @@ Production web/worker/runner identities will have separate secrets and least-pri
 
 ## Local development and checks
 
-The scaffold will provide one isolated PostgreSQL Compose service bound to loopback, an ignored `.env` created from a safe template, explicit migration/smoke commands, `dev`, `build`, `start`, `worker`, type/lint/test commands, and CI. Local development credentials belong only to that project database. No existing PostgreSQL service or unrelated repository is modified.
+The verified ALPHA-01 scaffold provides one isolated PostgreSQL Compose service bound to loopback, an ignored `.env` created from a safe template, explicit migration/smoke commands, `dev`, `build`, `start`, `worker`, type/lint/test commands, and CI. See [DEVELOPMENT.md](DEVELOPMENT.md) for commands and [ALPHA-01 evidence](evidence/ALPHA-01.json) for local outcomes. Local development credentials belong only to that project database. No existing PostgreSQL service or unrelated repository is modified.
 
 Verification layers: pure domain/guard tests; migrations, job contention/restart/fencing against a fresh disposable PostgreSQL test database; production build; and desktop/mobile browser smoke tests. The initial worker handles only a database-local `system.ping` event, demonstrating persistence without creating a payment or external side effect.
 

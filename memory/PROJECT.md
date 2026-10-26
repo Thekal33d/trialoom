@@ -25,6 +25,8 @@ Start with Chromium and recorded desktop/mobile viewports, not claims of real-de
 
 The selected alpha architecture is Node 24/TypeScript, Next.js/React, PostgreSQL with explicit SQL and an outbox, and separate Node workers. Better Auth database sessions, private S3 evidence, Render containers, and a separate gVisor runner host are selected targets, with implementation gates recorded in [ARCHITECTURE.md](../docs/ARCHITECTURE.md). The scaffold must not expose customer records or money actions before authorization/ledger controls exist.
 
+A verified local scaffold now exists: `/demo` shows labelled fixture data, PostgreSQL stores migrations and harmless smoke jobs, and a separate worker consumes them. Run instructions are in [DEVELOPMENT.md](../docs/DEVELOPMENT.md). The reversible visual default is recorded in [.impeccable.md](../.impeccable.md); user visual preference remains unconfirmed.
+
 The disposable browser/evidence experiment uses Node 24 and Playwright Test (D009). This local harness is separate from the eventual marketplace architecture.
 
 ## Money and trust

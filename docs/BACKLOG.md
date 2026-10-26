@@ -1,6 +1,6 @@
 # Build backlog
 
-Last updated: 2026-10-26. Source: [PRD](PRD.md). Milestones: [ROADMAP.md](ROADMAP.md).
+Last updated: 2026-10-27. Source: [PRD](PRD.md). Milestones: [ROADMAP.md](ROADMAP.md).
 
 States: **Ready**, **In progress**, **Blocked**, **Not started**, **Done**, **Deferred**. Ready means dependencies permit work. Done requires acceptance evidence and a checkpoint commit. Dependencies identify tasks, not elapsed time.
 
@@ -14,7 +14,7 @@ States: **Ready**, **In progress**, **Blocked**, **Not started**, **Done**, **De
 | VAL-02 | M1 | Repair verification spike | In progress | VAL-01 | Technical proof passed: baseline fails twice, candidate passes twice, supporting checks pass on both; [evidence](evidence/VAL-02.json). Independent operator review remains pending |
 | VAL-03 | M1 | Remesso and recovery spike | Done | SETUP-02 | 19 checks passed on local Celo fork: deployed code/USDC, durable journal, policy loss, actual crash after broadcast and fresh-process recovery without duplicate transfer. [Evidence](evidence/VAL-03.json), [production limits](../spikes/payments/README.md) |
 | VAL-04 | M1 | Paid resource capability spike | In progress | SETUP-02 | [Live unsigned quotes](evidence/VAL-04-quotes.json), 13 control tests and [14 local settlement/recovery checks](evidence/VAL-04.json) passed. Useful paid output, isolation, trace export, and provider receipt remain pending |
-| VAL-05 | M1 | Architecture and stack decision | Ready | VAL-01, VAL-03, VAL-04 constraints (D012) | Choose web/API/runtime, relational database, outbox/queue, auth, storage, isolation, hosting; record tradeoffs and local run approach. Real buy provisioning remains an explicit integration gate |
+| VAL-05 | M1 | Architecture and stack decision | Done | VAL-01, VAL-03, VAL-04 constraints (D012) | [Accepted architecture](ARCHITECTURE.md), D013: stack/process/data/auth/storage/isolation/hosting choices, alternatives, local run plan, and explicit open gates |
 
 VAL-03/VAL-04 start with documentation and controlled environments. A later paid experiment needs its concrete wallet, amount, and funding authority established; this planning request does not provide those details.
 
@@ -24,7 +24,7 @@ The local execution baseline and observed provider constraints are sufficient fo
 
 | ID | Work | State | Depends on | PRD coverage | Acceptance / evidence |
 | --- | --- | --- | --- | --- | --- |
-| ALPHA-01 | Application scaffold | Not started | VAL-05 | System design | Reproducible install/start/check commands, safe env template, migrations, appropriate CI |
+| ALPHA-01 | Application scaffold | In progress | VAL-05 | System design | Reproducible install/start/check commands, safe env template, migrations, appropriate CI |
 | ALPHA-02 | Roles, projects, builds, immutable terms | Not started | ALPHA-01 | FR01–FR03 | Role checks and authorized target/build; term changes affect future claims only |
 | ALPHA-03 | Operator connection and qualification | Not started | ALPHA-02 | FR04–FR05 | Wallet control, seeded qualification, eligible work, versioned/scoped API, idempotent mutations |
 | ALPHA-04 | Ledger, claims, leases, cancellation | Not started | ALPHA-02 | FR06, FR14–FR15 | Concurrent claim cap, shared-wallet commitments, stale-attempt fencing, preserved obligations |

@@ -1,6 +1,6 @@
 # Core project memory
 
-Last updated: 2026-10-26.
+Last updated: 2026-10-27.
 
 ## Identity and purpose
 
@@ -23,7 +23,7 @@ Last updated: 2026-10-26.
 
 Start with Chromium and recorded desktop/mobile viewports, not claims of real-device coverage. Repository access is needed for repair work, not basic preview testing. Builders retain merge and deployment control. General app generation, native mobile testing, unrestricted load/security testing, anonymous public enrollment, cross-chain settlement, and expansion services are outside the initial release.
 
-The system needs a transactional relational ledger, private evidence storage, isolated runners, and durable job/payment recovery. Specific language, framework, database, queue, hosting, and authentication products are not yet chosen.
+The selected alpha architecture is Node 24/TypeScript, Next.js/React, PostgreSQL with explicit SQL and an outbox, and separate Node workers. Better Auth database sessions, private S3 evidence, Render containers, and a separate gVisor runner host are selected targets, with implementation gates recorded in [ARCHITECTURE.md](../docs/ARCHITECTURE.md). The scaffold must not expose customer records or money actions before authorization/ledger controls exist.
 
 The disposable browser/evidence experiment uses Node 24 and Playwright Test (D009). This local harness is separate from the eventual marketplace architecture.
 

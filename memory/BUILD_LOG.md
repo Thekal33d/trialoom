@@ -71,3 +71,12 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Limitations: no real resource allocation, provider receipt, output/trace export, isolation, finality timing, multi-worker journal, or production reimbursement proof. VAL-04 remains in progress. D012 permits architecture selection while these gates remain explicit.
 - Commit subject: `feat: validate buy resource caps and uncertain settlement recovery`.
 - Next: VAL-05 architecture/stack decision, followed by ALPHA-01; finish independent review and funded resource proof separately.
+
+## 2026-10-27 — VAL-05 — Application architecture selected
+
+- Selected a TypeScript/Next.js modular monolith with a separate Node worker, PostgreSQL/explicit SQL migrations, database outbox and lease fencing, Better Auth sessions, private S3 artifacts, Render containers, and a separate gVisor execution boundary.
+- Documented alternatives, transaction/authority boundaries, runtime/module layout, local verification, and deferred integrations in `docs/ARCHITECTURE.md`. D013 resolves the open stack decision; D012 continues to preserve incomplete resource/independence gates.
+- Verified current official documentation and package compatibility. Downloaded the official PostgreSQL 18.6 image for isolated local development; no existing database was modified.
+- Validation: inspected source requirements and package versions; architecture maps all requested concerns. This checkpoint is a decision, not an implemented authentication, hosting, isolation, or payment claim.
+- Commit subject: `docs: select the Trialoom application architecture`.
+- Next: ALPHA-01 runnable scaffold and appropriate checks.

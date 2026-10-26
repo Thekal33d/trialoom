@@ -1,6 +1,6 @@
 # Current status
 
-Last updated: 2026-10-26 (Africa/Lagos).
+Last updated: 2026-10-27 (Africa/Lagos).
 
 ## State
 
@@ -15,7 +15,8 @@ Last updated: 2026-10-26 (Africa/Lagos).
 | Hackathon alignment | Researched; track proposed | [Dated source notes and checklist](../docs/HACKATHON.md) |
 | Browser/evidence harness | Working locally | [Experiment](../spikes/browser-evidence/README.md), [manifest](../docs/evidence/VAL-01.json) |
 | Repair verification | Technical gate passed; independent review pending | [Repair evidence](../docs/evidence/VAL-02.json) |
-| Marketplace stack, application, infrastructure | Not started | Spike tooling selected; product architecture open |
+| Marketplace architecture | Selected | [Architecture](../docs/ARCHITECTURE.md), D013 |
+| Application scaffold | In progress | ALPHA-01: Next.js, PostgreSQL migrations, separate worker, local tooling and CI |
 | Celo / Remesso capability | Passed on local Celo fork | [Experiment](../spikes/payments/README.md), [19-check evidence](../docs/evidence/VAL-03.json); production integration pending |
 | buy resource capability | Local controls passed; provisioning pending | [Experiment](../spikes/resources/README.md), [quotes](../docs/evidence/VAL-04-quotes.json), [14-check fork evidence](../docs/evidence/VAL-04.json) |
 | Git remote and public repository | Not configured | Local checkpoint history only |
@@ -23,13 +24,13 @@ Last updated: 2026-10-26 (Africa/Lagos).
 
 ## Next action
 
-**VAL-05:** choose and record the marketplace architecture and stack using the proven local runner and provider constraints, then prepare ALPHA-01 scaffolding. A transactional relational ledger/outbox, shared signer coordination, private artifacts, and isolated execution are required. Keep the live buy adapter disabled pending useful paid-resource evidence.
+**ALPHA-01:** implement and verify the selected scaffold: web shell, explicit PostgreSQL migrations, harmless durable worker flow, safe local configuration, and CI. Keep public routes fixture-only until real authentication/authorization is implemented in ALPHA-02.
 
 **VAL-02 remains open only for independent operator review:** have a different operator reproduce the baseline/candidate result against pinned source hashes and record their identity/conflicts and evidence. A separate process from this session does not satisfy that requirement. **VAL-04** still needs a funded browser session, useful journey output, trace export, isolation/cleanup checks, and an actual provider receipt; its [experiment notes](../spikes/resources/README.md) define the next funded gate. These gaps do not block architecture selection (D012). See [BACKLOG.md](../docs/BACKLOG.md).
 
 ## Dependencies to resolve before implementation or submission
 
-- Select the implementation stack after identifying the runner and payment constraints.
+- Implement the selected architecture and verify database/worker/browser behavior before closing ALPHA-01.
 - Validate production Remesso coordination/finality and optional paid-resource capabilities; local policy recovery is proven.
 - Confirm hackathon enrollment, track, public repository, agent identity, and attribution requirements before submission activity.
 

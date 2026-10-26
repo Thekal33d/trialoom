@@ -1,6 +1,6 @@
 # Decision register
 
-Last updated: 2026-10-26.
+Last updated: 2026-10-27.
 
 Statuses: **Accepted** (user instruction or explicit working decision), **Proposed** (candidate), **Open** (unresolved), **Superseded** (retained with replacement reference).
 
@@ -11,13 +11,14 @@ Statuses: **Accepted** (user instruction or explicit working decision), **Propos
 | D003 | 2026-10-26 | Accepted | Preserve the supplied PRD v0.1 verbatim as the initial product baseline; label its untested provider and pilot assumptions. | A requirement is explicitly revised |
 | D004 | 2026-10-26 | Accepted | Prioritize a complete test/reproduce/repair/verify/pay loop for existing web apps and an invited operator pool, following the PRD. | Capability validation reveals an infeasible dependency |
 | D005 | 2026-10-26 | Proposed | Use Remesso for USDC-on-Celo operator payouts, with separate buy resource purchasing. This is the PRD direction, subject to integration evidence. | Payment and resource spikes complete |
-| D006 | 2026-10-26 | Open | Choose language, web/API framework, database, job queue, auth, artifact storage, and deployment platform. | Before the application scaffold |
+| D006 | 2026-10-26 | Superseded | Choose language, web/API framework, database, job queue, auth, artifact storage, and deployment platform. Resolved by D013. | See D013 |
 | D007 | 2026-10-26 | Proposed | Target Build with buy for the hackathon; require a useful resource integration for that demonstration while keeping it optional for the general product. See [research and scope](../docs/HACKATHON.md). | Track confirmation and resource validation |
 | D008 | 2026-10-26 | Accepted | Follow the PRD's capability-first sequence. Prove execution, evidence, repair, payment recovery, and resource behavior before claiming an operational marketplace. | Evidence justifies a documented sequence change |
 | D009 | 2026-10-26 | Accepted | Use Node 24, pinned Playwright Test/Chromium, and fflate for the disposable capability harness. Text-only traces, explicit synthetic-canary redaction, and content hashes make the experiment inspectable. This does not select the marketplace stack or establish a production security boundary. | VAL-05 architecture decision |
 | D010 | 2026-10-26 | Accepted | Use pinned Remesso SDK 0.3.0 policy funding for the local USDC payout experiment. Preserve accepted payables outside the SDK journal, reconcile stable keys, and treat inclusion separately from finality. File stores are sequential spike tooling; production needs shared journals and signer coordination. [Evidence and limits](../spikes/payments/README.md). | Production adapter implementation and review |
 | D011 | 2026-10-26 | Accepted | Pin buy-core 0.8.4 for the resource spike. Require successful funding reads, explicit token/provider terms, durable reservation/public nonce before dispatch, and chain reconciliation after any uncertain response. Keep paid transport simulation-only until real provisioning/output is verified. [Evidence and limits](../spikes/resources/README.md). | Funded resource experiment and production adapter |
 | D012 | 2026-10-26 | Accepted | Proceed to VAL-05 architecture selection using the local execution baseline and now-observed provider constraints. Waiting for paid buy output is unnecessary for selecting the ledger/outbox/runtime; keeping buy optional and disabled contains this open dependency. VAL-04, independent verification, and hackathon readiness remain unfulfilled gates. | Before enabling live resource purchases or closing M1 |
+| D013 | 2026-10-27 | Accepted | Select Node 24/TypeScript, Next.js App Router/React, PostgreSQL with explicit SQL and a transactional outbox, separate Node workers, Better Auth database sessions, private S3 artifacts, Render containers, and a separate gVisor runner boundary. Keep ALPHA-01 fixture-only. [Architecture, alternatives, and gates](../docs/ARCHITECTURE.md). | Capability, scale, or deployment evidence contradicts a choice |
 
 ## Open product decisions from the PRD
 

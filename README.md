@@ -16,6 +16,7 @@ The project is being developed with the Celo agentic hackathon in mind. USDC on 
 | [Build log](memory/BUILD_LOG.md) | Dated work history and validation evidence |
 | [Product requirements](docs/PRD.md) | Original user-supplied PRD, preserved verbatim |
 | [Roadmap](docs/ROADMAP.md) | Milestones and exit gates |
+| [Architecture](docs/ARCHITECTURE.md) | Selected stack, process/data boundaries, and implementation gates |
 | [Backlog](docs/BACKLOG.md) | Work IDs, dependencies, status, acceptance conditions |
 | [Hackathon alignment](docs/HACKATHON.md) | Dated requirements, proposed track, evidence checklist |
 | [Validation register](docs/VALIDATION.md) | Capability experiments and all twelve PRD release scenarios |

@@ -24,7 +24,7 @@ The project is being developed with the Celo agentic hackathon in mind. USDC on 
 | [Agent instructions](AGENTS.md) | Working and commit protocol for future coding sessions |
 | [Claude entry point](CLAUDE.md) | Loads the shared agent instructions |
 
-The local [browser/evidence experiment](spikes/browser-evidence/README.md) reproduces a seeded invitation defect twice, exports sanitized traces, and verifies a regression repair. The [Remesso experiment](spikes/payments/README.md) proves USDC policy payments and crash recovery on a local Celo fork. A local Next.js workspace, PostgreSQL migrations, and durable smoke worker now run. Authentication, marketplace workflows, production infrastructure, and provider integrations remain pending.
+The local [browser/evidence experiment](spikes/browser-evidence/README.md) reproduces a seeded invitation defect twice, exports sanitized traces, and verifies a regression repair. The [Remesso experiment](spikes/payments/README.md) proves USDC policy payments and crash recovery on a local Celo fork. The Next.js application now has [invited accounts, workspace roles, authorized projects, pinned builds, and immutable draft terms](docs/ALPHA-02.md), backed by PostgreSQL. Assignment/ledger workflows, production infrastructure, and provider integrations remain pending.
 
 ## Run the application
 
@@ -38,7 +38,7 @@ npm run db:migrate
 npm run dev
 ```
 
-Open [Trialoom locally](http://127.0.0.1:3000/demo). The sample workspace supports journey filters, evidence comparison, and a labelled report download. It cannot authorize work or payments. See the [development guide](docs/DEVELOPMENT.md) for production builds, worker commands, checks, and troubleshooting.
+Create your first local owner invitation with `npm run workspace:invite -- owner@example.com My workspace`, then open the private URL in the file printed by the command. It sends no email. [Your workspace](http://127.0.0.1:3000/workspace) lets you manage projects and draft work briefs. The separate [sample workspace](http://127.0.0.1:3000/demo) supports evidence comparison and a labelled report download. Claims and payments are not enabled. See the [development guide](docs/DEVELOPMENT.md) for setup, production builds, worker commands, checks, and troubleshooting.
 
 ## Capability experiments
 

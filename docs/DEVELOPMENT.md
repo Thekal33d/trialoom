@@ -1,6 +1,6 @@
 # Local development
 
-ALPHA-01 supplies a runnable web shell and durable database worker. The `/demo` workspace is explicitly synthetic: Canopy is an example name, and its before/after results summarize the existing invitation fixture. It does not create users, customer projects, assignments, acceptances, or payments.
+The application includes invitation-only accounts, workspace roles, authorized projects, pinned builds, and versioned draft briefs ([ALPHA-02](ALPHA-02.md)), plus a durable smoke worker. `/workspace` holds real local account/project data. `/demo` remains explicitly synthetic: Canopy is an example name, and its before/after results summarize the existing invitation fixture. Neither surface can publish assignments, accept work, or make payments yet.
 
 ## First run
 
@@ -14,9 +14,11 @@ npm run db:migrate
 npm run dev
 ```
 
-Open [the local workspace](http://127.0.0.1:3000/demo). `setup:local` creates an ignored `.env` with a random database password and owner-only file permissions; it preserves an existing file. [.env.example](../.env.example) documents the variables without credentials. Fonts are bundled locally; no font CDN is required.
+Open [the real workspace](http://127.0.0.1:3000/workspace) or [the example](http://127.0.0.1:3000/demo). `setup:local` creates an ignored `.env` with a random database password/authentication secret and owner-only file permissions; it preserves existing values. [.env.example](../.env.example) documents the variables without credentials. Fonts are bundled locally; no font CDN is required.
 
-If port 55432 is occupied, change both `DB_PORT` and the port in `DATABASE_URL` in your local `.env` before starting Compose. Do not print or commit that file. If the web port is occupied, use `npm run dev -- --port 3002` and open that port.
+For an existing ALPHA-01 installation, run `npm run setup:auth` and `npm run db:migrate`. Create the first owner invitation with `npm run workspace:invite -- owner@example.com My workspace`. Open the private URL from the ignored file path printed by the command; no email is sent. The user chooses their own password. Subsequent invitations and revocation are available under Workspace access. See [account behavior and recovery limits](ALPHA-02.md).
+
+If port 55432 is occupied, change both `DB_PORT` and the port in `DATABASE_URL` in your local `.env` before starting Compose. Do not print or commit that file. If the web port is occupied, use `npm run dev -- --port 3002` and set `BETTER_AUTH_URL=http://127.0.0.1:3002` in `.env` before starting. Authentication mutations must match this configured origin.
 
 Compose owns the `trialoom-dev` project and `trialoom-dev_postgres-data` volume. `npm run db:down` stops its container while preserving data. A changed environment password does not reset the password in an initialized PostgreSQL volume; preserve the original `.env` or change the database password deliberately. Never delete the volume as a routine fix.
 
@@ -51,9 +53,9 @@ npm run test:e2e
 ```
 
 - `check`: Biome formatting/lint, strict TypeScript, and the existing 28 capability/control checks. Browser fixture unit tests bind loopback sockets.
-- `test:db`: seven migration/transaction/concurrency/restart tests. It requires the local `trialoom_dev` database and permission to create databases. Each run creates and drops only its randomly named `trialoom_test_*` database; application data is not reset. The guard refuses non-loopback hosts and other administrative database names.
-- `test:e2e`: 18 production-browser checks across desktop Chromium (1440 × 1000) and emulated mobile Chromium (390 × 664). They cover filtering, empty recovery, navigation, build comparison, JSON download, accessibility scans, viewport overflow, security headers, absent business APIs, and readiness failure. Mobile emulation is not real-device or Safari coverage.
-- Browser tests own ports 3100 and 3101 and refuse to reuse existing servers. The second process intentionally has no database configuration. Migrate the development database before running the suite.
+- `test:db`: 24 account, project, migration, transaction, concurrency, and restart checks. It requires the local `trialoom_dev` database and permission to create databases. Each run creates and drops only its randomly named `trialoom_test_*` databases; application data is not reset. The guard refuses non-loopback hosts and other administrative database names.
+- `test:e2e`: 30 production-browser checks across desktop Chromium (1440 × 1000) and emulated mobile Chromium (390 × 664). They cover invitation/session lifecycle, access management, roles, authorized targets, pinned builds, preserved term revisions, HTTP defenses, demo flows, accessibility scans, viewport overflow, and readiness failure. Mobile emulation is not real-device or Safari coverage.
+- Browser tests create/migrate a disposable database and generate private fixture credentials, then own ports 3100 and 3101 and refuse to reuse existing servers. The second process intentionally has no database configuration. Run through `npm run test:e2e` so setup/cleanup occurs; arguments such as `-- --project=desktop` are forwarded to Playwright. The complete project flow resolves the public `example.com` hostname and requires DNS access; it does not fetch or execute that site.
 - `format`: format application/tooling files. Biome uses the recommended rules with the CSS descending-specificity heuristic disabled because independently scoped components use shared element selectors. Legacy spikes and the unrelated nested repository are outside its scope.
 
 Generated screenshots and failure traces live under ignored `test-results/`. Treat future customer evidence as private. Automated accessibility checks supplement visual/keyboard review; they do not prove complete accessibility compliance.
@@ -64,10 +66,10 @@ Generated screenshots and failure traces live under ignored `test-results/`. Tre
 
 | Route | Meaning |
 | --- | --- |
-| `/api/health` | Process is alive; explicitly reports demo mode |
-| `/api/ready` | Database is reachable and initial migration is registered; otherwise HTTP 503 with a generic code |
+| `/api/health` | Process is alive; reports invited-alpha mode |
+| `/api/ready` | Database is reachable and migration 0003 is registered; otherwise HTTP 503 with a generic code |
 | `/api/demo/report` | Download of reviewed fixture summary; never private evidence or payment authorization |
 
 Web requests never auto-migrate. Add migrations under `db/migrations/` using ascending four-digit prefixes. The migration runner serializes sessions with an advisory lock, verifies existing checksums, and commits each migration with its registry entry. Do not edit an applied migration; add a new one. Database pooling must retain one session for the migration lock.
 
-The initial database user has local development privileges. Production authentication, roles, isolated process identities, backup/restore, artifact storage, runners, money handlers, deployment, and monitoring still require their own implementation gates. See [architecture](ARCHITECTURE.md) and [backlog](BACKLOG.md).
+The initial database user has local development privileges. Accounts and roles are verified locally; production identity hardening/recovery, isolated database/process identities, backup/restore, artifact storage, runners, money handlers, deployment, and monitoring still require their own gates. Readiness currently checks the database schema, not complete deployment readiness. See [architecture](ARCHITECTURE.md) and [backlog](BACKLOG.md).

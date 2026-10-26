@@ -94,13 +94,20 @@ for (const path of ['/demo', '/demo/evidence', '/demo/payments', '/demo/guide'])
 test('health, readiness, and demo security headers are explicit', async ({ request }) => {
   const health = await request.get('/api/health');
   expect(health.status()).toBe(200);
-  expect(await health.json()).toMatchObject({ mode: 'demo' });
+  expect(await health.json()).toMatchObject({ mode: 'invited-alpha' });
   expect((await request.get('/api/ready')).status()).toBe(200);
   const page = await request.get('/demo');
   expect(page.headers()['x-content-type-options']).toBe('nosniff');
   expect(page.headers()['x-frame-options']).toBe('DENY');
   expect(await page.text()).toContain('noindex, nofollow');
-  expect((await request.post('/api/v1/assignments', { data: {} })).status()).toBe(404);
+  expect(
+    (
+      await request.post('/api/v1/assignments', {
+        data: {},
+        headers: { Origin: 'http://127.0.0.1:3100' },
+      })
+    ).status(),
+  ).toBe(404);
 });
 
 test('missing database configuration fails readiness without exposing secrets', async ({

@@ -32,11 +32,12 @@ after(async () => {
 
 test('concurrent migrations serialize, then rerun without changes', async () => {
   const results = await Promise.all([migrate(pool), migrate(pool)]);
-  assert.equal(results.flat().length, 1);
+  const count = (await migrationFiles()).length;
+  assert.equal(results.flat().length, count);
   assert.deepEqual(await migrate(pool), []);
   assert.equal(
     (await pool.query('SELECT count(*)::int AS count FROM schema_migrations')).rows[0].count,
-    1,
+    count,
   );
 });
 

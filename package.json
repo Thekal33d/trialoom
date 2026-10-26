@@ -26,9 +26,11 @@
     "typecheck": "next typegen && tsc --noEmit",
     "lint": "biome check .",
     "format": "biome format --write .",
-    "test:db": "node --env-file-if-exists=.env --test tests/backend.test.ts",
-    "test:e2e": "PLAYWRIGHT_BROWSERS_PATH=.cache/ms-playwright playwright test",
-    "check": "npm run lint && npm run typecheck && npm test"
+    "test:db": "node --env-file-if-exists=.env --test tests/*.test.ts",
+    "test:e2e": "node --env-file-if-exists=.env scripts/test-browser.ts",
+    "check": "npm run lint && npm run typecheck && npm test",
+    "setup:auth": "node scripts/setup-auth.mjs",
+    "workspace:invite": "node --env-file-if-exists=.env scripts/invite.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",
@@ -47,10 +49,13 @@
   "dependencies": {
     "@fontsource-variable/dm-sans": "5.3.0",
     "@fontsource-variable/manrope": "5.3.0",
+    "better-auth": "1.7.14",
+    "ipaddr.js": "2.5.0",
     "next": "16.4.3",
     "pg": "8.23.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "server-only": "0.0.1"
+    "server-only": "0.0.1",
+    "zod": "4.6.7"
   }
 }

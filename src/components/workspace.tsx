@@ -81,10 +81,15 @@ export function Workspace({ view }: { view: View }) {
           <div className="breadcrumb">
             Workspace <span>/</span> <strong>Canopy</strong>
           </div>
-          <span className="demo-badge">
-            <span />
-            Demo workspace
-          </span>
+          <div className="demo-entry">
+            <Link className="text-link" href="/workspace">
+              My workspace ↗
+            </Link>
+            <span className="demo-badge">
+              <span />
+              Demo workspace
+            </span>
+          </div>
         </header>
         <main id="main" className="main-content">
           <div className="demo-notice">

@@ -25,9 +25,9 @@ The local execution baseline and observed provider constraints are sufficient fo
 | ID | Work | State | Depends on | PRD coverage | Acceptance / evidence |
 | --- | --- | --- | --- | --- | --- |
 | ALPHA-01 | Application scaffold | Done | VAL-05 | System design | Verified clean install/build/start, safe local env/Compose, seven migration/worker checks, 18 desktop/mobile browser checks, CI configured; [evidence](evidence/ALPHA-01.json), [run guide](DEVELOPMENT.md) |
-| ALPHA-02 | Roles, projects, builds, immutable terms | Ready | ALPHA-01 | FR01–FR03 | Role checks and authorized target/build; term changes affect future claims only |
-| ALPHA-03 | Operator connection and qualification | Not started | ALPHA-02 | FR04–FR05 | Wallet control, seeded qualification, eligible work, versioned/scoped API, idempotent mutations |
-| ALPHA-04 | Ledger, claims, leases, cancellation | Not started | ALPHA-02 | FR06, FR14–FR15 | Concurrent claim cap, shared-wallet commitments, stale-attempt fencing, preserved obligations |
+| ALPHA-02 | Roles, projects, builds, immutable terms | Done (foundation) | ALPHA-01 | FR01–FR03 | Invited sessions/role checks, authorized target/build records, append-only terms and edit conflicts verified; [evidence](evidence/ALPHA-02.json). Drafts only; exact claim binding/publication remain ALPHA-04 and execution/build verification ALPHA-05 (D016) |
+| ALPHA-03 | Operator connection and qualification | Ready | ALPHA-02 | FR04–FR05 | Wallet control, seeded qualification, eligible work, versioned/scoped API, idempotent mutations; claim mutations require ALPHA-04 |
+| ALPHA-04 | Ledger, claims, leases, cancellation | Ready | ALPHA-02 | FR03, FR06, FR14–FR15 | Exact immutable terms/build binding per claim, concurrent claim cap, shared-wallet commitments, stale-attempt fencing, preserved obligations |
 | ALPHA-05 | Runner isolation and evidence | Not started | VAL-01, ALPHA-03, ALPHA-04 | FR07–FR08 | Target/redirect/DNS limits, scoped credentials, schema/hash/size checks, redaction, private storage |
 | ALPHA-06 | Findings, reproduction, decisions | Not started | ALPHA-05 | FR09, FR11–FR12 | Duplicate rules, separate operators, clean deterministic replays, recorded reasons and evidence |
 | ALPHA-07 | Repair workflow | Not started | VAL-02, ALPHA-06 | FR10–FR11 | Quote, pinned base, scoped patch, baseline/candidate checks, independent verification, builder review |

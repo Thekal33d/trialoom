@@ -40,7 +40,7 @@ flowchart LR
   RESOURCE --> BUY[buy]
 ```
 
-The diagram is the target design. ALPHA-01 implements only the web shell, database/migrations, a harmless queue smoke handler, local tooling, and checks. Payout, resource, runner, authentication, and upload capabilities remain unavailable until their owning tasks pass.
+The diagram is the target design. ALPHA-01 supplies the web shell, database/migrations, smoke worker, and tooling. [ALPHA-02](ALPHA-02.md) adds real invited sessions, workspace authorization, authorized project/build records, and immutable draft terms. Payout, resource, runner, operator credentials, assignment/ledger, and upload capabilities remain unavailable until their owning tasks pass.
 
 ## Data and transactions
 

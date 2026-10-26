@@ -1,0 +1,378 @@
+{
+  "schemaVersion": 1,
+  "task": "ALPHA-02",
+  "verifiedAt": "2026-10-26T23:53:52.352Z",
+  "sourceRevision": "c26d132799e1f5eceeb7d1f3f4ea71495ad6839a",
+  "sourceTreeDirty": true,
+  "scope": "Local invitation-only accounts, workspace authorization, approved project/build records, and immutable draft terms; claims and payment authority are unavailable",
+  "runtime": {
+    "node": "v24.11.1",
+    "postgres": "18.6",
+    "better-auth": "1.7.14",
+    "next": "16.4.3",
+    "react": "19.3.1",
+    "pg": "8.23.1",
+    "zod": "4.6.7",
+    "ipaddr.js": "2.5.0",
+    "playwright": "1.64.1",
+    "axe": "4.14.0"
+  },
+  "checks": [
+    {
+      "command": "npm run setup:auth; npm run db:migrate",
+      "result": "random private auth configuration generated; migrations 0002 and 0003 applied locally"
+    },
+    {
+      "command": "npm run check",
+      "result": "passed: lint, strict types, 28 capability checks"
+    },
+    {
+      "command": "npm run test:db",
+      "passed": 24,
+      "failed": 0,
+      "coverage": [
+        "real SDK password/session authentication across fresh instances",
+        "session expiration and revocation",
+        "hashed single-use invite races and existing-account takeover refusal",
+        "owner-only access and last-owner protection",
+        "tenant and role boundaries plus immediate membership revocation",
+        "append-only reviewer/access audits",
+        "private, mapped, encoded, mixed-DNS and unresolved target rejection",
+        "immutable approved project and same-origin pinned builds",
+        "exact integer base units beyond JavaScript safe integers",
+        "canonical content hash after JSONB round trip",
+        "concurrent version conflicts and unchanged older terms",
+        "foreign builds, stale versions, numeric money and expired deadlines refused",
+        "migration, transaction and durable worker checks"
+      ]
+    },
+    {
+      "command": "npm run build",
+      "result": "passed; production Next.js build"
+    },
+    {
+      "command": "npm run test:e2e",
+      "passed": 30,
+      "failed": 0,
+      "durationSeconds": 55.6,
+      "viewports": [
+        {
+          "browser": "Chromium",
+          "width": 1440,
+          "height": 1000
+        },
+        {
+          "browser": "Chromium mobile emulation",
+          "width": 390,
+          "height": 664
+        }
+      ],
+      "axeDetectedViolations": 0,
+      "coverage": [
+        "invitation account/session lifecycle and fragment removal",
+        "unauthenticated redirect and no-store APIs",
+        "project rejection/recovery, build pinning, initial terms and revision",
+        "old term preservation and persistence after reload",
+        "owner invitation creation/revocation and access history",
+        "reviewer read/write boundary and operator material denial",
+        "public signup denied, Origin enforcement, 32 KiB body cap",
+        "11 concurrent sign-in attempts yield one rate-limited request",
+        "account, project, term, access and demo accessibility/overflow",
+        "existing demo flows and unavailable-database readiness"
+      ]
+    },
+    {
+      "command": "npm run lint; npm run typecheck",
+      "result": "passed after final browser-test selector edits"
+    },
+    {
+      "command": "npm audit --omit=dev --audit-level=moderate",
+      "knownVulnerabilities": 0,
+      "result": "passed; not a security audit"
+    },
+    {
+      "command": "npm run workspace:invite -- [private recipient] Trialoom",
+      "result": "one local owner invitation saved in ignored mode-0600 file; no email sent; enrollment pending user password selection"
+    },
+    {
+      "command": "npm run start; local HTTP smoke",
+      "result": "loopback port 3000 running; unauthenticated workspace HTTP 307; database readiness HTTP 200"
+    }
+  ],
+  "visualReview": {
+    "reviewed": true,
+    "privateScreenshots": "test-results/accounts-*/",
+    "surfaces": [
+      "sign-in",
+      "projects",
+      "terms editor",
+      "term version history",
+      "workspace access"
+    ],
+    "visualDirection": "provisional existing light/green design"
+  },
+  "ci": {
+    "configured": true,
+    "remoteExecuted": false,
+    "workflow": ".github/workflows/ci.yml"
+  },
+  "limitations": [
+    "Draft campaigns only; no publication, assignments, financial commitments, acceptance or transfers",
+    "ALPHA-04 must bind claims to exact immutable terms and builds; full FR03/R05 integration is not verified",
+    "Builder attestation and DNS admission do not establish ownership, deployed revision integrity, runtime isolation or DNS-rebinding protection",
+    "No email ownership verification, email delivery, public recovery, production perimeter or operational hardening",
+    "Operator identity/qualification, private artifacts, actual execution, deployment and provider integrations remain pending",
+    "Independent operator review and useful paid-resource output remain open",
+    "Axe and Chromium mobile emulation do not establish complete accessibility or real-device/Safari coverage"
+  ],
+  "sourceFiles": [
+    {
+      "path": ".env.example",
+      "sha256": "7705abd629a0b804f2e742e0fcdfde0c0372c4b13045c93e8f076c60e175d32b"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "1e12035ba2ca5ed43097a17b7498f2afcd4a313928bfeb43a9b645cecf6792f0"
+    },
+    {
+      "path": "biome.json",
+      "sha256": "267adc89fa68280dd86722430c19a2a5b5074045550ee7df7c5e796e5c59162f"
+    },
+    {
+      "path": "db/migrations/0001_runtime.sql",
+      "sha256": "80682b750d72933ee94a919d504d8feed2d5ce86d4e3c46245995d9c357b9e32"
+    },
+    {
+      "path": "db/migrations/0002_accounts.sql",
+      "sha256": "eba218e54aa6ede6ded1e87b6e7e5199703c46098a4e132b7fd1430e3772ad2f"
+    },
+    {
+      "path": "db/migrations/0003_projects_terms.sql",
+      "sha256": "a4f8bc15978ee0273629eb44eb1a50f40519f112863e39545c45ba742f31617c"
+    },
+    {
+      "path": "next.config.ts",
+      "sha256": "7e4df4dfba315d7163b67310d2db5c3d7f2ff17c435880428c969b1e1d5796ba"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "eff40a8abd544a47b5f50953715e66115ce1bf75b271eaab4e549134f97985a1"
+    },
+    {
+      "path": "package.json",
+      "sha256": "f9faf20bfa8a4b487f5f7366c37ff94be6d1d3b67133c7bd0f4fa6e2b2e117af"
+    },
+    {
+      "path": "playwright.config.ts",
+      "sha256": "5f860d457addca74a70ab7b63edb449ba6fc59f55596f97990375b8eb221015c"
+    },
+    {
+      "path": "scripts/enqueue.ts",
+      "sha256": "434d6e2b2113e79be90e024316486f97aaff3ced8deb7c20618a3603c72637e0"
+    },
+    {
+      "path": "scripts/invite.ts",
+      "sha256": "43105d726baa94f885959e63d0e89444585665e03ca9994e05b17b27dda0352b"
+    },
+    {
+      "path": "scripts/migrate.ts",
+      "sha256": "feab793bd67138c66a65f1909c27b79d05bf603c081e5b27a259ff4f145ce4f8"
+    },
+    {
+      "path": "scripts/setup-auth.mjs",
+      "sha256": "6a350df10687f69820f55d9ab87dd37fcefd97a5b7afa41949cc0f5e2d1477a7"
+    },
+    {
+      "path": "scripts/setup-local.mjs",
+      "sha256": "0b2efad9cb1a05a8386a25112c1b766dd59f855fb2b333df4a4d2e0185cf4286"
+    },
+    {
+      "path": "scripts/test-browser.ts",
+      "sha256": "06b5672f413c99c7a630642deda15fc2ef1889f5caae634f8dcafe68145d7aed"
+    },
+    {
+      "path": "src/app/account.css",
+      "sha256": "70925e6f0ced8b232868a0ded5ebaa514c51d865f2ec95999d7fdd80d92d21cb"
+    },
+    {
+      "path": "src/app/api/auth/[...all]/route.ts",
+      "sha256": "74441d8384cf5b676e2f9e5bcf0e5c904a6daab12ad11aa81df1177f48031d3a"
+    },
+    {
+      "path": "src/app/api/demo/report/route.ts",
+      "sha256": "ed1e229c9f964ba781298a1fae937fadfd563cba75c2e3ef855d452a9d0b579b"
+    },
+    {
+      "path": "src/app/api/health/route.ts",
+      "sha256": "fbbbcaf7ef028415b950ffe656ebb8959a92e6fb37f333a069b3482c811791a1"
+    },
+    {
+      "path": "src/app/api/ready/route.ts",
+      "sha256": "e996e06361ce6aff91d362a3f6ae4b2a1fb78a58d8de5765c0b20b6be25f3c79"
+    },
+    {
+      "path": "src/app/api/v1/[...path]/route.ts",
+      "sha256": "989b88c340263f623f022595b457fcc434bc3884bd33ff3a18e5f116bc6da2dd"
+    },
+    {
+      "path": "src/app/demo/evidence/page.tsx",
+      "sha256": "b84d1a270ec182ed853e6a419aeb21a3b814519ce8880cca590c67ea4829b5f0"
+    },
+    {
+      "path": "src/app/demo/guide/page.tsx",
+      "sha256": "f21c861861ecc41ee1be030dcbf23e2b1ca85492caecd4252525803cb81de53c"
+    },
+    {
+      "path": "src/app/demo/page.tsx",
+      "sha256": "f30590dbdde42e1fc2692ac28ca5f4e8c269e617f900d1748c5db36def82d0af"
+    },
+    {
+      "path": "src/app/demo/payments/page.tsx",
+      "sha256": "5cf87be0bdc4297cdd85537280364e1b66ef29506306a3d93bd81e807c065379"
+    },
+    {
+      "path": "src/app/globals.css",
+      "sha256": "5a5eb1d23e32c0d1619cb8700994cd785218f269cbb3af1ab9911aac8b2205b2"
+    },
+    {
+      "path": "src/app/icon.svg",
+      "sha256": "96318a4e9c08f97ab765beb2c22bda0ddf0d86492b3bffd2c55ee423200ca21a"
+    },
+    {
+      "path": "src/app/join/page.tsx",
+      "sha256": "62ffbcfc904f1ff84b99c9fd47adc77bd3aa8f546d4d50e01c36c63f7e9045f7"
+    },
+    {
+      "path": "src/app/layout.tsx",
+      "sha256": "0bc5c45f2c73eafe8629e65c53bc68ca8d340aa34040b3316b78a524d834a2bb"
+    },
+    {
+      "path": "src/app/page.tsx",
+      "sha256": "17332aff66ebd92d84312852c8b2f61ab248f135b66b2abc36a394fc9c174447"
+    },
+    {
+      "path": "src/app/sign-in/page.tsx",
+      "sha256": "0f7b49e679d4ad6b89701d857bb6c6d1c52f7f49af816048ebbc5e4fdab8c635"
+    },
+    {
+      "path": "src/app/workspace/page.tsx",
+      "sha256": "fb93df4fe081cdac19f2f0ce336b3ac77be64823b9995656146612518d80345d"
+    },
+    {
+      "path": "src/components/access-panel.tsx",
+      "sha256": "0a1bf5ee4efe3b116c9b117f04726ab513eed888d21ee97e22fe6fe1d10aeb3c"
+    },
+    {
+      "path": "src/components/auth-form.tsx",
+      "sha256": "eeb388f850e3662d378dabd0136e53e0f77d98bd18bcacd3dea4279ac73ba7db"
+    },
+    {
+      "path": "src/components/icons.tsx",
+      "sha256": "ded3090157954b69598f1e28afec5a48ab8d30159ce83563129c26a604c2d665"
+    },
+    {
+      "path": "src/components/live-types.ts",
+      "sha256": "84a3b8f16093b11f3776a555019d8c2d1fb4c94bff6ecc8526c19a46d547a720"
+    },
+    {
+      "path": "src/components/live-workspace.tsx",
+      "sha256": "32a1de951b38553a37a921ddd1fa162db17b28e125e2f62855113ec208012552"
+    },
+    {
+      "path": "src/components/project-panel.tsx",
+      "sha256": "9ec4e9105c3e8ef7abdb6971f655963f17fd8af024455f5039f0a9b8fe5558d7"
+    },
+    {
+      "path": "src/components/terms-form.tsx",
+      "sha256": "2c2896a0f3da53a99444b410a411c6ec26102f3d77fd695503a01c39040053d2"
+    },
+    {
+      "path": "src/components/workspace.tsx",
+      "sha256": "e35e9285e5f14e72cfc6d2200ca702c08eba45cee8c8e9c4aa3e0f789b46924a"
+    },
+    {
+      "path": "src/demo/data.ts",
+      "sha256": "fb256a436264ba86875e18ca6a51854f6c868d25fe179b5b8b94997839cedbae"
+    },
+    {
+      "path": "src/domain/errors.ts",
+      "sha256": "dba69283676705bbcb3a62f21d9b9840ac2b50c332a8dbb95e0f26f7f23662f8"
+    },
+    {
+      "path": "src/domain/schemas.ts",
+      "sha256": "f1bda12562c41305bfbcdcdbee7d73ac4fb9701a86ec9127db291a5117986db0"
+    },
+    {
+      "path": "src/domain/values.ts",
+      "sha256": "84b519da75e1d6dc673603858f6483395005ba903550549a1d870c059e58e418"
+    },
+    {
+      "path": "src/server/access.ts",
+      "sha256": "4e32fc440ab04d7881676f7d6d9f7cad559a2ce1f99b1b5e09ff4b72abcbd92e"
+    },
+    {
+      "path": "src/server/auth/config.ts",
+      "sha256": "bc43879307ee90e7f0523314d284ed17e740a65f0f2f2c49c994a3db93fce7a9"
+    },
+    {
+      "path": "src/server/database.ts",
+      "sha256": "d91d0257ea53122c1b810b0d8fce31927ded245bb09db1f2fee96675e0620f64"
+    },
+    {
+      "path": "src/server/http.ts",
+      "sha256": "df51ff6d523f5cad882763446d7f532c5b50b39c4af3b4d60826bb439cc9901e"
+    },
+    {
+      "path": "src/server/invitations.ts",
+      "sha256": "6e007692535991c6d1aead98ee77e37923287f1c50fb27aefbc1e1ca30dbbd7f"
+    },
+    {
+      "path": "src/server/jobs.ts",
+      "sha256": "a1a4bcd06c49bc723953e1dadb05b65d1109307aa3c592a629e61f6d11897972"
+    },
+    {
+      "path": "src/server/migrations.ts",
+      "sha256": "181c139e174afb7bf25ecb3ec8120423084fa31ab36b064b78d23361f5507513"
+    },
+    {
+      "path": "src/server/projects.ts",
+      "sha256": "dbe3c3d3b15d8ef90c3c0a5de9ecb7a68596ae270addaff72e4184114da12fac"
+    },
+    {
+      "path": "src/server/targets.ts",
+      "sha256": "d3afc9112b2382abef906177d061c9f40c62f2e470fe8c927ed8747c76565651"
+    },
+    {
+      "path": "src/server/workspaces.ts",
+      "sha256": "aba42d65ef43ed5432dcfbdc2120d2d69cf3802d9e37f38b169bd540ff2ff83f"
+    },
+    {
+      "path": "tests/accounts.test.ts",
+      "sha256": "c49889098b52be1e2293200bda2701b9def4602dd538f89dc51844c114b92db3"
+    },
+    {
+      "path": "tests/backend.test.ts",
+      "sha256": "8a0a0274468e7acb7f0924e054241a0e17e3126add79c7314d7c1d917d751bbe"
+    },
+    {
+      "path": "tests/browser/accounts.spec.ts",
+      "sha256": "a155f78c07fd1bd1d00185d15c35446d37f09c2871d0998cf2aeee0deb3a4c69"
+    },
+    {
+      "path": "tests/browser/workspace.spec.ts",
+      "sha256": "e91fe3495d91e8c23a9a4228d77a0e8b6bd45cd0c6d128f3f3551fbc9cfe156a"
+    },
+    {
+      "path": "tests/helpers/database.ts",
+      "sha256": "8832e5c948db1c72a2d308f8e639f07e93c436055b8e1943fd322801101eb439"
+    },
+    {
+      "path": "tests/projects.test.ts",
+      "sha256": "c96113c2287df185ac923a9ca02b3563ab0a0fd940b107bfbd560d14a773895e"
+    },
+    {
+      "path": "tsconfig.json",
+      "sha256": "07ea5aae2e78809233b49771e534578ec5b249083dd45394614fcda8a24994a6"
+    }
+  ]
+}

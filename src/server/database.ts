@@ -28,7 +28,15 @@ export function createPool(connectionString: string): Pool {
     statement_timeout: 10000,
     application_name: 'trialoom',
   });
-  pool.on('error', () => console.error(JSON.stringify({ event: 'database.pool_error' })));
+  pool.on('error', (error) => {
+    const code = (error as { code?: string }).code;
+    console.error(
+      JSON.stringify({
+        event: 'database.pool_error',
+        code: code && /^[A-Z0-9]{5}$/.test(code) ? code : 'unknown',
+      }),
+    );
+  });
   return pool;
 }
 

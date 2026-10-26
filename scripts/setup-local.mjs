@@ -16,3 +16,5 @@ try {
   if (error.code !== 'EEXIST') throw error;
   console.log('Existing .env preserved.');
 }
+
+await import('./setup-auth.mjs');

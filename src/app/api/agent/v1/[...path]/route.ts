@@ -17,6 +17,7 @@ import { getPool } from '@/server/database';
 import { openAppeal, operatorDecisions } from '@/server/decisions';
 import { storeArtifact, submitEvidence } from '@/server/evidence';
 import { handleApi, json, limitRequest, readBytes, readJson } from '@/server/http';
+import { operatorPayouts } from '@/server/payables';
 import { qualificationStatus, recordAttempt } from '@/server/qualification';
 import {
   abandonRun,
@@ -112,6 +113,10 @@ async function handler(request: Request) {
       if (route === 'decisions' && method === 'GET') {
         requireScope(session, 'decisions:read');
         return json(await operatorDecisions(pool, session.operator.id));
+      }
+      if (route === 'payouts' && method === 'GET') {
+        requireScope(session, 'payouts:read');
+        return json(await operatorPayouts(pool, session.operator.id));
       }
       if (
         parts[0] === 'runs' &&

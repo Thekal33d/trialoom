@@ -406,9 +406,17 @@ test('a run grant is scoped to one run, expires with the lease, and signs nothin
       WHERE conname='agent_credentials_scopes_check'`,
     )
   ).rows[0].rule as string;
-  // No scope in the allowlist can move money or sign a payout.
-  assert.ok(!/\b(pay\w*|sign\w*|wallet\w*|settle\w*|transfer\w*)\b/i.test(scopeRule));
-  assert.ok(scopeRule.includes('runs:execute'));
+  // No scope in the allowlist can move money or sign a payout: every one of
+  // them reads, submits work, claims work, or runs it, and none names a wallet,
+  // a signer, or a transfer.
+  const scopes = [...scopeRule.matchAll(/'([a-z]+:[a-z]+)'/g)].map((match) => match[1]);
+  assert.ok(scopes.length >= 9);
+  assert.deepEqual(
+    scopes.filter((scope) => !/^[a-z]+:(read|submit|claim|execute)$/.test(scope)),
+    [],
+  );
+  assert.ok(!/\b(wallet\w*|signer|sign|transfer\w*|send|settle\w*|withdraw\w*)\b/i.test(scopeRule));
+  assert.ok(scopes.includes('runs:execute'));
 });
 
 test('an agent credential cannot authenticate as a run grant', async () => {

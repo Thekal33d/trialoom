@@ -89,6 +89,20 @@ type Assignments = {
     appeal_open: number;
   }[];
 };
+type Payouts = {
+  payouts: {
+    id: string;
+    campaign: string;
+    category: string;
+    amount_units: string;
+    state: string;
+    blocked_reason: string | null;
+    transaction_hash: string | null;
+    included_at: string | null;
+    finalized_at: string | null;
+  }[];
+  note: string;
+};
 const units = (value: string) => `${(Number(value) / 1_000_000).toFixed(2)} USDC`;
 const reasons: Record<string, string> = {
   qualified: 'Every seeded task for this service is passed.',
@@ -103,6 +117,7 @@ export function OperatorConsole({ user }: { user: { name: string; email: string 
   const [challenge, setChallenge] = useState<Challenge>();
   const [work, setWork] = useState<Work>();
   const [assignments, setAssignments] = useState<Assignments>();
+  const [payouts, setPayouts] = useState<Payouts>();
   const [secret, setSecret] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -114,6 +129,7 @@ export function OperatorConsole({ user }: { user: { name: string; email: string 
       setQualification(await api<Qualification>('/api/v1/operator/qualification'));
       setWork(await api<Work>('/api/v1/operator/work'));
       setAssignments(await api<Assignments>('/api/v1/operator/assignments'));
+      setPayouts(await api<Payouts>('/api/v1/operator/payouts'));
     }
   }, []);
   useEffect(() => {
@@ -625,6 +641,38 @@ export function OperatorConsole({ user }: { user: { name: string; email: string 
                 ) : (
                   <p className="section-description">No assignment has been claimed yet.</p>
                 )}
+              </section>
+              <section className="live-section">
+                <div className="section-heading">
+                  <h2>
+                    Your payouts <span className="count">{payouts?.payouts.length ?? 0}</span>
+                  </h2>
+                  <span className="subtle">Paid only after finalized verification</span>
+                </div>
+                {payouts?.payouts.length ? (
+                  <div className="record-list">
+                    {payouts.payouts.map((payout) => (
+                      <div className="member-row" key={payout.id}>
+                        <div>
+                          <strong>{payout.campaign}</strong>
+                          <p>
+                            {payout.category} · {units(payout.amount_units)}
+                            {payout.blocked_reason
+                              ? ` · ${payout.blocked_reason.replaceAll('_', ' ')}`
+                              : ''}
+                            {payout.transaction_hash
+                              ? ` · ${payout.transaction_hash.slice(0, 14)}…`
+                              : ''}
+                          </p>
+                        </div>
+                        <span className="neutral-label">{payout.state.replaceAll('_', ' ')}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="section-description">No payout has been accepted yet.</p>
+                )}
+                <p className="section-description">{payouts?.note}</p>
                 <p className="section-description">
                   Agent API: <code>GET /api/agent/v1/work</code>,{' '}
                   <code>POST /api/agent/v1/assignments</code> with an <code>Idempotency-Key</code>{' '}

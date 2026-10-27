@@ -14,9 +14,15 @@ import {
   decideDuplicate,
   decideExecution,
   decideSeverity,
+  operatorDecisions,
   resolveAppeal,
 } from '@/server/decisions';
-import { campaignReview, campaignSubmissions, readArtifact } from '@/server/evidence';
+import {
+  campaignPayoutRecord,
+  campaignReview,
+  campaignSubmissions,
+  readArtifact,
+} from '@/server/evidence';
 import {
   handleApi,
   json,
@@ -42,6 +48,7 @@ import {
   revokeCredential,
   revokeWallet,
 } from '@/server/operators';
+import { operatorPayouts } from '@/server/payables';
 import {
   addBuild,
   createCampaign,
@@ -82,12 +89,14 @@ async function handler(request: Request) {
       if (
         parts.length === 2 &&
         method === 'GET' &&
-        ['qualification', 'work', 'assignments'].includes(parts[1])
+        ['qualification', 'work', 'assignments', 'decisions', 'payouts'].includes(parts[1])
       ) {
         const operator = await transaction(pool, (db) => requireOperator(db, actor));
         if (parts[1] === 'qualification') return json(await qualificationStatus(pool, operator.id));
         if (parts[1] === 'work')
           return json(await listEligibleWork(pool, { operatorId: operator.id, userId: actor.id }));
+        if (parts[1] === 'decisions') return json(await operatorDecisions(pool, operator.id));
+        if (parts[1] === 'payouts') return json(await operatorPayouts(pool, operator.id));
         return json(await operatorAssignments(pool, operator.id));
       }
       if (parts.length === 1 && method === 'POST')
@@ -192,6 +201,10 @@ async function handler(request: Request) {
               );
             if (parts[6] === 'review' && method === 'GET')
               return json(await campaignReview(pool, actor, workspaceId, projectId, campaignId));
+            if (parts[6] === 'payouts' && method === 'GET')
+              return json(
+                await campaignPayoutRecord(pool, actor, workspaceId, projectId, campaignId),
+              );
             if (parts[6] === 'publication' && method === 'POST')
               return json(
                 await publishCampaign(

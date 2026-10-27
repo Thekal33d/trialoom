@@ -85,6 +85,7 @@ export const agentScopes = [
   'runs:execute',
   'decisions:read',
   'appeals:submit',
+  'payouts:read',
 ] as const;
 export type AgentScope = (typeof agentScopes)[number];
 export const credentialSchema = z

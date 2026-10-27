@@ -278,12 +278,15 @@ export async function finalizeAccepted(
   amount: bigint,
   reason: string,
   actorId: string | null,
+  // Finality is itemized like every other movement, so the categories still
+  // replay to the stored balances after a payout settles.
+  category: Category = 'execution',
 ) {
   const account = await lockAccount(db, campaignId);
   if (amount <= 0n || amount > BigInt(account.accepted_units))
     throw new AppError('EXCEEDS_LIABILITY', 'That amount is not an outstanding liability.', 409);
   await moveAccount(db, campaignId, { accepted: -amount, finalized: amount });
-  await postEntry(db, campaignId, assignmentId, 'finalize', 'execution', amount, reason, actorId);
+  await postEntry(db, campaignId, assignmentId, 'finalize', category, amount, reason, actorId);
 }
 
 /** Replays every entry. The result must equal the stored account row. */

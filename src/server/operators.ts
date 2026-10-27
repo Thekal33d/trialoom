@@ -20,6 +20,7 @@ import { settlementCurrency } from '../domain/values.ts';
 import type { Actor } from './access.ts';
 import { authSettings } from './auth/config.ts';
 import { transaction } from './database.ts';
+import { bindPendingPayouts } from './payables.ts';
 
 export type Operator = { id: string; handle: string; status: string };
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -205,7 +206,7 @@ export async function proveWallet(
   settings = authSettings(),
 ) {
   const data = walletProofSchema.parse(input);
-  return transaction(pool, async (db) => {
+  const wallet = await transaction(pool, async (db) => {
     const operator = await requireOperator(db, actor);
     const challenge = (
       await db.query(
@@ -286,6 +287,13 @@ export async function proveWallet(
       throw error;
     }
   });
+  // A payout accepted before any address existed can now be paid to this one.
+  // An already approved recipient is never replaced.
+  if (data.designatePayout) {
+    const operator = await transaction(pool, (db) => requireOperator(db, actor));
+    await bindPendingPayouts(pool, operator.id);
+  }
+  return wallet;
 }
 
 export async function revokeWallet(pool: Pool, actor: Actor, walletId: string) {

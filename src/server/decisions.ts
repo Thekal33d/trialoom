@@ -22,6 +22,7 @@ import {
   releaseCommitment,
   type TermsDocument,
 } from './ledger.ts';
+import { recordPayables } from './payables.ts';
 
 /** An operator has seven days to appeal, and the refused amount stays reserved. */
 export const appealWindowHours = 168;
@@ -82,6 +83,7 @@ async function post(
   posted: Posted,
   bps: bigint,
   category: 'execution' | 'discovery' | null,
+  operatorId?: string,
 ) {
   // The decision is written first, so a second decision on a settled matter is
   // refused by its unique index before any money moves.
@@ -106,7 +108,8 @@ async function post(
     ],
   );
   let moved = 0n;
-  if (posted.amount && posted.amount > 0n && category) {
+  let payables: Awaited<ReturnType<typeof recordPayables>> = [];
+  if (posted.amount && posted.amount > 0n && category && operatorId) {
     await lockAccount(db, campaignId);
     const already = await acceptedByAssignment(db, assignmentId);
     const payoutBefore = already.execution + already.discovery;
@@ -123,9 +126,25 @@ async function post(
       actor.id,
       { releaseRemainder: false },
     );
+    // The acceptance, its payables and their queued jobs commit together, so a
+    // payment can never exist without its decision or a decision without its
+    // queued payment.
+    payables = await recordPayables(
+      db,
+      { campaignId, assignmentId, decisionId: rows[0].id, operatorId },
+      [
+        { category, units: posted.amount },
+        { category: 'fee', units: feeDue },
+      ],
+    );
   }
   // Base units cross the API as strings; a BigInt has no JSON form.
-  return { decisionId: rows[0].id, createdAt: rows[0].created_at, movedUnits: moved.toString() };
+  return {
+    decisionId: rows[0].id,
+    createdAt: rows[0].created_at,
+    movedUnits: moved.toString(),
+    payables,
+  };
 }
 
 /** References must point at this assignment's own evidence, not anywhere else. */
@@ -249,6 +268,7 @@ export async function decideExecution(
         },
         BigInt(terms.platformFeeBps),
         'execution',
+        assignment.operator_id,
       );
     } catch (error) {
       if ((error as { code?: string }).code === '23505')
@@ -348,6 +368,7 @@ export async function decideDiscovery(
         },
         BigInt(terms.platformFeeBps),
         'discovery',
+        assignment.operator_id,
       );
     } catch (error) {
       if ((error as { code?: string }).code === '23505')
@@ -633,6 +654,7 @@ export async function resolveAppeal(
       },
       BigInt(terms.platformFeeBps),
       category,
+      assignment.operator_id,
     );
     await syncAssignment(db, id);
     await db.query('UPDATE assignments SET release_after=clock_timestamp() WHERE id=$1', [id]);

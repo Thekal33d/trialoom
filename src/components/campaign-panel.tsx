@@ -42,6 +42,19 @@ type Artifact = {
   reviewable: boolean;
   redaction: { mode?: string; decision?: string; reason?: string };
 };
+type Payout = {
+  id: string;
+  handle: string;
+  kind: 'operator' | 'platform_fee';
+  category: string;
+  amount_units: string;
+  recipient_address: string | null;
+  state: string;
+  blocked_reason: string | null;
+  transaction_hash: string | null;
+  included_at: string | null;
+  finalized_at: string | null;
+};
 type Submissions = {
   runs: {
     id: string;
@@ -104,12 +117,14 @@ export function CampaignPanel({
   const campaignBase = `${base}/campaigns/${campaign.id}`;
   const [ledger, setLedger] = useState<Ledger>();
   const [evidence, setEvidence] = useState<Submissions>();
+  const [payouts, setPayouts] = useState<{ payouts: Payout[]; note: string }>();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const load = useCallback(async () => {
     setLedger(await api<Ledger>(`${campaignBase}/ledger`));
     setEvidence(await api<Submissions>(`${campaignBase}/submissions`));
+    setPayouts(await api<{ payouts: Payout[]; note: string }>(`${campaignBase}/payouts`));
   }, [campaignBase]);
   useEffect(() => {
     load().catch((e) => setError(e instanceof Error ? e.message : 'Ledger unavailable.'));
@@ -364,6 +379,45 @@ export function CampaignPanel({
                   </ul>
                 </div>
               ))}
+              {Boolean(payouts?.payouts.length) && payouts && (
+                <div className="payout-block">
+                  <h5>Payments</h5>
+                  <p className="section-description">{payouts.note}</p>
+                  <div className="record-list">
+                    {payouts.payouts.map((payout) => (
+                      <div className="member-row" key={payout.id}>
+                        <div>
+                          <strong>
+                            {payout.kind === 'platform_fee'
+                              ? 'Platform fee'
+                              : `@${payout.handle} · ${payout.category}`}
+                          </strong>
+                          <p>
+                            {money(payout.amount_units)}
+                            {payout.recipient_address
+                              ? ` · to ${payout.recipient_address.slice(0, 10)}…`
+                              : ' · no recipient fixed yet'}
+                            {payout.blocked_reason
+                              ? ` · ${payout.blocked_reason.replaceAll('_', ' ')}`
+                              : ''}
+                          </p>
+                          {payout.transaction_hash && (
+                            <p className="subtle">
+                              {payout.transaction_hash.slice(0, 14)}… ·{' '}
+                              {payout.finalized_at
+                                ? 'finalized'
+                                : payout.included_at
+                                  ? 'included, awaiting finality'
+                                  : 'submitted'}
+                            </p>
+                          )}
+                        </div>
+                        <span className="neutral-label">{payout.state.replaceAll('_', ' ')}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <ReviewPanel
                 campaignBase={campaignBase}
                 submissions={evidence.submissions.map((submission) => ({

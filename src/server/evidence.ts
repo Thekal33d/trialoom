@@ -13,6 +13,7 @@ import { type Actor, audit, requireRole } from './access.ts';
 import { transaction } from './database.ts';
 import { campaignDecisions } from './decisions.ts';
 import { campaignFindings, noteConsistentPass, recordFinding } from './findings.ts';
+import { campaignPayouts } from './payables.ts';
 import { decodeUtf8, redactionPolicy, redactText, scanText } from './redaction.ts';
 import { isolationProfile, type RunSession, runLimits } from './runner.ts';
 import { digestOf, getObject, putObject } from './storage.ts';
@@ -537,6 +538,25 @@ export async function campaignReview(
       defects,
       decisions,
       note: 'Clustering is deterministic and decides nothing. Only a recorded decision groups, rewards, or refuses a report, and only a person can post one.',
+    };
+  });
+}
+
+/** The campaign's payment record, for the same readers as its accounting. */
+export async function campaignPayoutRecord(
+  pool: Pool,
+  actor: Actor,
+  workspaceId: string,
+  projectId: string,
+  campaignId: string,
+) {
+  return transaction(pool, async (db) => {
+    const role = await campaignForReader(db, actor, workspaceId, projectId, campaignId);
+    if (role === 'reviewer')
+      await audit(db, workspaceId, actor.id, 'reviewer.payouts_read', campaignId);
+    return {
+      payouts: await campaignPayouts(db, campaignId),
+      note: 'A payout is paid only after finalized verification. Inclusion is recorded separately, and a blocked payout stays owed.',
     };
   });
 }

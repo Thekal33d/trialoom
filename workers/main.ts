@@ -3,6 +3,7 @@ import { sweepExpiredAssignments } from '../src/server/assignments.ts';
 import { createPool, databaseUrl } from '../src/server/database.ts';
 import { releaseSettledAssignments } from '../src/server/decisions.ts';
 import { processOne } from '../src/server/jobs.ts';
+import { dispatchPayout } from '../src/server/settlement.ts';
 
 const pool = createPool(databaseUrl());
 const controller = new AbortController();
@@ -23,7 +24,11 @@ try {
       if (settled.assignments)
         console.log(JSON.stringify({ event: 'assignments.settled', count: settled.assignments }));
     }
-    const worked = await processOne(pool);
+    // No funded payment authority is configured, so the default adapter blocks
+    // every payout with a visible reason instead of pretending to pay it.
+    const worked = await processOne(pool, {
+      'payout.dispatch': (client, lease) => dispatchPayout(client, lease),
+    });
     if (once) break;
     if (!worked) await setTimeout(1000, undefined, { signal: controller.signal });
   } while (!controller.signal.aborted);

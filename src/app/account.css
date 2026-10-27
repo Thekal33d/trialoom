@@ -228,6 +228,14 @@ button:disabled {
 .artifact-list .text-button {
   margin-top: 0;
 }
+.payout-block {
+  border-top: 1px solid var(--line);
+  margin-top: 22px;
+  padding-top: 18px;
+}
+.payout-block h5 {
+  font: 600 14px var(--display);
+}
 .review-block {
   border-top: 1px solid var(--line);
   margin-top: 22px;

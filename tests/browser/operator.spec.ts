@@ -91,6 +91,7 @@ test('an operator registers, proves a payout wallet, claims work, and keeps a le
     'assignments:read',
     'decisions:read',
     'operator:read',
+    'payouts:read',
     'qualification:submit',
     'runs:execute',
     'work:read',

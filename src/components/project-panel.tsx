@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { formatUnits } from '@/domain/values';
+import { CampaignPanel } from './campaign-panel';
 import type { ProjectDetail, TermsRecord } from './live-types';
 import { api, field } from './live-types';
 import { TermsForm } from './terms-form';
@@ -8,12 +9,14 @@ export function ProjectPanel({
   data,
   base,
   canWrite,
+  isOwner,
   reload,
   onBack,
 }: {
   data: ProjectDetail;
   base: string;
   canWrite: boolean;
+  isOwner: boolean;
   reload: () => Promise<void>;
   onBack: () => void;
 }) {
@@ -185,8 +188,8 @@ export function ProjectPanel({
               )}
             </div>
             <p className="section-description">
-              Drafts record scope and delivery terms. They are not published, funded, or available
-              to claim.
+              A brief records scope and delivery terms. Publishing one offers an exact terms version
+              to admitted operators and reserves its maximum liability from an authorized budget.
             </p>
             {data.campaigns.length ? (
               data.campaigns.map((campaign) => {
@@ -195,7 +198,10 @@ export function ProjectPanel({
                   <article className="brief-record" key={campaign.id}>
                     <div className="section-heading">
                       <div>
-                        <span className="status review">Draft · v{campaign.latest_version}</span>
+                        <span className="status review">
+                          {campaign.status === 'draft' ? 'Draft' : campaign.status} · v
+                          {campaign.latest_version}
+                        </span>
                         <h3>{campaign.name}</h3>
                       </div>
                       {canWrite && (
@@ -221,6 +227,13 @@ export function ProjectPanel({
                         />
                       ))}
                     </div>
+                    <CampaignPanel
+                      base={base}
+                      campaign={campaign}
+                      versions={versions}
+                      isOwner={isOwner}
+                      reload={reload}
+                    />
                   </article>
                 );
               })

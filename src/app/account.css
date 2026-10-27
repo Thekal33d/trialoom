@@ -184,6 +184,24 @@ button:disabled {
   margin: 12px 0 25px;
   max-width: 720px;
 }
+.campaign-ledger {
+  border-top: 1px solid var(--line);
+  margin-top: 22px;
+  padding-top: 18px;
+}
+.campaign-ledger h4 {
+  font: 600 15px var(--display);
+}
+.campaign-ledger .project-context {
+  border-bottom: none;
+}
+.status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  margin-top: 18px;
+}
 .plain-list {
   display: grid;
   gap: 10px;

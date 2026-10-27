@@ -141,6 +141,36 @@ test('builder creates a project, pins a build, saves terms, and preserves old ve
   await page.reload();
   await page.getByRole('button', { name: /Browser verified project/ }).click();
   await expect(page.getByText('Draft · v2', { exact: true })).toBeVisible();
+
+  // Publishing the brief authorizes a ceiling and opens it to admitted operators.
+  await page.getByRole('button', { name: 'Publish to operators' }).click();
+  await page.getByLabel('Terms version to offer').selectOption({ index: 0 });
+  await page.getByLabel('Assignment slots').fill('2');
+  await page.getByLabel('Concurrent assignments').fill('2');
+  await page.getByLabel('Authorize additional budget (USDC)').fill('5');
+  await page.getByLabel('Spending authorization reference').fill('remesso-policy-browser-ui');
+  await page.getByLabel('I authorize spending').check();
+  await page.getByRole('button', { name: 'Publish', exact: true }).click();
+  await expect(page.getByText('open · v2', { exact: true })).toBeVisible();
+  const ledger = page.locator('.campaign-ledger');
+  await expect(ledger).toContainText('5.00 USDC');
+  await expect(ledger).toContainText('0 of 2 taken');
+  await expect(ledger).toContainText('replays to these balances');
+  await expect(ledger).toContainText('No operator has claimed this work yet.');
+  await accessible(page);
+  await page.screenshot({
+    path: info.outputPath('campaign-budget.png'),
+    fullPage: true,
+    scale: 'css',
+  });
+  // Pausing and cancelling stop new claims; neither erases the accounting.
+  await page.getByRole('button', { name: 'Pause new claims' }).click();
+  await expect(page.getByText('paused · v2', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Reopen for claims' }).click();
+  await expect(page.getByText('open · v2', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Cancel campaign' }).click();
+  await expect(page.getByText('cancelled · v2', { exact: true })).toBeVisible();
+  await expect(ledger).toContainText('5.00 USDC');
 });
 test('owner can create and revoke an invitation and see access history', async ({ page }, info) => {
   const f = fixtures[info.project.name];

@@ -18,7 +18,12 @@ export type BuildRecord = {
   target_url: string;
   created_at: string;
 };
-export type CampaignRecord = { id: string; name: string; status: 'draft'; latest_version: number };
+export type CampaignRecord = {
+  id: string;
+  name: string;
+  status: 'draft' | 'open' | 'paused' | 'draining' | 'cancelled' | 'completed';
+  latest_version: number;
+};
 export type TermsRecord = {
   id: string;
   campaign_id: string;

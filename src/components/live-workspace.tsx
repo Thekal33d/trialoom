@@ -236,6 +236,7 @@ export function LiveWorkspace({
               data={detail}
               base={`${base}/projects/${detail.project.id}`}
               canWrite={canWrite}
+              isOwner={workspace?.role === 'owner'}
               reload={() => open(detail.project.id)}
               onBack={() => setDetail(undefined)}
             />
@@ -364,7 +365,7 @@ export function LiveWorkspace({
           )}
           <footer className="page-footer">
             <span>Test. Fix. Ship.</span>
-            <span>Private workspace · Draft work only</span>
+            <span>Private workspace · No acceptance or payouts yet</span>
           </footer>
         </main>
       </div>

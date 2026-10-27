@@ -14,7 +14,7 @@ npm run db:migrate
 npm run dev
 ```
 
-Open [the real workspace](http://127.0.0.1:3000/workspace) or [the example](http://127.0.0.1:3000/demo). `setup:local` creates an ignored `.env` with a random database password/authentication secret and owner-only file permissions; it preserves existing values. [.env.example](../.env.example) documents the variables without credentials. Fonts are bundled locally; no font CDN is required.
+Open [the real workspace](http://127.0.0.1:3000/workspace) or [the example](http://127.0.0.1:3000/demo). `setup:local` creates an ignored `.env` with a random database password/authentication secret and owner-only file permissions; it preserves existing values. [.env.example](../.env.example) documents the variables without credentials, including `TRIALOOM_EVIDENCE_DIR`, the private directory evidence artifacts are written to; its default sits under the git-ignored `artifacts/`, and raw artifacts never enter the database or a log. Fonts are bundled locally; no font CDN is required.
 
 For an existing ALPHA-01 installation, run `npm run setup:auth` and `npm run db:migrate`. Create the first owner invitation with `npm run workspace:invite -- owner@example.com My workspace`. Open the private URL from the ignored file path printed by the command; no email is sent. The user chooses their own password. Subsequent invitations and revocation are available under Workspace access. See [account behavior and recovery limits](ALPHA-02.md).
 

@@ -1,0 +1,621 @@
+{
+  "schemaVersion": 1,
+  "task": "ALPHA-05",
+  "verifiedAt": "2026-10-27T11:30:00.000Z",
+  "sourceRevision": "b19a959d70fcaefcefd36d2a79b151af7ef61f22",
+  "sourceTreeDirty": true,
+  "scope": "Local scoped execution grants with platform-side target revalidation, and evidence ingestion into private content-addressed storage with verified redaction; Trialoom does not host or sandbox the runner, and no acceptance decision or payment exists",
+  "runtime": {
+    "node": "v24.11.1",
+    "postgres": "18.6",
+    "next": "16.4.3",
+    "react": "19.3.1",
+    "viem": "2.57.7",
+    "pg": "8.23.1",
+    "zod": "4.6.7",
+    "playwright": "1.64.1",
+    "axe": "4.14.0"
+  },
+  "execution": {
+    "runnerHosted": false,
+    "sandbox": "none in this step; the separate gVisor runner host remains unprovisioned",
+    "isolationProfile": {
+      "freshBrowserContext": true,
+      "ephemeralProfile": true,
+      "clearedStorage": true
+    },
+    "isolationEstablishedBy": "runner attestation compared to the issued profile, not platform enforcement",
+    "egressAllowlist": "declared in the manifest; reported origins checked at ingestion, not intercepted",
+    "payoutSigning": "never_delegated",
+    "payoutScopeExists": false
+  },
+  "targetRevalidation": {
+    "policy": "target-revalidation-v1",
+    "performedBy": "Trialoom, before a run is issued",
+    "checks": [
+      "HTTPS only, no credentials, query, fragment, or custom port",
+      "DNS resolved again; private, reserved, and unsupported addresses refused",
+      "no resolved address admitted for the build refuses the run as rebound",
+      "address drift recorded even when the sets still intersect",
+      "at most three redirect hops, each revalidated",
+      "a hop leaving the approved origin refuses the run",
+      "an exposed revision differing from the pinned build refuses the run",
+      "an absent revision is recorded unconfirmed, never as a match",
+      "a 5xx response is recorded unhealthy, not judged a product defect"
+    ],
+    "responseBodyRead": false
+  },
+  "runGrant": {
+    "scope": "evidence:submit",
+    "scopeEnforcedBy": "column CHECK on runs.grant_scope",
+    "storage": "sha256 digest only; the token is returned once",
+    "expiry": "the claim lease; a heartbeat extends it no further, and lease expiry retires it with the reservation",
+    "reach": [
+      "GET /api/agent/v1/runs/:id",
+      "POST /api/agent/v1/runs/:id/artifacts",
+      "POST /api/agent/v1/runs/:id/evidence"
+    ],
+    "agentCredentialCanReachRunRoutes": false,
+    "runGrantCanReachOtherRoutes": false,
+    "liveRunsPerAssignment": 1,
+    "newScope": "runs:execute",
+    "scopeAllowlistCanMoveMoney": false
+  },
+  "ingestion": {
+    "limits": {
+      "maxArtifactBytes": 8388608,
+      "maxArtifacts": 12,
+      "maxTotalBytes": 33554432,
+      "wallClockSeconds": "issued per run from the remaining lease"
+    },
+    "refusals": [
+      "IDENTITY_MISMATCH",
+      "TERMS_MISMATCH",
+      "BUILD_MISMATCH",
+      "ISOLATION_MISMATCH",
+      "TIMESTAMPS_INVALID",
+      "TIMEOUT_EXCEEDED",
+      "EGRESS_VIOLATION",
+      "ARTIFACT_CORRUPT",
+      "ARTIFACT_TOO_LARGE",
+      "ARTIFACT_DUPLICATE",
+      "ARTIFACT_MISSING",
+      "ARTIFACT_UNDECLARED",
+      "TOO_MANY_ARTIFACTS",
+      "EVIDENCE_BUDGET_EXCEEDED",
+      "EVIDENCE_INCOMPLETE",
+      "OUTCOME_UNSUPPORTED",
+      "MEDIA_TYPE_REJECTED",
+      "REDACTION_FAILED",
+      "STALE_ATTEMPT",
+      "ATTEMPT_CLOSED",
+      "CLAIM_EXPIRED",
+      "RUN_CLOSED",
+      "RUN_EXPIRED",
+      "RUN_MISMATCH"
+    ],
+    "submissionsPerAssignment": 1,
+    "submissionImmutable": true,
+    "decisionState": "pending_review",
+    "reservationHeldDuringReview": true,
+    "acceptanceReachableFromAnyRoute": false
+  },
+  "storage": {
+    "location": "TRIALOOM_EVIDENCE_DIR, default artifacts/evidence (git-ignored)",
+    "standsInFor": "private object storage; that service is not provisioned",
+    "addressing": "sha256 content address",
+    "permissions": "directories 0700, files 0600, written then renamed",
+    "bytesInDatabase": false,
+    "bytesInLogs": false,
+    "rawBytesServed": false
+  },
+  "redaction": {
+    "policy": "text-secrets-v1",
+    "rules": [
+      "private key blocks",
+      "authorization and proxy-authorization headers",
+      "cookie and set-cookie headers",
+      "password, secret, token, api key, private key, mnemonic and seed phrase fields",
+      "run grant tokens",
+      "bearer tokens",
+      "JWTs",
+      "key-shaped hex",
+      "credentialed URLs",
+      "email addresses",
+      "home directory paths",
+      "known secrets passed in, including the run's own grant"
+    ],
+    "verified": "the redacted copy is rescanned; a surviving secret shape refuses the upload",
+    "binaryEvidence": "stored private and refused to readers; no archive-aware sanitizer exists yet",
+    "servedAs": "attachment with X-Content-Type-Options: nosniff",
+    "reviewerReadsAudited": true
+  },
+  "checks": {
+    "lint": "biome check, 76 files",
+    "types": "tsc --noEmit, strict",
+    "capability": "28 spike checks",
+    "database": 89,
+    "browser": 38,
+    "build": "next build succeeded",
+    "covered": [
+      "a redirect off the approved origin is refused at execution time",
+      "a redirect inside the approved origin is followed and every hop recorded",
+      "an endless redirect stops at the hop limit",
+      "a target that no longer resolves to an admitted address is refused",
+      "a target resolving into private space is refused before any probe",
+      "a target reporting a different revision refuses the run; a matching one is confirmed",
+      "a failing target is recorded unhealthy rather than judged a product defect",
+      "a run grant is scoped to one run, expires with the lease, stores only its digest, and signs nothing",
+      "an agent credential cannot authenticate as a run grant",
+      "one live run per assignment; abandoning releases the slot and kills the old grant",
+      "a run cannot start without enough lease left to use it",
+      "a stale attempt token cannot start a run",
+      "a lapsed lease retires the run grant and returns the reservation",
+      "a heartbeat extends the grant with the lease and never past the deadline",
+      "the redaction policy clears known secret shapes and never re-flags its own output",
+      "text evidence is redacted and only the redacted copy is readable",
+      "archived evidence is stored private and refused to readers",
+      "artifact uploads refuse corrupt bytes, wrong media types, empty bodies, and duplicates",
+      "a run cannot exceed its issued artifact count",
+      "a submission restating different identities is refused and the reason names the field",
+      "a submission outside its issued time budget is refused",
+      "incomplete evidence and unsupported outcomes are refused",
+      "an expired claim refuses a submission even from a grant already in hand",
+      "a valid submission records work, holds the reservation, and decides nothing",
+      "builders and reviewers read submissions, and a reviewer read is audited",
+      "over real HTTP: a run grant reaches only its own run, the agent credential cannot reach a run route, the run token cannot reach any other route, a leaked credential in an uploaded log is redacted, a mismatched build and an off-allowlist origin are refused, and the same evidence cannot arrive twice",
+      "no axe violations or document overflow on the builder evidence view at two viewports"
+    ]
+  },
+  "limits": [
+    "Trialoom does not execute or sandbox the run; the gVisor runner host is not provisioned",
+    "the isolation profile and the egress allowlist are runner attestations, not enforcement",
+    "a target that exposes no revision can change under a pinned build without this check noticing",
+    "archives and images have no reviewed export path, so a reviewer cannot open a trace yet",
+    "no retention, deletion, or evidence export controls",
+    "no acceptance or rejection decision, no reproduction or duplicate clustering, and no payment",
+    "the local filesystem store is not the private object storage the architecture selects"
+  ],
+  "releaseScenarios": {
+    "R10": "Raw evidence is private; only a verified redacted copy is readable, archives are withheld, and reviewer reads are recorded",
+    "R12": "An expired claim retires its run grant in the same statement that returns the reservation, and refuses a later submission",
+    "R05": "Partial: a claim pins one build, the target's exposed revision is rechecked at execution time, and a submission restating a different build is refused. A target that exposes no revision can still change unnoticed",
+    "R02": "Not run: a valid execution is recorded with its outcome, but acceptance and payment do not exist"
+  },
+  "visualReview": "Builder evidence view reviewed from the rendered desktop and mobile screenshots; no axe violations or document overflow",
+  "ci": "configured; not run on GitHub",
+  "sourceFiles": [
+    {
+      "path": ".env.example",
+      "sha256": "e30c8f35a693c56b331c1f889f99baba7a44152116ee1c3432c6fd246ae66cfd"
+    },
+    {
+      "path": ".gitattributes",
+      "sha256": "952c9f6ae0360dd2e1a02f2dd2668789de128e91702daab304e0653e8f8e7e2b"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "1e12035ba2ca5ed43097a17b7498f2afcd4a313928bfeb43a9b645cecf6792f0"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "3d6a1df5293ccafeff0aafd9ce6157e302f6ccc84a9584ff6dd62b76adb6fe6c"
+    },
+    {
+      "path": ".impeccable.md",
+      "sha256": "02f6e9bd1ddfd7c7b512085e0d8b2bd42dd03d96436a535332418038431c6dc4"
+    },
+    {
+      "path": ".nvmrc",
+      "sha256": "d3fbdabc6e79cd4db661944014629a9d677d22d5e7656eadeea8ef55ddf9c9e3"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "bbe4ecd2b3e6abddb7f9edf9e245e3b48fde8dc2cbe87c9ae8cd3163f3963165"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "3bbb0c64d0aa55b18212efc03131ae4b5c8f6770e21cb3b8a1d325c2f8bd0ccd"
+    },
+    {
+      "path": "README.md",
+      "sha256": "0962e5c92ce3cca57ff41c4f22fd879b9ed6fd91179d0299ab44ce0169c0217c"
+    },
+    {
+      "path": "biome.json",
+      "sha256": "267adc89fa68280dd86722430c19a2a5b5074045550ee7df7c5e796e5c59162f"
+    },
+    {
+      "path": "compose.yaml",
+      "sha256": "118e8892fb1ffc7f742acce35e816148baee1dd4e3facbba1de57d83342e85ce"
+    },
+    {
+      "path": "db/migrations/0001_runtime.sql",
+      "sha256": "80682b750d72933ee94a919d504d8feed2d5ce86d4e3c46245995d9c357b9e32"
+    },
+    {
+      "path": "db/migrations/0002_accounts.sql",
+      "sha256": "eba218e54aa6ede6ded1e87b6e7e5199703c46098a4e132b7fd1430e3772ad2f"
+    },
+    {
+      "path": "db/migrations/0003_projects_terms.sql",
+      "sha256": "a4f8bc15978ee0273629eb44eb1a50f40519f112863e39545c45ba742f31617c"
+    },
+    {
+      "path": "db/migrations/0004_operators.sql",
+      "sha256": "80dbda6a95f478c5806fbfaf05e361fdac1c684af13a1ed8d752754fa7dfa1f3"
+    },
+    {
+      "path": "db/migrations/0005_ledger_claims.sql",
+      "sha256": "add12ca135cd329dcf968d29e64e22f7f9d6d3e44402e834deecb02b17560688"
+    },
+    {
+      "path": "db/migrations/0006_runs_evidence.sql",
+      "sha256": "465f2780e684b4da15515ad763ce937b6c57d8caa13beddce1ff4ab984630844"
+    },
+    {
+      "path": "docs/ALPHA-02.md",
+      "sha256": "0bc89f1575bf80e4ba1eab387d4cc518b5b271d88d32693f6a8a720fee4247af"
+    },
+    {
+      "path": "docs/ALPHA-03.md",
+      "sha256": "2b712d8b0029d979aa65d67a48b32db8734cd35f1c3b9c2fcb94023c08ed27f1"
+    },
+    {
+      "path": "docs/ALPHA-04.md",
+      "sha256": "1b1fabfe86ba301b1b656848efb5fee554eea949df9a07db891d45f212ff4a99"
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "sha256": "f0323d90c46cccf574df7cccca36f9c54e8070a219ceda2ac36cf50e47327084"
+    },
+    {
+      "path": "docs/BACKLOG.md",
+      "sha256": "b9ba7d087766a8e98fafdf797ef62796a0fd44b83dcf04a01d884d952451b991"
+    },
+    {
+      "path": "docs/DEVELOPMENT.md",
+      "sha256": "d2375ef64413758e62b76d277c7edd7ca57f8a7ae81b093099bc745bb2c6530c"
+    },
+    {
+      "path": "docs/HACKATHON.md",
+      "sha256": "38acc0208268cc8bc776ab7f909a9c876010ec2756d3e64c1517a27ecd8472a5"
+    },
+    {
+      "path": "docs/PRD.md",
+      "sha256": "c8f2ee691f7c0b111836999c96e33b8effe13b649a9e0cbbbf8e7a7566e1590d"
+    },
+    {
+      "path": "docs/ROADMAP.md",
+      "sha256": "7ff7caf320a9690b1b10bc6a568bb539d576d45718323beef9447da0603eb09d"
+    },
+    {
+      "path": "docs/VALIDATION.md",
+      "sha256": "30f4f65c243b4c44e68d0e802e776e72897c59751b664364d8f71ae8c8d59af9"
+    },
+    {
+      "path": "memory/BUILD_LOG.md",
+      "sha256": "7cef0670b630ac638ffb0d566f18db25ee27a475a384b35c3cd24125db75dc64"
+    },
+    {
+      "path": "memory/DECISIONS.md",
+      "sha256": "9649af68cced691296ae9a98e75b7bfb607886da2fd6efde4b5c8de8a41bc746"
+    },
+    {
+      "path": "memory/PROJECT.md",
+      "sha256": "3cb3de00c7c6951371c1891da5beebbf993e845431e1f0ac20bcec947d851e45"
+    },
+    {
+      "path": "memory/STATUS.md",
+      "sha256": "0200e5f12d79fb73c931b9335a332f506cfb2d414b5a1b0a38d86c316efdb34c"
+    },
+    {
+      "path": "next-env.d.ts",
+      "sha256": "1862ac4bbbc5192d4bf562161df66ea547ed3e67173100656ab606ae9797db2b"
+    },
+    {
+      "path": "next.config.ts",
+      "sha256": "7e4df4dfba315d7163b67310d2db5c3d7f2ff17c435880428c969b1e1d5796ba"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "30435edbe7459637cea07aad280e427e21f39bd99d4cf4024bcd01fb7748f1a9"
+    },
+    {
+      "path": "package.json",
+      "sha256": "747fd24e83aff0f56e5a2dc5d6a4151304eeffcb9ad55118a49356e2afd0bd45"
+    },
+    {
+      "path": "playwright.config.ts",
+      "sha256": "5f860d457addca74a70ab7b63edb449ba6fc59f55596f97990375b8eb221015c"
+    },
+    {
+      "path": "scripts/enqueue.ts",
+      "sha256": "434d6e2b2113e79be90e024316486f97aaff3ced8deb7c20618a3603c72637e0"
+    },
+    {
+      "path": "scripts/invite.ts",
+      "sha256": "43105d726baa94f885959e63d0e89444585665e03ca9994e05b17b27dda0352b"
+    },
+    {
+      "path": "scripts/migrate.ts",
+      "sha256": "feab793bd67138c66a65f1909c27b79d05bf603c081e5b27a259ff4f145ce4f8"
+    },
+    {
+      "path": "scripts/setup-auth.mjs",
+      "sha256": "6a350df10687f69820f55d9ab87dd37fcefd97a5b7afa41949cc0f5e2d1477a7"
+    },
+    {
+      "path": "scripts/setup-local.mjs",
+      "sha256": "0b2efad9cb1a05a8386a25112c1b766dd59f855fb2b333df4a4d2e0185cf4286"
+    },
+    {
+      "path": "scripts/test-browser.ts",
+      "sha256": "21a5d5bad24783d5fb90e6e7d530c2e49e135bcc0492c354183214d4147659ea"
+    },
+    {
+      "path": "src/app/account.css",
+      "sha256": "563e1aa1be1477db6cecf470d4d193f49d89cc6bbe7c9e962909e126ad08ea6a"
+    },
+    {
+      "path": "src/app/api/agent/v1/[...path]/route.ts",
+      "sha256": "0cb0877f4c56398cdd46e5c8efb72cb9075a59ff6966c378ddf131435e29b131"
+    },
+    {
+      "path": "src/app/api/auth/[...all]/route.ts",
+      "sha256": "74441d8384cf5b676e2f9e5bcf0e5c904a6daab12ad11aa81df1177f48031d3a"
+    },
+    {
+      "path": "src/app/api/demo/report/route.ts",
+      "sha256": "ed1e229c9f964ba781298a1fae937fadfd563cba75c2e3ef855d452a9d0b579b"
+    },
+    {
+      "path": "src/app/api/health/route.ts",
+      "sha256": "fbbbcaf7ef028415b950ffe656ebb8959a92e6fb37f333a069b3482c811791a1"
+    },
+    {
+      "path": "src/app/api/ready/route.ts",
+      "sha256": "e996e06361ce6aff91d362a3f6ae4b2a1fb78a58d8de5765c0b20b6be25f3c79"
+    },
+    {
+      "path": "src/app/api/v1/[...path]/route.ts",
+      "sha256": "0091c69a6dc141f3f6085ca568368d917cd75c7fecf095741caa99d4638af43e"
+    },
+    {
+      "path": "src/app/demo/evidence/page.tsx",
+      "sha256": "b84d1a270ec182ed853e6a419aeb21a3b814519ce8880cca590c67ea4829b5f0"
+    },
+    {
+      "path": "src/app/demo/guide/page.tsx",
+      "sha256": "f21c861861ecc41ee1be030dcbf23e2b1ca85492caecd4252525803cb81de53c"
+    },
+    {
+      "path": "src/app/demo/page.tsx",
+      "sha256": "f30590dbdde42e1fc2692ac28ca5f4e8c269e617f900d1748c5db36def82d0af"
+    },
+    {
+      "path": "src/app/demo/payments/page.tsx",
+      "sha256": "5cf87be0bdc4297cdd85537280364e1b66ef29506306a3d93bd81e807c065379"
+    },
+    {
+      "path": "src/app/globals.css",
+      "sha256": "5a5eb1d23e32c0d1619cb8700994cd785218f269cbb3af1ab9911aac8b2205b2"
+    },
+    {
+      "path": "src/app/icon.svg",
+      "sha256": "96318a4e9c08f97ab765beb2c22bda0ddf0d86492b3bffd2c55ee423200ca21a"
+    },
+    {
+      "path": "src/app/join/page.tsx",
+      "sha256": "62ffbcfc904f1ff84b99c9fd47adc77bd3aa8f546d4d50e01c36c63f7e9045f7"
+    },
+    {
+      "path": "src/app/layout.tsx",
+      "sha256": "0bc5c45f2c73eafe8629e65c53bc68ca8d340aa34040b3316b78a524d834a2bb"
+    },
+    {
+      "path": "src/app/operator/page.tsx",
+      "sha256": "167d2beb1288dd3ffd9f36a0871b04a1cdf1b65decab0128cd5e3f7119027d59"
+    },
+    {
+      "path": "src/app/page.tsx",
+      "sha256": "17332aff66ebd92d84312852c8b2f61ab248f135b66b2abc36a394fc9c174447"
+    },
+    {
+      "path": "src/app/sign-in/page.tsx",
+      "sha256": "0f7b49e679d4ad6b89701d857bb6c6d1c52f7f49af816048ebbc5e4fdab8c635"
+    },
+    {
+      "path": "src/app/workspace/page.tsx",
+      "sha256": "fb93df4fe081cdac19f2f0ce336b3ac77be64823b9995656146612518d80345d"
+    },
+    {
+      "path": "src/components/access-panel.tsx",
+      "sha256": "0a1bf5ee4efe3b116c9b117f04726ab513eed888d21ee97e22fe6fe1d10aeb3c"
+    },
+    {
+      "path": "src/components/auth-form.tsx",
+      "sha256": "eeb388f850e3662d378dabd0136e53e0f77d98bd18bcacd3dea4279ac73ba7db"
+    },
+    {
+      "path": "src/components/campaign-panel.tsx",
+      "sha256": "b4c305f60edb55e4ef47714b66290409e87bf4f04d72433641c22249481892b1"
+    },
+    {
+      "path": "src/components/icons.tsx",
+      "sha256": "ded3090157954b69598f1e28afec5a48ab8d30159ce83563129c26a604c2d665"
+    },
+    {
+      "path": "src/components/live-types.ts",
+      "sha256": "c70f379c6addc53277052349b66d3edbe2708f408b5f6c1797708fd97e492d6c"
+    },
+    {
+      "path": "src/components/live-workspace.tsx",
+      "sha256": "9a995f2f467017d47dddf6f9db81c07e01ae7aa5cea1a7e3923ce313b9dc4ab9"
+    },
+    {
+      "path": "src/components/operator-console.tsx",
+      "sha256": "5ec6e3b4805df8fb674bf1c920914e10bdb5cf09a59483892d087246a8f6c508"
+    },
+    {
+      "path": "src/components/project-panel.tsx",
+      "sha256": "1b6f4c32535eac58c59ed375f4ecd3da98266c01ddfc26acbdb63ad8f38b12c1"
+    },
+    {
+      "path": "src/components/terms-form.tsx",
+      "sha256": "2c2896a0f3da53a99444b410a411c6ec26102f3d77fd695503a01c39040053d2"
+    },
+    {
+      "path": "src/components/workspace.tsx",
+      "sha256": "e35e9285e5f14e72cfc6d2200ca702c08eba45cee8c8e9c4aa3e0f789b46924a"
+    },
+    {
+      "path": "src/demo/data.ts",
+      "sha256": "fb256a436264ba86875e18ca6a51854f6c868d25fe179b5b8b94997839cedbae"
+    },
+    {
+      "path": "src/domain/errors.ts",
+      "sha256": "dba69283676705bbcb3a62f21d9b9840ac2b50c332a8dbb95e0f26f7f23662f8"
+    },
+    {
+      "path": "src/domain/schemas.ts",
+      "sha256": "964e2438d6be1ca6e6f886d575e6f5e126ce7ef4e16a94e54bf0819fa6dc07d9"
+    },
+    {
+      "path": "src/domain/values.ts",
+      "sha256": "8738eb2dc36fb32649f206e860044c4c3a6debbf9be9fe5e47d7ec036b026ade"
+    },
+    {
+      "path": "src/server/access.ts",
+      "sha256": "4e32fc440ab04d7881676f7d6d9f7cad559a2ce1f99b1b5e09ff4b72abcbd92e"
+    },
+    {
+      "path": "src/server/agents.ts",
+      "sha256": "7cc3c3b02ad3cf9b7fe76d017e31e2bd27dd7f6d16a4084df59d2e246c03fc3a"
+    },
+    {
+      "path": "src/server/assignments.ts",
+      "sha256": "408ee9cc157daff837446a3fbfb45fd362effdc07fb44eb2cfad1fae1f165f1b"
+    },
+    {
+      "path": "src/server/auth/config.ts",
+      "sha256": "bc43879307ee90e7f0523314d284ed17e740a65f0f2f2c49c994a3db93fce7a9"
+    },
+    {
+      "path": "src/server/database.ts",
+      "sha256": "d91d0257ea53122c1b810b0d8fce31927ded245bb09db1f2fee96675e0620f64"
+    },
+    {
+      "path": "src/server/evidence.ts",
+      "sha256": "cb250fe66445992a152f813251a5c5bfb8e8aa6387670735018ffa9a8ac00735"
+    },
+    {
+      "path": "src/server/http.ts",
+      "sha256": "f60e4ab1adae5f216d53bbb883a56f60f177088b62eb6d1bf1e5de91ddd9d98b"
+    },
+    {
+      "path": "src/server/invitations.ts",
+      "sha256": "6e007692535991c6d1aead98ee77e37923287f1c50fb27aefbc1e1ca30dbbd7f"
+    },
+    {
+      "path": "src/server/jobs.ts",
+      "sha256": "a1a4bcd06c49bc723953e1dadb05b65d1109307aa3c592a629e61f6d11897972"
+    },
+    {
+      "path": "src/server/ledger.ts",
+      "sha256": "efa322ba7867eed4144ec3bc5b72595c131c986d1ea54200bc51318af615a91e"
+    },
+    {
+      "path": "src/server/migrations.ts",
+      "sha256": "181c139e174afb7bf25ecb3ec8120423084fa31ab36b064b78d23361f5507513"
+    },
+    {
+      "path": "src/server/operators.ts",
+      "sha256": "a1de292578ef973b8fd0e65db3b0a25b6141d93632aa549b0322054fdffac98f"
+    },
+    {
+      "path": "src/server/projects.ts",
+      "sha256": "dbe3c3d3b15d8ef90c3c0a5de9ecb7a68596ae270addaff72e4184114da12fac"
+    },
+    {
+      "path": "src/server/qualification.ts",
+      "sha256": "d6e594fbb9f08dbc45862a74518f3ac89f066a3845a8425c345b8a5881310b5e"
+    },
+    {
+      "path": "src/server/redaction.ts",
+      "sha256": "24ee249347823535e291c1f6c82274cad5135991635ecffdd9be340b7134a90d"
+    },
+    {
+      "path": "src/server/runner.ts",
+      "sha256": "24f509ae68ab8f7b29bdd9f96ef3bd18f43c9fda326376e2bb6f236a78639882"
+    },
+    {
+      "path": "src/server/storage.ts",
+      "sha256": "0138059c26cfaa79b51ccba7456659eef5050ed54e7740c9049a0ad1c72c688c"
+    },
+    {
+      "path": "src/server/targets.ts",
+      "sha256": "d3afc9112b2382abef906177d061c9f40c62f2e470fe8c927ed8747c76565651"
+    },
+    {
+      "path": "src/server/workspaces.ts",
+      "sha256": "aba42d65ef43ed5432dcfbdc2120d2d69cf3802d9e37f38b169bd540ff2ff83f"
+    },
+    {
+      "path": "tests/accounts.test.ts",
+      "sha256": "c49889098b52be1e2293200bda2701b9def4602dd538f89dc51844c114b92db3"
+    },
+    {
+      "path": "tests/agents.test.ts",
+      "sha256": "4337c41441c069955c453c0c94e4f6c5544917bd4b6c96fd07d21c3c0d18963c"
+    },
+    {
+      "path": "tests/backend.test.ts",
+      "sha256": "8a0a0274468e7acb7f0924e054241a0e17e3126add79c7314d7c1d917d751bbe"
+    },
+    {
+      "path": "tests/browser/accounts.spec.ts",
+      "sha256": "252daec4e02fccfc393f19623fb0bbf1b99fa9ddf86a7a02e154cefd6284f8e9"
+    },
+    {
+      "path": "tests/browser/evidence.spec.ts",
+      "sha256": "36845a5af45664297f736fcfe061e7a5efb4a237a220227f0382b5c2c1db29fa"
+    },
+    {
+      "path": "tests/browser/operator.spec.ts",
+      "sha256": "435c95fff5cbce009b198c944313a01d7ce9095f40ef23f02c5cbec2d17202f6"
+    },
+    {
+      "path": "tests/browser/workspace.spec.ts",
+      "sha256": "e91fe3495d91e8c23a9a4228d77a0e8b6bd45cd0c6d128f3f3551fbc9cfe156a"
+    },
+    {
+      "path": "tests/helpers/database.ts",
+      "sha256": "8832e5c948db1c72a2d308f8e639f07e93c436055b8e1943fd322801101eb439"
+    },
+    {
+      "path": "tests/ledger.test.ts",
+      "sha256": "4d54f179effc29a14d20a86c0a4a0e16f7fabd71be3821bb916a4ad518933798"
+    },
+    {
+      "path": "tests/operators.test.ts",
+      "sha256": "2910fcbc412021166d7e333520d0d663727ae60a4823db31ffee1dc1f0e72e71"
+    },
+    {
+      "path": "tests/projects.test.ts",
+      "sha256": "c96113c2287df185ac923a9ca02b3563ab0a0fd940b107bfbd560d14a773895e"
+    },
+    {
+      "path": "tests/runner.test.ts",
+      "sha256": "fc2460edbcddcf0a983f19eb5d349227785e34669d7fe345d589b7cc231d0fea"
+    },
+    {
+      "path": "tsconfig.json",
+      "sha256": "07ea5aae2e78809233b49771e534578ec5b249083dd45394614fcda8a24994a6"
+    },
+    {
+      "path": "workers/main.ts",
+      "sha256": "0da882a53e9bcac8fefd72001ab808c0d6440961cd18bbfe56373e33dbf22b5b"
+    }
+  ]
+}

@@ -14,6 +14,7 @@ import { migrate } from '../src/server/migrations.ts';
 import { createCredential, registerOperator } from '../src/server/operators.ts';
 import { addBuild, createCampaign, createProject } from '../src/server/projects.ts';
 import { submitAttempt } from '../src/server/qualification.ts';
+import { decideQuote, proposeQuote } from '../src/server/repairs.ts';
 import { authenticateRun, isolationProfile, startRun } from '../src/server/runner.ts';
 import { digestOf } from '../src/server/storage.ts';
 import { disposableDatabase } from '../tests/helpers/database.ts';
@@ -39,6 +40,28 @@ const correctReports: Record<string, Record<string, unknown>> = {
     observedStatus: 201,
   },
 };
+// The repair service has its own seeded qualification task.
+const repairReport = {
+  'regression-pins-revision': {
+    defectPresent: true,
+    baselineResult: 'failed',
+    candidateResult: 'passed',
+  },
+};
+const candidateRevision = 'candidate-2';
+// The failure the seeded repair fixes, kept apart from the evidence fixture's
+// own defect so the checks on that fixture stay exactly as they are.
+const repairedAssertion = 'invitation.expiry';
+const replays = (assertion: string) => ({
+  baseline: [
+    { assertion, passed: false, cleanSession: true as const },
+    { assertion, passed: false, cleanSession: true as const },
+  ],
+  candidate: [
+    { assertion, passed: true, cleanSession: true as const },
+    { assertion, passed: true, cleanSession: true as const },
+  ],
+});
 const archiveBytes = () =>
   Buffer.concat([Buffer.from([0x50, 0x4b, 0x03, 0x04, 0xff, 0xfe, 0xff, 0xfe]), randomBytes(32)]);
 try {
@@ -163,33 +186,31 @@ try {
       },
       publicDns,
     );
+    const evidenceTerms = {
+      buildId: evidenceBuild.id,
+      expectedVersion: 0,
+      service: 'bug_discovery',
+      scope: 'Exercise the seeded invitation journey and record evidence',
+      allowedActions: ['Create sandbox invitations'],
+      exclusions: ['No real emails'],
+      acceptanceCriteria: 'Reports must replay from the exported trace',
+      rewardRubric: 'One reward per distinct accepted defect',
+      artifactRights: 'Builder retains reports and regression tests',
+      deadline: new Date(Date.now() + 86_400_000).toISOString(),
+      reviewWindowHours: 48,
+      priceUnits: '2000000',
+      discoveryRewardCapUnits: '1000000',
+      resourceAllowanceUnits: '500000',
+      platformFeeBps: 1000,
+      paymentTerms: 'Authorized spending is not escrow; accepted work remains owed.',
+      scopeApproved: true,
+    };
     const evidenceCampaign = await createCampaign(
       db.pool,
       evidenceOwner,
       second.workspaceId,
       evidenceProject.id,
-      {
-        name: 'Evidence fixture campaign',
-        terms: {
-          buildId: evidenceBuild.id,
-          expectedVersion: 0,
-          service: 'bug_discovery',
-          scope: 'Exercise the seeded invitation journey and record evidence',
-          allowedActions: ['Create sandbox invitations'],
-          exclusions: ['No real emails'],
-          acceptanceCriteria: 'Reports must replay from the exported trace',
-          rewardRubric: 'One reward per distinct accepted defect',
-          artifactRights: 'Builder retains reports and regression tests',
-          deadline: new Date(Date.now() + 86_400_000).toISOString(),
-          reviewWindowHours: 48,
-          priceUnits: '2000000',
-          discoveryRewardCapUnits: '1000000',
-          resourceAllowanceUnits: '500000',
-          platformFeeBps: 1000,
-          paymentTerms: 'Authorized spending is not escrow; accepted work remains owed.',
-          scopeApproved: true,
-        },
-      },
+      { name: 'Evidence fixture campaign', terms: evidenceTerms },
     );
     await publishCampaign(
       db.pool,
@@ -206,7 +227,10 @@ try {
         authorizationConfirmed: true,
       },
     );
-    async function runningOperator(handle: string) {
+    async function runningOperator(
+      handle: string,
+      options: { campaignId?: string; tasks?: Record<string, Record<string, unknown>> } = {},
+    ) {
       const email = `${viewport}-${handle}@example.test`;
       const invite = await createInvitation(db.pool, evidenceOwner, second.workspaceId, {
         email,
@@ -219,7 +243,7 @@ try {
       const operator = await registerOperator(db.pool, actor, {
         handle: `${viewport}-${handle}`,
       });
-      for (const [task, report] of Object.entries(correctReports))
+      for (const [task, report] of Object.entries(options.tasks ?? correctReports))
         await submitAttempt(db.pool, operator, { task, report });
       const credential = await createCredential(db.pool, actor, {
         name: 'Isolated runner',
@@ -236,7 +260,7 @@ try {
       });
       const session = await authenticateAgent(db.pool, credential.secret);
       const assignment = await claim(db.pool, session, {
-        campaignId: evidenceCampaign.campaignId,
+        campaignId: options.campaignId ?? evidenceCampaign.campaignId,
       });
       const run = await startRun(
         db.pool,
@@ -245,7 +269,7 @@ try {
         { attemptToken: assignment.attemptToken },
         { resolver: publicDns, probe: seededProbe },
       );
-      return { credential, session, assignment, run };
+      return { operator, credential, session, assignment, run };
     }
     function evidenceDocument(
       assignment: Awaited<ReturnType<typeof claim>>,
@@ -290,6 +314,13 @@ try {
         outcome: 'product_failed',
         summary: 'The seeded validator rejects a plus alias on the pinned build.',
         artifacts,
+      };
+    }
+    /** The same restated identities, pinned to the repair brief's own terms. */
+    function repairEnvelope(assignment: Awaited<ReturnType<typeof claim>>) {
+      return {
+        ...evidenceDocument(assignment, []),
+        termsContentHash: repairCampaign.contentHash,
       };
     }
     // One finished submission for the builder and reviewer views.
@@ -339,6 +370,303 @@ try {
         storedNames.map((row) => ({ name: row.name, sha256: row.sha256 })),
       ),
     );
+    // A second independent report of the same failure, in its own brief so the
+    // evidence fixture above is untouched. Two independent reports confirm the
+    // defect, which is what a repair can then be quoted against.
+    const corroboration = await createCampaign(
+      db.pool,
+      evidenceOwner,
+      second.workspaceId,
+      evidenceProject.id,
+      { name: 'Corroborate the invitation defect', terms: evidenceTerms },
+    );
+    await publishCampaign(
+      db.pool,
+      evidenceOwner,
+      second.workspaceId,
+      evidenceProject.id,
+      corroboration.campaignId,
+      {
+        termsVersionId: corroboration.id,
+        slots: 2,
+        maxConcurrent: 2,
+        authorizeUnits: '20000000',
+        spendingAuthorization: 'remesso-policy-browser-fixture',
+        authorizationConfirmed: true,
+      },
+    );
+    for (const handle of ['witness-one', 'witness-two']) {
+      const witness = await runningOperator(handle, { campaignId: corroboration.campaignId });
+      const grant = await authenticateRun(db.pool, witness.run.runToken);
+      const witnessArchive = archiveBytes();
+      await storeArtifact(
+        db.pool,
+        grant,
+        { name: 'replay.trace.zip', kind: 'trace', sha256: digestOf(witnessArchive) },
+        'application/zip',
+        witnessArchive,
+      );
+      const witnessAssertions = Buffer.from(`{"expired":true,"by":"${handle}"}`, 'utf8');
+      await storeArtifact(
+        db.pool,
+        grant,
+        { name: 'assertions.json', kind: 'assertions', sha256: digestOf(witnessAssertions) },
+        'application/json',
+        witnessAssertions,
+      );
+      await submitEvidence(db.pool, grant, {
+        ...evidenceDocument(witness.assignment, [
+          { name: 'replay.trace.zip', sha256: digestOf(witnessArchive) },
+          { name: 'assertions.json', sha256: digestOf(witnessAssertions) },
+        ]),
+        termsContentHash: corroboration.contentHash,
+        // A distinct failure, so this confirms a defect of its own and leaves
+        // the evidence fixture's defect exactly as the checks above expect it.
+        steps: [
+          {
+            index: 1,
+            action: 'Open an invitation one hour after it was created',
+            expected: 'Invitation still valid',
+            actual: 'Rejected as expired',
+            status: 'failed',
+          },
+        ],
+        assertions: [
+          { name: repairedAssertion, passed: false, detail: 'Expected valid, observed expired' },
+        ],
+        summary: 'The seeded invitation expires an hour early on the pinned build.',
+      });
+    }
+    const defect = (
+      await db.pool.query<{ id: string }>(
+        `SELECT DISTINCT d.id FROM defects d JOIN findings f ON f.defect_id=d.id
+        WHERE f.campaign_id=$1 AND d.state='confirmed'`,
+        [corroboration.campaignId],
+      )
+    ).rows[0];
+
+    // A quoted, approved and published repair brief, delivered and independently
+    // confirmed, so the builder's repair view has a complete record to show.
+    const repairCampaign = await createCampaign(
+      db.pool,
+      evidenceOwner,
+      second.workspaceId,
+      evidenceProject.id,
+      {
+        name: 'Repair the invitation validator',
+        terms: {
+          buildId: evidenceBuild.id,
+          expectedVersion: 0,
+          service: 'repair',
+          scope: 'Repair the plus-alias validator and pin the failure with a regression test',
+          allowedActions: ['Change the invitation validator'],
+          exclusions: ['No deployment or infrastructure changes'],
+          acceptanceCriteria:
+            'The regression test fails on the original revision and passes on the candidate',
+          rewardRubric: 'One payment for the quoted repair; verification is priced separately',
+          artifactRights: 'Builder retains the patch and the regression test',
+          deadline: new Date(Date.now() + 86_400_000).toISOString(),
+          reviewWindowHours: 48,
+          priceUnits: '2000000',
+          discoveryRewardCapUnits: '1000000',
+          resourceAllowanceUnits: '500000',
+          platformFeeBps: 1000,
+          paymentTerms: 'Authorized spending is not escrow; accepted work remains owed.',
+          scopeApproved: true,
+        },
+      },
+    );
+    const repairAuthorEmail = `${viewport}-repair-author@example.test`;
+    const authorInvite = await createInvitation(db.pool, evidenceOwner, second.workspaceId, {
+      email: repairAuthorEmail,
+      role: 'operator',
+    });
+    await acceptInvitation(
+      db.pool,
+      { token: authorInvite.token, name: 'repair-author', password },
+      null,
+    );
+    const authorActor = (
+      await db.pool.query('SELECT id,email,name FROM auth_user WHERE email=$1', [repairAuthorEmail])
+    ).rows[0];
+    const authorOperator = await registerOperator(db.pool, authorActor, {
+      handle: `${viewport}-repair-author`,
+    });
+    const quote = await proposeQuote(
+      db.pool,
+      evidenceOwner,
+      second.workspaceId,
+      evidenceProject.id,
+      {
+        campaignId: repairCampaign.campaignId,
+        defectId: defect.id,
+        operatorId: authorOperator.id,
+        baseBuildId: evidenceBuild.id,
+        amountUnits: '2000000',
+        scopePaths: ['src/invitations'],
+      },
+    );
+    await decideQuote(
+      db.pool,
+      evidenceOwner,
+      second.workspaceId,
+      evidenceProject.id,
+      quote.quoteId,
+      {
+        outcome: 'approved',
+        reason: 'The defect is confirmed and the scope is the validator alone.',
+      },
+    );
+    await publishCampaign(
+      db.pool,
+      evidenceOwner,
+      second.workspaceId,
+      evidenceProject.id,
+      repairCampaign.campaignId,
+      {
+        termsVersionId: repairCampaign.id,
+        slots: 2,
+        maxConcurrent: 2,
+        authorizeUnits: '20000000',
+        spendingAuthorization: 'remesso-policy-browser-fixture',
+        authorizationConfirmed: true,
+      },
+    );
+    // The quoted operator is already admitted, so only the repair qualification
+    // and the claim remain.
+    for (const [task, report] of Object.entries(repairReport))
+      await submitAttempt(db.pool, authorOperator, { task, report });
+    const authorCredential = await createCredential(db.pool, authorActor, {
+      name: 'Isolated runner',
+      scopes: ['work:read', 'assignments:read', 'assignments:claim', 'runs:execute'],
+      expiresInDays: 7,
+    });
+    const authorSession = await authenticateAgent(db.pool, authorCredential.secret);
+    const authorAssignment = await claim(db.pool, authorSession, {
+      campaignId: repairCampaign.campaignId,
+    });
+    const authorRun = await startRun(
+      db.pool,
+      authorSession,
+      authorAssignment.assignmentId,
+      { attemptToken: authorAssignment.attemptToken },
+      { resolver: publicDns, probe: seededProbe },
+    );
+    const authorGrant = await authenticateRun(db.pool, authorRun.runToken);
+    const patch = Buffer.from(
+      '--- a/src/invitations/validate.ts\n+++ b/src/invitations/validate.ts\n@@\n-strict\n+rfc5322\n',
+      'utf8',
+    );
+    await storeArtifact(
+      db.pool,
+      authorGrant,
+      { name: 'fix.patch', kind: 'patch', sha256: digestOf(patch) },
+      'text/x-diff',
+      patch,
+    );
+    const regression = Buffer.from('test("plus alias is accepted", () => {})\n', 'utf8');
+    await storeArtifact(
+      db.pool,
+      authorGrant,
+      { name: 'regression.test.txt', kind: 'test', sha256: digestOf(regression) },
+      'text/plain',
+      regression,
+    );
+    const repairAssertions = Buffer.from(`{"candidate":"${candidateRevision}"}`, 'utf8');
+    await storeArtifact(
+      db.pool,
+      authorGrant,
+      { name: 'assertions.json', kind: 'assertions', sha256: digestOf(repairAssertions) },
+      'application/json',
+      repairAssertions,
+    );
+    await submitEvidence(db.pool, authorGrant, {
+      ...repairEnvelope(authorAssignment),
+      steps: [
+        {
+          index: 1,
+          action: 'Replay the regression test on both revisions',
+          expected: 'Fails on the original, passes on the candidate',
+          actual: 'Fails on the original, passes on the candidate',
+          status: 'passed',
+        },
+      ],
+      assertions: [
+        { name: 'regression.replayed', passed: true, detail: 'Both revisions replayed cleanly' },
+      ],
+      outcome: 'executed',
+      summary: 'Repairs the plus-alias validator and pins the failure with a regression test.',
+      repair: {
+        baseRevision: 'baseline-1',
+        candidateRevision,
+        changedFiles: [
+          {
+            path: 'src/invitations/validate.ts',
+            beforeSha256: 'a'.repeat(64),
+            afterSha256: 'b'.repeat(64),
+          },
+        ],
+        patchSha256: digestOf(patch),
+        testSha256: digestOf(regression),
+        regression: replays(repairedAssertion),
+        requiredChecks: [{ label: 'unit', baselinePassed: true, candidatePassed: true }],
+      },
+      artifacts: [
+        { name: 'fix.patch', sha256: digestOf(patch) },
+        { name: 'regression.test.txt', sha256: digestOf(regression) },
+        { name: 'assertions.json', sha256: digestOf(repairAssertions) },
+      ],
+    });
+    const verifier = await runningOperator('repair-verifier', {
+      campaignId: repairCampaign.campaignId,
+      tasks: repairReport,
+    });
+    const verifierGrant = await authenticateRun(db.pool, verifier.run.runToken);
+    const verifierArchive = archiveBytes();
+    await storeArtifact(
+      db.pool,
+      verifierGrant,
+      { name: 'verify.trace.zip', kind: 'trace', sha256: digestOf(verifierArchive) },
+      'application/zip',
+      verifierArchive,
+    );
+    const verifierAssertions = Buffer.from('{"reproduced":true}', 'utf8');
+    await storeArtifact(
+      db.pool,
+      verifierGrant,
+      { name: 'assertions.json', kind: 'assertions', sha256: digestOf(verifierAssertions) },
+      'application/json',
+      verifierAssertions,
+    );
+    await submitEvidence(db.pool, verifierGrant, {
+      ...repairEnvelope(verifier.assignment),
+      steps: [
+        {
+          index: 1,
+          action: 'Replay the delivered regression test on both revisions',
+          expected: 'Fails on the original, passes on the candidate',
+          actual: 'Fails on the original, passes on the candidate',
+          status: 'passed',
+        },
+      ],
+      assertions: [
+        { name: 'regression.replayed', passed: true, detail: 'Reproduced independently' },
+      ],
+      outcome: 'executed',
+      summary: 'Independently replayed the delivered regression test on both revisions.',
+      repairVerification: {
+        outcome: 'confirmed',
+        baseRevision: 'baseline-1',
+        candidateRevision,
+        regression: replays(repairedAssertion),
+        detail: 'Replayed the delivered test twice on each revision from a clean session.',
+      },
+      artifacts: [
+        { name: 'verify.trace.zip', sha256: digestOf(verifierArchive) },
+        { name: 'assertions.json', sha256: digestOf(verifierAssertions) },
+      ],
+    });
+
     // One live run grant for the agent API checks.
     const live = await runningOperator('runner');
     const join = await bootstrapWorkspace(db.pool, {
@@ -372,6 +700,12 @@ try {
       liveAssignmentId: live.assignment.assignmentId,
       liveAttemptToken: live.assignment.attemptToken,
       liveCredential: live.credential.secret,
+      repairCampaignId: repairCampaign.campaignId,
+      repairQuoteId: quote.quoteId,
+      repairAuthorHandle: `${viewport}-repair-author`,
+      repairVerifierHandle: `${viewport}-repair-verifier`,
+      repairAuthorAssignmentId: authorAssignment.assignmentId,
+      repairVerifierAssignmentId: verifier.assignment.assignmentId,
     };
   }
   const fixtureFile = resolve(directory, 'fixtures.json');

@@ -23,6 +23,7 @@ import {
   type TermsDocument,
 } from './ledger.ts';
 import { recordPayables } from './payables.ts';
+import { repairPosition, repairReadyForPayment } from './repairs.ts';
 
 /** An operator has seven days to appeal, and the refused amount stays reserved. */
 export const appealWindowHours = 168;
@@ -247,6 +248,34 @@ export async function decideExecution(
       );
     if (data.outcome === 'accepted' && amount <= 0n)
       throw new AppError('AMOUNT_INVALID', 'An accepted execution pays a positive amount.');
+    const position = await repairPosition(db, assignment.campaign_id, assignment.operator_id);
+    if (position && data.outcome === 'accepted') {
+      if (position === 'author') {
+        // Independent confirmation is what makes a repair payable. A builder
+        // who likes the patch still cannot accept it on their own say-so.
+        const ready = await repairReadyForPayment(db, id);
+        if (!ready)
+          throw new AppError(
+            'VERIFICATION_PENDING',
+            'This assignment has delivered no repair, so there is nothing to accept.',
+            409,
+          );
+        if (!ready.confirmed)
+          throw new AppError(
+            'VERIFICATION_PENDING',
+            'No independent verifier has confirmed this repair yet. A repair is payable only once someone unconnected to its author has reproduced the regression on both revisions.',
+            409,
+          );
+      } else if (data.amountUnits === undefined || amount >= price)
+        // The published price buys the repair, not a verification of it. Until
+        // verification is briefed and priced on its own, what it is worth is
+        // stated here explicitly rather than defaulting to the repair's price.
+        throw new AppError(
+          'VERIFICATION_PRICE_REQUIRED',
+          `These terms price the repair itself at ${price} base units. State what this verification is worth, below that amount.`,
+          409,
+        );
+    }
     let result: Awaited<ReturnType<typeof post>>;
     try {
       result = await post(
@@ -281,8 +310,22 @@ export async function decideExecution(
     }
     await syncAssignment(db, id);
     await settleIfComplete(db, id);
+    // Accepting the author's work is the last step of the repair itself. The
+    // patch is still only delivered: nothing here merges or deploys it.
+    if (position === 'author' && data.outcome === 'accepted')
+      await db.query(
+        `UPDATE defects SET repair_state='accepted'
+        WHERE id=(SELECT defect_id FROM repairs WHERE assignment_id=$1)`,
+        [id],
+      );
     await audit(db, workspaceId, actor.id, `decision.execution_${data.outcome}`, id);
-    return { ...result, assignmentId: id, matter: 'execution', outcome: data.outcome };
+    return {
+      ...result,
+      assignmentId: id,
+      matter: 'execution',
+      outcome: data.outcome,
+      repairPosition: position,
+    };
   });
 }
 

@@ -355,7 +355,17 @@ const scopePath = z
   .trim()
   .min(1)
   .max(300)
-  .regex(/^[^\s]+$/, 'Use a repository path without spaces.');
+  .regex(/^[^\s]+$/, 'Use a repository path without spaces.')
+  // A scope is a boundary, so it must name one place in the repository. A
+  // leading slash or a parent segment would make the boundary meaningless.
+  .refine((path) => !path.startsWith('/'), 'Use a path relative to the repository root.')
+  .refine(
+    (path) => !path.split('/').includes('..'),
+    'A scope path cannot step outside the repository.',
+  )
+  // 'src/' and 'src' name the same directory; store one of them.
+  .transform((path) => path.replace(/\/+$/, ''))
+  .refine((path) => path.length > 0, 'Name a path inside the repository.');
 export const repairQuoteSchema = z
   .object({
     campaignId: uuid,

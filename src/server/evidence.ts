@@ -15,6 +15,7 @@ import { campaignDecisions } from './decisions.ts';
 import { campaignFindings, noteConsistentPass, recordFinding } from './findings.ts';
 import { campaignPayouts } from './payables.ts';
 import { decodeUtf8, redactionPolicy, redactText, scanText } from './redaction.ts';
+import { campaignRepairs, recordRepair, recordVerification, repairRole } from './repairs.ts';
 import { isolationProfile, type RunSession, runLimits } from './runner.ts';
 import { digestOf, getObject, putObject } from './storage.ts';
 
@@ -152,8 +153,13 @@ export async function storeArtifact(
   });
 }
 
-function requiredKinds(service: string): ArtifactKind[] {
-  if (service === 'repair') return ['patch', 'test', 'assertions'];
+/**
+ * A repair author delivers the patch and the regression test that proves it; an
+ * independent verifier delivers a trace of having run that test themselves, and
+ * has no patch of their own to show.
+ */
+function requiredKinds(service: string, role: 'author' | 'verifier' | null): ArtifactKind[] {
+  if (service === 'repair' && role === 'author') return ['patch', 'test', 'assertions'];
   return ['trace', 'assertions'];
 }
 
@@ -300,12 +306,18 @@ export async function submitEvidence(pool: Pool, session: RunSession, input: unk
         'ARTIFACT_UNDECLARED',
         'This run holds artifacts the submission does not list. Declare every artifact you uploaded.',
       );
+    // In a repair brief the quoted operator delivers and everyone else verifies.
+    // The role decides what evidence is required and what this submission means.
+    const role =
+      manifest.service === 'repair'
+        ? await repairRole(db, assignment.campaign_id, run.operator_id)
+        : null;
     const kinds = new Set(stored.map((row) => row.kind));
-    const missing = requiredKinds(manifest.service).filter((kind) => !kinds.has(kind));
+    const missing = requiredKinds(manifest.service, role).filter((kind) => !kinds.has(kind));
     if (missing.length)
       throw new AppError(
         'EVIDENCE_INCOMPLETE',
-        `A ${manifest.service} submission needs ${missing.join(' and ')} evidence. A screenshot does not establish that a workflow ran.`,
+        `A ${manifest.service} ${role ?? 'submission'} needs ${missing.join(' and ')} evidence. A screenshot does not establish that a workflow ran.`,
       );
     const failed =
       data.steps.some((step) => step.status === 'failed') ||
@@ -358,10 +370,30 @@ export async function submitEvidence(pool: Pool, session: RunSession, input: unk
     );
     // The reservation stays committed: the obligation is now under review.
     await db.query("UPDATE assignments SET state='submitted' WHERE id=$1", [assignment.id]);
+    // The repair gate runs here, inside this transaction: evidence that does not
+    // demonstrate a regression fix is refused outright, and the whole submission
+    // rolls back so the operator can correct it rather than have a failed repair
+    // recorded against them.
+    const repairContext = {
+      projectId: assignment.project_id,
+      campaignId: assignment.campaign_id,
+      assignmentId: assignment.id,
+      submissionId: submission.id,
+      operatorId: run.operator_id,
+    };
+    const repair =
+      role === 'author'
+        ? await recordRepair(db, repairContext, data)
+        : role === 'verifier'
+          ? await recordVerification(db, repairContext, data)
+          : null;
     // A reported failure becomes a finding and is clustered deterministically;
     // a clean run of the same assertions contradicts one and is recorded.
+    // Neither applies in a repair brief: its submissions describe the candidate
+    // revision, while the assignment pins the base build the defect was found
+    // on, so clustering them there would record a failure on the wrong revision.
     const finding =
-      data.outcome === 'product_failed'
+      manifest.service !== 'repair' && data.outcome === 'product_failed'
         ? await recordFinding(
             db,
             {
@@ -376,7 +408,7 @@ export async function submitEvidence(pool: Pool, session: RunSession, input: unk
           )
         : null;
     const contradicted =
-      data.outcome === 'executed'
+      manifest.service !== 'repair' && data.outcome === 'executed'
         ? await noteConsistentPass(db, assignment.project_id, assignment.build_id, data)
         : 0;
     return {
@@ -398,6 +430,11 @@ export async function submitEvidence(pool: Pool, session: RunSession, input: unk
         independenceReason: finding.independenceReason,
       },
       contradictedDefects: contradicted,
+      repairRole: role,
+      // The gate is not an acceptance: a passed gate means the evidence may be
+      // reviewed, and a repair is delivered for the builder to review, never
+      // merged or deployed by Trialoom.
+      repair,
       // A decision is recorded separately. Nothing here accepts work or pays anyone.
       decision: 'pending_review',
       note: 'Evidence recorded. No acceptance decision exists and no payment is authorized.',
@@ -538,6 +575,50 @@ export async function campaignReview(
       defects,
       decisions,
       note: 'Clustering is deterministic and decides nothing. Only a recorded decision groups, rewards, or refuses a report, and only a person can post one.',
+    };
+  });
+}
+
+/**
+ * The repair quote, its delivery and every independent verification. An owner
+ * who has not quoted yet also gets the confirmed defects and admitted operators
+ * a quote can name, so the approval is made from this project's own record.
+ */
+export async function campaignRepairRecord(
+  pool: Pool,
+  actor: Actor,
+  workspaceId: string,
+  projectId: string,
+  campaignId: string,
+) {
+  return transaction(pool, async (db) => {
+    const role = await campaignForReader(db, actor, workspaceId, projectId, campaignId);
+    const record = await campaignRepairs(db, campaignId);
+    const candidates =
+      role === 'owner' && !record.quote
+        ? {
+            defects: (
+              await db.query(
+                `SELECT id,title,build_id,signature_hash FROM defects
+                WHERE project_id=$1 AND state='confirmed' ORDER BY created_at DESC LIMIT 50`,
+                [projectId],
+              )
+            ).rows,
+            operators: (
+              await db.query(
+                `SELECT o.id,o.handle FROM operators o JOIN memberships m ON m.user_id=o.user_id
+                WHERE m.workspace_id=$1 AND m.role='operator' ORDER BY o.handle LIMIT 100`,
+                [workspaceId],
+              )
+            ).rows,
+          }
+        : null;
+    if (role === 'reviewer')
+      await audit(db, workspaceId, actor.id, 'reviewer.repairs_read', campaignId);
+    return {
+      ...record,
+      candidates,
+      note: 'A repair is delivered for builder review. Trialoom never merges or deploys it, and it is payable only after an independent verifier confirms the regression on both revisions.',
     };
   });
 }

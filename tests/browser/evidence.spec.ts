@@ -21,6 +21,11 @@ type Fixture = {
   liveRunToken: string;
   liveAssignmentId: string;
   liveCredential: string;
+  repairCampaignId: string;
+  repairAuthorHandle: string;
+  repairVerifierHandle: string;
+  repairAuthorAssignmentId: string;
+  repairVerifierAssignmentId: string;
 };
 const fixtures = JSON.parse(readFileSync(process.env.TRIALOOM_E2E_FIXTURE ?? '', 'utf8')) as Record<
   string,
@@ -364,4 +369,75 @@ test('an accepted decision shows as an owed payment, blocked until a payout wall
   expect(body.payouts.every((payout: { state: string }) => payout.state === 'blocked')).toBe(true);
   expect(body.payouts[0].blocked_reason).toBe('no_payout_wallet');
   expect(body.note).toContain('finalized verification');
+});
+
+test('a repair is shown as delivered for review and is payable only once confirmed', async ({
+  page,
+}, info) => {
+  const fixture = fixtures[info.project.name];
+  await signIn(page, fixture.evidenceOwnerEmail, fixture.password);
+  await page.getByRole('button', { name: /Evidence fixture project/ }).click();
+  const brief = page.locator('.brief-record', { hasText: 'Repair the invitation validator' });
+  await expect(brief).toContainText('Trialoom never merges or deploys it');
+  // The quote the owner approved, and what it bought.
+  await expect(brief).toContainText(`@${fixture.repairAuthorHandle}`);
+  await expect(brief).toContainText('2.00 USDC');
+  await expect(brief).toContainText('approved');
+  await expect(brief).toContainText('src/invitations');
+  await expect(brief).toContainText('Independently confirmed');
+  // The gate the delivery passed is stated, not just asserted.
+  await expect(brief).toContainText('delivered a patch');
+  await expect(brief).toContainText('baseline-1');
+  await expect(brief).toContainText('candidate-2');
+  await expect(brief).toContainText('invitation.expiry failed on every clean replay of baseline-1');
+  await expect(brief).toContainText('1 independent confirmation; this repair can be accepted.');
+  await expect(brief).toContainText(`@${fixture.repairVerifierHandle}`);
+  const results = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+    .analyze();
+  expect(
+    results.violations.map(({ id, nodes }) => ({ id, targets: nodes.map((node) => node.target) })),
+  ).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+
+  const repairBase = `/api/v1/workspaces/${fixture.evidenceWorkspaceId}/projects/${fixture.evidenceProjectId}/campaigns/${fixture.repairCampaignId}`;
+  const record = await (await page.request.get(`${repairBase}/repairs`)).json();
+  expect(record.quote.state).toBe('approved');
+  expect(record.repair.gate_state).toBe('passed');
+  expect(record.verifications).toHaveLength(1);
+  expect(record.verifications[0].outcome).toBe('confirmed');
+
+  // The published price buys the repair, not a verification of it.
+  const accept = {
+    outcome: 'accepted',
+    reason: 'The regression replays cleanly on both revisions.',
+    evidenceRefs: [],
+  };
+  const origin = { Origin: 'http://127.0.0.1:3100' };
+  const unpriced = await page.request.post(
+    `${repairBase}/assignments/${fixture.repairVerifierAssignmentId}/execution`,
+    { headers: origin, data: accept },
+  );
+  expect(unpriced.status()).toBe(409);
+  expect((await unpriced.json()).error.code).toBe('VERIFICATION_PRICE_REQUIRED');
+  const priced = await page.request.post(
+    `${repairBase}/assignments/${fixture.repairVerifierAssignmentId}/execution`,
+    { headers: origin, data: { ...accept, amountUnits: '400000' } },
+  );
+  expect(priced.status()).toBe(201);
+  expect((await priced.json()).repairPosition).toBe('verifier');
+
+  const paid = await page.request.post(
+    `${repairBase}/assignments/${fixture.repairAuthorAssignmentId}/execution`,
+    { headers: origin, data: accept },
+  );
+  expect(paid.status()).toBe(201);
+  expect((await paid.json()).repairPosition).toBe('author');
+  await page.reload();
+  await page.getByRole('button', { name: /Evidence fixture project/ }).click();
+  await expect(
+    page.locator('.brief-record', { hasText: 'Repair the invitation validator' }),
+  ).toContainText('Accepted and owed');
 });

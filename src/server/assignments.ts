@@ -20,6 +20,7 @@ import {
   type TermsDocument,
   total,
 } from './ledger.ts';
+import { approvedQuote, repairRole } from './repairs.ts';
 
 export const leaseSeconds = 900;
 type CampaignRow = {
@@ -88,6 +89,30 @@ export async function publishCampaign(
     const terms = await termsVersion(db, campaignId, data.termsVersionId);
     if (new Date(terms.document.deadline) <= new Date())
       throw new AppError('DEADLINE_PAST', 'These terms have passed their delivery deadline.');
+    // A repair is bought against an approved quote, so the offer operators see
+    // must be the one the owner approved: the same build, at the same price.
+    // Otherwise the quote would decide nothing.
+    if (terms.document.service === 'repair') {
+      const quote = await approvedQuote(db, campaignId);
+      if (!quote)
+        throw new AppError(
+          'REPAIR_QUOTE_MISSING',
+          'A repair brief needs an approved quote before it can be published.',
+          409,
+        );
+      if (quote.base_build_id !== terms.build_id)
+        throw new AppError(
+          'QUOTE_BUILD_MISMATCH',
+          `This repair was quoted against revision ${quote.base_revision}. Publish the terms that pin that build, or revise the quote.`,
+          409,
+        );
+      if (BigInt(quote.amount_units) !== BigInt(terms.document.priceUnits))
+        throw new AppError(
+          'QUOTE_PRICE_MISMATCH',
+          `These terms price the repair at ${terms.document.priceUnits} base units, but the approved quote is ${quote.amount_units}. Revise one so the approval and the published offer agree.`,
+          409,
+        );
+    }
     const perAssignment = total(maximumLiability(terms.document));
     const first = campaign.status === 'draft';
     const authorization = BigInt(data.authorizeUnits);
@@ -297,6 +322,9 @@ export async function claimAssignment(db: PoolClient, session: AgentSession, inp
         `Pass the seeded ${terms.document.service} qualification before claiming this work.`,
         403,
       );
+    // The first slot of a repair brief belongs to the quoted operator. Until
+    // they have claimed it, nobody else can take the slot the repair needs.
+    if (terms.document.service === 'repair') await repairRole(db, campaignId, session.operator.id);
     const deadline = new Date(terms.document.deadline);
     if (deadline <= new Date())
       throw new AppError('DEADLINE_PAST', 'These terms have passed their delivery deadline.', 409);

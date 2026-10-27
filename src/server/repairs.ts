@@ -183,6 +183,20 @@ export async function repairRole(
   return 'verifier';
 }
 
+/**
+ * Where an existing assignment stands in a repair brief, or null outside one.
+ * Unlike `repairRole` this never refuses: it describes work already claimed.
+ */
+export async function repairPosition(
+  db: PoolClient,
+  campaignId: string,
+  operatorId: string,
+): Promise<'author' | 'verifier' | null> {
+  const quote = await approvedQuote(db, campaignId);
+  if (!quote) return null;
+  return quote.operator_id === operatorId ? 'author' : 'verifier';
+}
+
 const consistent = (replays: Replay[], expected: boolean) =>
   replays.every((replay) => replay.passed === expected && replay.cleanSession === true);
 
@@ -265,7 +279,10 @@ export async function recordRepair(db: PoolClient, context: Context, document: E
       409,
     );
   // Unrelated edits need a revised quote, so the scope is a hard boundary.
-  const scope = quote.scope_paths as string[];
+  // A directory may have been stored with a trailing slash, and 'src/' and
+  // 'src' name the same boundary; a scope that matched neither would be no
+  // boundary at all.
+  const scope = (quote.scope_paths as string[]).map((path) => path.replace(/\/+$/, ''));
   const stray = repair.changedFiles
     .map((file) => file.path)
     .filter((path) => !scope.some((allowed) => path === allowed || path.startsWith(`${allowed}/`)));
@@ -392,8 +409,13 @@ export async function recordVerification(
       `This repair's candidate revision is ${repair.candidate_revision}.`,
       409,
     );
-  // A confirmation has to meet the same gate the delivery met.
-  if (reported.outcome === 'confirmed') assessRegression(reported.regression, []);
+  // A confirmation has to meet the same gate the delivery met, on the same
+  // failure. The delivery's baseline assertion is unique, because the gate it
+  // passed required exactly one, so a confirmation that exercises a different
+  // test is refused rather than counted.
+  const delivered = (repair.regression as Replays).baseline[0].assertion;
+  if (reported.outcome === 'confirmed')
+    assessRegression(reported.regression, [delivered.trim().toLowerCase()]);
   let verification: { id: string };
   try {
     verification = (
@@ -424,6 +446,7 @@ export async function recordVerification(
     verificationId: verification.id,
     repairId: repair.id as string,
     outcome: reported.outcome,
+    verifiedAssertion: delivered,
     independent: true,
   };
 }

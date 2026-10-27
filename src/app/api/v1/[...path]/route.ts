@@ -19,6 +19,7 @@ import {
 } from '@/server/decisions';
 import {
   campaignPayoutRecord,
+  campaignRepairRecord,
   campaignReview,
   campaignSubmissions,
   readArtifact,
@@ -59,6 +60,7 @@ import {
 } from '@/server/projects';
 import { qualificationStatus } from '@/server/qualification';
 import { redactionPolicy } from '@/server/redaction';
+import { decideQuote, proposeQuote } from '@/server/repairs';
 import { listWorkspaces, workspaceAccess } from '@/server/workspaces';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -135,6 +137,24 @@ async function handler(request: Request) {
               await createCampaign(pool, actor, workspaceId, projectId, await readJson(request)),
               201,
             );
+          if (parts.length === 5 && parts[4] === 'repair-quotes' && method === 'POST')
+            return json(
+              await proposeQuote(pool, actor, workspaceId, projectId, await readJson(request)),
+              201,
+            );
+          // Approving a quote is a spending decision, so it is its own step.
+          if (parts.length === 6 && parts[4] === 'repair-quotes' && method === 'POST')
+            return json(
+              await decideQuote(
+                pool,
+                actor,
+                workspaceId,
+                projectId,
+                parts[5],
+                await readJson(request),
+              ),
+              201,
+            );
           if (parts.length === 8 && parts[4] === 'campaigns' && parts[6] === 'artifacts') {
             const artifact = await readArtifact(
               pool,
@@ -204,6 +224,10 @@ async function handler(request: Request) {
             if (parts[6] === 'payouts' && method === 'GET')
               return json(
                 await campaignPayoutRecord(pool, actor, workspaceId, projectId, campaignId),
+              );
+            if (parts[6] === 'repairs' && method === 'GET')
+              return json(
+                await campaignRepairRecord(pool, actor, workspaceId, projectId, campaignId),
               );
             if (parts[6] === 'publication' && method === 'POST')
               return json(

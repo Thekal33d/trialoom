@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { formatUnits, toUnits } from '@/domain/values';
 import { api, type CampaignRecord, field, type TermsRecord } from './live-types';
+import { RepairPanel } from './repair-panel';
 import { ReviewPanel } from './review-panel';
 
 type Accounting = {
@@ -145,6 +146,9 @@ export function CampaignPanel({
   const status = ledger?.campaign.status ?? campaign.status;
   const published = status !== 'draft';
   const accounting = ledger?.accounting;
+  // A repair brief carries its own record: the quote that authorized it, the
+  // delivered patch, and the independent verifications of that patch.
+  const isRepair = versions[0]?.document.service === 'repair';
   return (
     <section className="campaign-ledger">
       {error && (
@@ -172,7 +176,19 @@ export function CampaignPanel({
         <p className="section-description">
           A draft is not claimable. Publishing offers one exact terms version and reserves its
           maximum liability from an authorized budget as operators claim it.
+          {isRepair
+            ? ' A repair brief also needs an approved quote that matches the published price and build.'
+            : ''}
         </p>
+      )}
+      {isRepair && (
+        <RepairPanel
+          base={base}
+          campaignId={campaign.id}
+          buildId={versions[0]?.build_id}
+          isOwner={isOwner}
+          reload={load}
+        />
       )}
       {publishing && (
         <form

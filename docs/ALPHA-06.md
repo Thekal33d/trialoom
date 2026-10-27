@@ -1,6 +1,6 @@
 # Findings, reproduction, and decisions
 
-Verified locally on 2026-10-27. This is the ALPHA-06 foundation for FR09, FR11, and FR12. It closes release scenario R02's decision half and R11's detection, and narrows R03 to one named gap. Payouts remain ALPHA-08 and repairs ALPHA-07. [Evidence](evidence/ALPHA-06.json) records checks and exact source hashes.
+Verified locally on 2026-10-27. This is the ALPHA-06 foundation for FR09, FR11, and FR12. It closes release scenario R02's decision half and R11's detection, and narrows R03 to one named gap. Payouts are ALPHA-08 and repairs ALPHA-07. [Evidence](evidence/ALPHA-06.json) records checks and exact source hashes.
 
 ## Clustering decides nothing
 
@@ -49,4 +49,4 @@ Accepted amounts are now **owed and unpaid**. Nothing in this step transfers any
 - **No replay.** Trialoom does not re-execute a trace or verify a claim against one; it compares reports.
 - The published severity rubric is prose, and the platform does not check a recorded severity against it. A reviewer applies it.
 - No builder-silence escalation, no dispute state beyond an appeal, and no retention or deletion of decided evidence. The `out_of_scope` and `disputed` states exist in the schema for later work and no decision sets them.
-- Repairs (ALPHA-07), payouts (ALPHA-08) and resource accounting (ALPHA-09) are untouched. FR11's rule that a repair author cannot verify their own repair rests on the same independence check, but repair assignments do not exist yet.
+- Resource accounting (ALPHA-09) is untouched. Repairs ([ALPHA-07](ALPHA-07.md)) and payouts ([ALPHA-08](ALPHA-08.md)) have since been built on this step: FR11's rule that a repair author cannot verify their own repair reuses the same independence check, and an accepted decision now writes its payable.

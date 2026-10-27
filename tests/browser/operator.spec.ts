@@ -86,8 +86,10 @@ test('an operator registers, proves a payout wallet, claims work, and keeps a le
   expect(body.wallets[0].address).toBe(account.address);
   expect(body.payoutSigning).toBe('never_delegated');
   expect(body.credential.scopes).toEqual([
+    'appeals:submit',
     'assignments:claim',
     'assignments:read',
+    'decisions:read',
     'operator:read',
     'qualification:submit',
     'runs:execute',

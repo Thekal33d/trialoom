@@ -14,6 +14,7 @@ import {
   releaseAssignment,
 } from '@/server/assignments';
 import { getPool } from '@/server/database';
+import { openAppeal, operatorDecisions } from '@/server/decisions';
 import { storeArtifact, submitEvidence } from '@/server/evidence';
 import { handleApi, json, limitRequest, readBytes, readJson } from '@/server/http';
 import { qualificationStatus, recordAttempt } from '@/server/qualification';
@@ -108,6 +109,10 @@ async function handler(request: Request) {
         requireScope(session, 'work:read');
         return json(await listEligibleWork(pool, session));
       }
+      if (route === 'decisions' && method === 'GET') {
+        requireScope(session, 'decisions:read');
+        return json(await operatorDecisions(pool, session.operator.id));
+      }
       if (
         parts[0] === 'runs' &&
         parts.length === 3 &&
@@ -150,6 +155,10 @@ async function handler(request: Request) {
               { ...result.body, replayed: result.replayed },
               result.replayed ? 200 : result.status,
             );
+          }
+          if (parts[2] === 'appeal') {
+            requireScope(session, 'appeals:submit');
+            return json(await openAppeal(pool, session, assignmentId, body), 201);
           }
           requireScope(session, 'assignments:claim');
           if (parts[2] === 'heartbeat')

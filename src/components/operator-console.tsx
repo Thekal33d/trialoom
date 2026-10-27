@@ -84,7 +84,9 @@ type Assignments = {
     run_state: string | null;
     live_run_id: string | null;
     outcome: string | null;
-    decision_state: string | null;
+    execution_outcome: string | null;
+    discovery_outcome: string | null;
+    appeal_open: number;
   }[];
 };
 const units = (value: string) => `${(Number(value) / 1_000_000).toFixed(2)} USDC`;
@@ -608,9 +610,12 @@ export function OperatorConsole({ user }: { user: { name: string; email: string 
                           <p className="subtle">
                             {item.run_state ? `run ${item.run_state}` : 'no run started'}
                             {item.outcome ? ` · submitted ${item.outcome}` : ''}
-                            {item.decision_state === 'pending_review'
+                            {item.outcome && !item.execution_outcome
                               ? ' · awaiting a builder decision'
                               : ''}
+                            {item.execution_outcome ? ` · execution ${item.execution_outcome}` : ''}
+                            {item.discovery_outcome ? ` · discovery ${item.discovery_outcome}` : ''}
+                            {item.appeal_open ? ' · appeal open' : ''}
                           </p>
                         </div>
                         <span className="neutral-label">{item.state}</span>

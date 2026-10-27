@@ -11,6 +11,8 @@ import {
 import { canonicalJson } from '../domain/values.ts';
 import { type Actor, audit, requireRole } from './access.ts';
 import { transaction } from './database.ts';
+import { campaignDecisions } from './decisions.ts';
+import { campaignFindings, noteConsistentPass, recordFinding } from './findings.ts';
 import { decodeUtf8, redactionPolicy, redactText, scanText } from './redaction.ts';
 import { isolationProfile, type RunSession, runLimits } from './runner.ts';
 import { digestOf, getObject, putObject } from './storage.ts';
@@ -355,6 +357,27 @@ export async function submitEvidence(pool: Pool, session: RunSession, input: unk
     );
     // The reservation stays committed: the obligation is now under review.
     await db.query("UPDATE assignments SET state='submitted' WHERE id=$1", [assignment.id]);
+    // A reported failure becomes a finding and is clustered deterministically;
+    // a clean run of the same assertions contradicts one and is recorded.
+    const finding =
+      data.outcome === 'product_failed'
+        ? await recordFinding(
+            db,
+            {
+              projectId: assignment.project_id,
+              campaignId: assignment.campaign_id,
+              assignmentId: assignment.id,
+              submissionId: submission.id,
+              operatorId: run.operator_id,
+              buildId: assignment.build_id,
+            },
+            data,
+          )
+        : null;
+    const contradicted =
+      data.outcome === 'executed'
+        ? await noteConsistentPass(db, assignment.project_id, assignment.build_id, data)
+        : 0;
     return {
       submissionId: submission.id,
       runId: run.id,
@@ -365,7 +388,16 @@ export async function submitEvidence(pool: Pool, session: RunSession, input: unk
       artifactCount: stored.length,
       totalBytes: totalBytes.toString(),
       submittedAt: submission.submitted_at,
-      // ALPHA-06 records the decision. Nothing here accepts work or pays anyone.
+      finding: finding && {
+        findingId: finding.findingId,
+        defectId: finding.defectId,
+        // What clustering saw. A reviewer decides what it means.
+        match: finding.match,
+        independent: finding.independent,
+        independenceReason: finding.independenceReason,
+      },
+      contradictedDefects: contradicted,
+      // A decision is recorded separately. Nothing here accepts work or pays anyone.
       decision: 'pending_review',
       note: 'Evidence recorded. No acceptance decision exists and no payment is authorized.',
     };
@@ -413,7 +445,12 @@ export async function campaignSubmissions(
       await db.query(
         `SELECT s.id,s.run_id,s.assignment_id,s.outcome,s.blocked_reason,s.content_hash,
           s.artifact_count,s.total_bytes,s.started_at,s.finished_at,s.submitted_at,
-          s.decision_state,s.document,o.handle,
+          s.document,o.handle,
+          -- A submission is immutable, so its review state is derived.
+          (SELECT a.state FROM assignments a WHERE a.id=s.assignment_id) AS assignment_state,
+          (SELECT json_agg(json_build_object('matter',x.matter,'outcome',x.outcome,
+            'amountUnits',x.amount_units,'reason',x.reason) ORDER BY x.created_at)
+            FROM decisions x WHERE x.assignment_id=s.assignment_id) AS decisions,
           (SELECT json_agg(json_build_object('id',a.id,'name',a.name,'kind',a.kind,
             'mediaType',a.media_type,'bytes',a.bytes,'sha256',a.sha256,
             'reviewable',a.reviewable,'redaction',a.redaction) ORDER BY a.created_at)
@@ -470,4 +507,36 @@ export async function readArtifact(
     redaction: artifact.redaction as Record<string, unknown>,
     bytes: await getObject(artifact.redacted_key as string),
   };
+}
+
+/** Everything a reviewer needs in one place: reports, grouping, and decisions. */
+export async function campaignReview(
+  pool: Pool,
+  actor: Actor,
+  workspaceId: string,
+  projectId: string,
+  campaignId: string,
+) {
+  return transaction(pool, async (db) => {
+    const role = await campaignForReader(db, actor, workspaceId, projectId, campaignId);
+    const findings = await campaignFindings(db, campaignId);
+    const decisions = await campaignDecisions(db, campaignId);
+    const defects = (
+      await db.query(
+        `SELECT DISTINCT d.id,d.title,d.state,d.severity,d.review_flag,d.awarded_finding_id,
+          d.signature_hash,d.created_at
+        FROM defects d JOIN findings f ON f.defect_id=d.id
+        WHERE f.campaign_id=$1 ORDER BY d.created_at DESC LIMIT 100`,
+        [campaignId],
+      )
+    ).rows;
+    if (role === 'reviewer')
+      await audit(db, workspaceId, actor.id, 'reviewer.review_read', campaignId);
+    return {
+      findings,
+      defects,
+      decisions,
+      note: 'Clustering is deterministic and decides nothing. Only a recorded decision groups, rewards, or refuses a report, and only a person can post one.',
+    };
+  });
 }

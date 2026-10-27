@@ -784,7 +784,8 @@ test('a valid submission records work, holds the reservation, and decides nothin
   assert.equal(result.artifactCount, 2);
   const states = (
     await db.pool.query(
-      `SELECT a.state AS assignment,r.state AS run,s.decision_state
+      `SELECT a.state AS assignment,r.state AS run,
+        (SELECT count(*)::int FROM decisions d WHERE d.assignment_id=a.id) AS decisions
       FROM assignments a JOIN runs r ON r.id=$2 JOIN evidence_submissions s ON s.run_id=r.id
       WHERE a.id=$1`,
       [assignment.assignmentId, grant.run.id],
@@ -792,7 +793,8 @@ test('a valid submission records work, holds the reservation, and decides nothin
   ).rows[0];
   assert.equal(states.assignment, 'submitted');
   assert.equal(states.run, 'submitted');
-  assert.equal(states.decision_state, 'pending_review');
+  // Evidence is recorded; no decision exists yet.
+  assert.equal(states.decisions, 0);
   // The claim's reservation is still committed: review has not happened.
   const accounting = await campaignAccounting(db.pool, assignment.campaignId);
   assert.equal(accounting?.committedUnits, committedBefore);
@@ -824,7 +826,7 @@ test('builders and reviewers read submissions, and a reviewer read is audited', 
   assert.equal(view.submissions.length, 1);
   const submission = view.submissions[0];
   assert.equal(submission.outcome, 'product_failed');
-  assert.equal(submission.decision_state, 'pending_review');
+  assert.equal(submission.decisions, null);
   assert.equal(submission.artifacts.length, 2);
   assert.deepEqual(
     submission.artifacts.map((artifact: { kind: string; reviewable: boolean }) => [

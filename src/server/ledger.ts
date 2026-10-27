@@ -37,10 +37,17 @@ export function maximumLiability(document: TermsPricing): Breakdown {
   const execution = BigInt(document.priceUnits);
   const discovery = BigInt(document.discoveryRewardCapUnits);
   const resource = BigInt(document.resourceAllowanceUnits);
-  const payout = execution + discovery;
   const bps = BigInt(document.platformFeeBps);
-  const fee = (payout * bps + 9999n) / 10000n;
-  return { execution, discovery, resource, fee };
+  return { execution, discovery, resource, fee: feeFor(execution + discovery, bps) };
+}
+
+/**
+ * The fee on a payout, always rounded up. Decisions charge it on the running
+ * total rather than on each award, so two separate acceptances can never
+ * round past the single fee the claim reserved.
+ */
+export function feeFor(payout: bigint, bps: bigint): bigint {
+  return (payout * bps + 9999n) / 10000n;
 }
 
 export async function lockAccount(db: PoolClient, campaignId: string): Promise<Account> {
@@ -205,6 +212,21 @@ export async function releaseCommitment(
  * Moves part of a commitment to an accepted liability and releases the rest.
  * One entry carries each move, so the same amount can never be counted twice.
  */
+/** What this assignment has already had accepted, by category. */
+export async function acceptedByAssignment(
+  db: PoolClient | Pool,
+  assignmentId: string,
+): Promise<Breakdown> {
+  const { rows } = await db.query<{ category: Category; amount: string }>(
+    `SELECT category, SUM(amount_units)::text AS amount FROM ledger_entries
+    WHERE assignment_id=$1 AND kind='reclassify' GROUP BY category`,
+    [assignmentId],
+  );
+  const parts = { ...zero };
+  for (const row of rows) parts[row.category] = BigInt(row.amount);
+  return parts;
+}
+
 export async function reclassifyToAccepted(
   db: PoolClient,
   campaignId: string,
@@ -212,6 +234,9 @@ export async function reclassifyToAccepted(
   accepted: Partial<Breakdown>,
   reason: string,
   actorId: string | null,
+  // A decision that leaves another matter open keeps the rest reserved; an
+  // appealable refusal keeps it until the appeal window closes.
+  options: { releaseRemainder?: boolean } = {},
 ) {
   const held = await outstandingCommitment(db, assignmentId);
   const take = { ...zero, ...accepted };
@@ -240,7 +265,8 @@ export async function reclassifyToAccepted(
         actorId,
       );
   }
-  await releaseCommitment(db, campaignId, assignmentId, 'Unused reservation released', actorId);
+  if (options.releaseRemainder ?? true)
+    await releaseCommitment(db, campaignId, assignmentId, 'Unused reservation released', actorId);
   return amount;
 }
 

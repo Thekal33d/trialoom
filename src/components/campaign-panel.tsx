@@ -69,7 +69,8 @@ type Submissions = {
     started_at: string;
     finished_at: string;
     submitted_at: string;
-    decision_state: string;
+    assignment_state: string;
+    decisions: { matter: string; outcome: string; amountUnits: string | null }[] | null;
     document: { summary: string; steps: { status: string }[] };
     artifacts: Artifact[];
   }[];
@@ -321,9 +322,9 @@ export function CampaignPanel({
                       @{submission.handle} · {outcomes[submission.outcome] ?? submission.outcome}
                     </h5>
                     <span className="neutral-label">
-                      {submission.decision_state === 'pending_review'
-                        ? 'Pending review'
-                        : submission.decision_state}
+                      {submission.decisions?.length
+                        ? `${submission.decisions.length} decision${submission.decisions.length === 1 ? '' : 's'}`
+                        : 'Pending review'}
                     </span>
                   </div>
                   <p>{submission.document.summary}</p>

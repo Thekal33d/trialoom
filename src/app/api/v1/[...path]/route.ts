@@ -9,7 +9,14 @@ import {
   setCampaignStatus,
 } from '@/server/assignments';
 import { getPool, transaction } from '@/server/database';
-import { campaignSubmissions, readArtifact } from '@/server/evidence';
+import {
+  decideDiscovery,
+  decideDuplicate,
+  decideExecution,
+  decideSeverity,
+  resolveAppeal,
+} from '@/server/decisions';
+import { campaignReview, campaignSubmissions, readArtifact } from '@/server/evidence';
 import {
   handleApi,
   json,
@@ -140,6 +147,41 @@ async function handler(request: Request) {
               },
             });
           }
+          if (parts.length === 9 && parts[4] === 'campaigns' && method === 'POST') {
+            const campaignId = uuid.parse(parts[5]);
+            const subjectId = uuid.parse(parts[7]);
+            const body = await readJson(request);
+            if (parts[6] === 'assignments') {
+              if (parts[8] === 'execution')
+                return json(
+                  await decideExecution(pool, actor, workspaceId, projectId, subjectId, body),
+                  201,
+                );
+              if (parts[8] === 'appeal')
+                return json(
+                  await resolveAppeal(pool, actor, workspaceId, projectId, subjectId, body),
+                  201,
+                );
+            }
+            if (parts[6] === 'findings') {
+              if (parts[8] === 'discovery')
+                return json(
+                  await decideDiscovery(pool, actor, workspaceId, projectId, subjectId, body),
+                  201,
+                );
+              if (parts[8] === 'duplicate')
+                return json(
+                  await decideDuplicate(pool, actor, workspaceId, projectId, subjectId, body),
+                  201,
+                );
+              if (parts[8] === 'severity')
+                return json(
+                  await decideSeverity(pool, actor, workspaceId, projectId, subjectId, body),
+                  201,
+                );
+            }
+            void campaignId;
+          }
           if (parts.length === 7 && parts[4] === 'campaigns') {
             const campaignId = uuid.parse(parts[5]);
             if (parts[6] === 'ledger' && method === 'GET')
@@ -148,6 +190,8 @@ async function handler(request: Request) {
               return json(
                 await campaignSubmissions(pool, actor, workspaceId, projectId, campaignId),
               );
+            if (parts[6] === 'review' && method === 'GET')
+              return json(await campaignReview(pool, actor, workspaceId, projectId, campaignId));
             if (parts[6] === 'publication' && method === 'POST')
               return json(
                 await publishCampaign(

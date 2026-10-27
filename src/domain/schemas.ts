@@ -83,6 +83,8 @@ export const agentScopes = [
   'assignments:read',
   'assignments:claim',
   'runs:execute',
+  'decisions:read',
+  'appeals:submit',
 ] as const;
 export type AgentScope = (typeof agentScopes)[number];
 export const credentialSchema = z
@@ -153,6 +155,8 @@ export const artifactUploadSchema = z
     sha256: z.string().regex(/^[a-f0-9]{64}$/, 'Declare the artifact SHA-256 before uploading.'),
   })
   .strict();
+export const severities = ['blocking', 'major', 'minor'] as const;
+export const severitySchema = z.enum(severities);
 export const blockedReasons = [
   'invalid_credentials',
   'infrastructure_unavailable',
@@ -224,6 +228,8 @@ export const evidenceSchema = z
       .max(200),
     outcome: z.enum(['executed', 'product_failed', 'blocked']),
     blockedReason: z.enum(blockedReasons).optional(),
+    // The operator proposes; a reviewer applies the published rubric.
+    proposedSeverity: z.enum(severities).optional(),
     summary: paragraph,
     artifacts: z
       .array(
@@ -238,3 +244,45 @@ export const evidenceSchema = z
     'A blocked run needs a blocked reason, and only a blocked run may carry one.',
   );
 export type EvidenceInput = z.infer<typeof evidenceSchema>;
+
+const decisionReason = z.string().trim().min(3).max(2000);
+const evidenceRefs = z.array(uuid).max(20);
+/** Every decision carries why, against what, and on which evidence. */
+const decisionBase = { reason: decisionReason, evidenceRefs } as const;
+export const executionDecisionSchema = z
+  .object({
+    outcome: z.enum(['accepted', 'rejected']),
+    // Defaults to the published execution price; a smaller amount records a
+    // partial or diagnostic acceptance with its reason.
+    amountUnits: units.optional(),
+    ...decisionBase,
+  })
+  .strict();
+export const discoveryDecisionSchema = z
+  .object({
+    outcome: z.enum(['awarded', 'declined']),
+    amountUnits: units.optional(),
+    severity: severitySchema.optional(),
+    ...decisionBase,
+  })
+  .strict();
+export const severityDecisionSchema = z
+  .object({ severity: severitySchema, ...decisionBase })
+  .strict();
+export const duplicateDecisionSchema = z
+  .object({
+    // A defect to group this report into, or null to keep it as its own defect.
+    defectId: uuid.nullable(),
+    ...decisionBase,
+  })
+  .strict();
+export const appealSchema = z
+  .object({ subject: z.enum(['execution', 'discovery']), reason: decisionReason })
+  .strict();
+export const appealResolutionSchema = z
+  .object({
+    outcome: z.enum(['upheld', 'overturned']),
+    amountUnits: units.optional(),
+    ...decisionBase,
+  })
+  .strict();

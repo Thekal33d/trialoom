@@ -1,6 +1,7 @@
 import { setTimeout } from 'node:timers/promises';
 import { sweepExpiredAssignments } from '../src/server/assignments.ts';
 import { createPool, databaseUrl } from '../src/server/database.ts';
+import { releaseSettledAssignments } from '../src/server/decisions.ts';
 import { processOne } from '../src/server/jobs.ts';
 
 const pool = createPool(databaseUrl());
@@ -17,6 +18,10 @@ try {
       nextSweep = Date.now() + 30_000;
       const expired = await sweepExpiredAssignments(pool);
       if (expired) console.log(JSON.stringify({ event: 'assignments.expired', count: expired }));
+      // A refused amount stays reserved until its appeal window closes.
+      const settled = await releaseSettledAssignments(pool);
+      if (settled.assignments)
+        console.log(JSON.stringify({ event: 'assignments.settled', count: settled.assignments }));
     }
     const worked = await processOne(pool);
     if (once) break;

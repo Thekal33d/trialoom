@@ -60,3 +60,41 @@ export const termsSchema = z
   })
   .strict();
 export type TermsInput = z.infer<typeof termsSchema>;
+
+export const handleSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/, 'Use 3-40 lowercase letters, digits, or hyphens.');
+export const addressSchema = z.string().regex(/^0x[0-9a-fA-F]{40}$/, 'Enter a 20-byte address.');
+export const signatureSchema = z
+  .string()
+  .regex(/^0x[0-9a-fA-F]{130}$/, 'Enter a 65-byte signature.');
+export const nonceSchema = z.string().regex(/^[a-zA-Z0-9]{8,128}$/);
+export const operatorSchema = z.object({ handle: handleSchema }).strict();
+export const challengeSchema = z.object({ address: addressSchema }).strict();
+export const walletProofSchema = z
+  .object({ nonce: nonceSchema, signature: signatureSchema, designatePayout: z.boolean() })
+  .strict();
+export const agentScopes = ['operator:read', 'work:read', 'qualification:submit'] as const;
+export type AgentScope = (typeof agentScopes)[number];
+export const credentialSchema = z
+  .object({
+    name: z.string().trim().min(1).max(60),
+    scopes: z.array(z.enum(agentScopes)).min(1).max(agentScopes.length),
+    expiresInDays: z.number().int().min(1).max(90),
+  })
+  .strict();
+const reportValue = z.union([
+  z.boolean(),
+  z.number().int().min(0).max(100000),
+  z.string().trim().min(1).max(120),
+  z.null(),
+]);
+export const attemptSchema = z
+  .object({
+    task: z.string().regex(/^[a-z0-9][a-z0-9-]{2,60}$/),
+    report: z.record(z.string().min(1).max(60), reportValue),
+  })
+  .strict();
+export const idempotencyKeySchema = z.string().trim().min(8).max(200);

@@ -10,6 +10,15 @@ import {
   revokeInvitation,
 } from '@/server/invitations';
 import {
+  createCredential,
+  issueWalletChallenge,
+  operatorProfile,
+  proveWallet,
+  registerOperator,
+  revokeCredential,
+  revokeWallet,
+} from '@/server/operators';
+import {
   addBuild,
   createCampaign,
   createProject,
@@ -36,12 +45,27 @@ async function handler(request: Request) {
       if (parts[1] === 'inspect') return json(await inspectInvitation(pool, body?.token));
       return json(await acceptInvitation(pool, body, await sessionActor(request)), 201);
     }
-    if (!['me', 'workspaces'].includes(parts[0]))
+    if (!['me', 'workspaces', 'operator'].includes(parts[0]))
       throw new AppError('NOT_FOUND', 'This action is not available.', 404);
     const actor = await sessionActor(request);
     if (!actor) throw new AppError('AUTH_REQUIRED', 'Sign in to continue.', 401);
     if (method !== 'GET') await limitRequest('mutation', actor.id, 100);
     if (parts.length === 1 && parts[0] === 'me' && method === 'GET') return json({ user: actor });
+    if (parts[0] === 'operator') {
+      if (parts.length === 1 && method === 'GET') return json(await operatorProfile(pool, actor));
+      if (parts.length === 1 && method === 'POST')
+        return json(await registerOperator(pool, actor, await readJson(request)), 201);
+      if (parts.length === 2 && parts[1] === 'wallet-challenges' && method === 'POST')
+        return json(await issueWalletChallenge(pool, actor, await readJson(request)), 201);
+      if (parts.length === 2 && parts[1] === 'wallets' && method === 'POST')
+        return json(await proveWallet(pool, actor, await readJson(request)), 201);
+      if (parts.length === 3 && parts[1] === 'wallets' && method === 'DELETE')
+        return json(await revokeWallet(pool, actor, parts[2]));
+      if (parts.length === 2 && parts[1] === 'credentials' && method === 'POST')
+        return json(await createCredential(pool, actor, await readJson(request)), 201);
+      if (parts.length === 3 && parts[1] === 'credentials' && method === 'DELETE')
+        return json(await revokeCredential(pool, actor, parts[2]));
+    }
     if (parts.length === 1 && parts[0] === 'workspaces' && method === 'GET')
       return json({ workspaces: await listWorkspaces(pool, actor) });
     if (parts[0] === 'workspaces' && parts.length >= 3) {

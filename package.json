@@ -43,8 +43,7 @@
     "@types/react-dom": "19.3.0",
     "fflate": "0.8.3",
     "remesso-sdk": "0.3.0",
-    "typescript": "6.0.3",
-    "viem": "2.57.7"
+    "typescript": "6.0.3"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "5.3.0",
@@ -56,6 +55,7 @@
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "server-only": "0.0.1",
+    "viem": "2.57.7",
     "zod": "4.6.7"
   }
 }

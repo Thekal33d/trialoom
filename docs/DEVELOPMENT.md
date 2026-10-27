@@ -1,6 +1,6 @@
 # Local development
 
-The application includes invitation-only accounts, workspace roles, authorized projects, pinned builds, and versioned draft briefs ([ALPHA-02](ALPHA-02.md)), operator connection and qualification ([ALPHA-03](ALPHA-03.md)), plus a durable smoke worker. `/workspace` holds real local account/project data. `/demo` remains explicitly synthetic: Canopy is an example name, and its before/after results summarize the existing invitation fixture. Neither surface can publish assignments, accept work, or make payments yet.
+The application includes invitation-only accounts, workspace roles, authorized projects, pinned builds, and versioned draft briefs ([ALPHA-02](ALPHA-02.md)), operator connection and qualification ([ALPHA-03](ALPHA-03.md)), and the campaign ledger with atomic claims and leases ([ALPHA-04](ALPHA-04.md)), plus a durable smoke worker. `/workspace` holds real local account/project data. `/demo` remains explicitly synthetic: Canopy is an example name, and its before/after results summarize the existing invitation fixture. A builder can publish a brief and operators can claim it, but no surface can accept work or make a payment yet.
 
 ## First run
 
@@ -19,6 +19,8 @@ Open [the real workspace](http://127.0.0.1:3000/workspace) or [the example](http
 For an existing ALPHA-01 installation, run `npm run setup:auth` and `npm run db:migrate`. Create the first owner invitation with `npm run workspace:invite -- owner@example.com My workspace`. Open the private URL from the ignored file path printed by the command; no email is sent. The user chooses their own password. Subsequent invitations and revocation are available under Workspace access. See [account behavior and recovery limits](ALPHA-02.md).
 
 Operators open **Operator** from the workspace sidebar, or `/operator` directly. There they register a handle, request a wallet challenge, sign that exact message in their own wallet, paste the signature, and create scoped agent credentials. Never paste a private key or seed phrase into the application; it asks for none. A credential secret is shown once and is stored only as a digest. Agents then call `/api/agent/v1/*` with `Authorization: Bearer`, using an `Idempotency-Key` header on mutations. See [the operator design and limits](ALPHA-03.md).
+
+A workspace owner publishes a brief from the project view: choose the terms version, set slots and concurrency, authorize a ceiling in USDC, and record the spending authorization reference. The campaign's accounting appears under the brief. Run `npm run worker` alongside the app so lapsed claim leases are swept; operator actions also fence a lapsed attempt on their own. See [the ledger and claim rules](ALPHA-04.md).
 
 If port 55432 is occupied, change both `DB_PORT` and the port in `DATABASE_URL` in your local `.env` before starting Compose. Do not print or commit that file. If the web port is occupied, use `npm run dev -- --port 3002` and set `BETTER_AUTH_URL=http://127.0.0.1:3002` in `.env` before starting. Authentication mutations must match this configured origin.
 

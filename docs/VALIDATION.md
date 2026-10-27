@@ -17,7 +17,7 @@ Last updated: 2026-10-27. Source: [PRD release acceptance scenarios](PRD.md#rele
 
 ALPHA-01 passed a clean lockfile install, lint/type/build checks, seven disposable-database checks, and 18 desktop/mobile browser checks. The demo exports a fixture summary and leaves independent acceptance/payment unavailable. [Evidence](evidence/ALPHA-01.json) records versions, source hashes, and limits. Queue lease tests cover the harmless smoke handler; they do not establish the assignment or financial invariants below.
 
-ALPHA-02 added invitation-only sessions, workspace roles, authorized project/build records, and immutable draft terms. ALPHA-03 added operator registration, EIP-4361 wallet control, scoped revocable agent credentials, seeded qualification grading with derived eligibility, and a versioned agent API with idempotent mutations. [ALPHA-03 evidence](evidence/ALPHA-03.json) records 49 database checks, 34 browser checks, and the gates that remain, including the empty eligible-work listing.
+ALPHA-02 added invitation-only sessions, workspace roles, authorized project/build records, and immutable draft terms. ALPHA-03 added operator registration, EIP-4361 wallet control, scoped revocable agent credentials, seeded qualification grading with derived eligibility, and a versioned agent API with idempotent mutations. ALPHA-04 added the campaign ledger, publication of one exact terms version, atomic claims that pin terms and build, renewable leases with attempt fencing, and pause and cancellation that preserve accepted obligations. [ALPHA-04 evidence](evidence/ALPHA-04.json) records 64 database checks, 34 browser checks, and the gates that remain: acceptance decisions, evidence, and payouts.
 
 ## Release scenarios
 
@@ -25,18 +25,18 @@ These IDs correspond to the twelve numbered PRD scenarios. Each needs an impleme
 
 | ID | Required outcome | Owning work | Result |
 | --- | --- | --- | --- |
-| R01 | Concurrent last-slot claims admit one operator and preserve the ceiling | ALPHA-04 | Not run |
+| R01 | Concurrent last-slot claims admit one operator and preserve the ceiling | ALPHA-04 | Passed locally: one of two concurrent claims succeeds and the ceiling is a database check; [evidence](evidence/ALPHA-04.json) |
 | R02 | Valid execution exposing a product failure remains payable independently of discovery | ALPHA-06, ALPHA-08 | Not run |
 | R03 | Duplicate defect earns one discovery award; assigned reproduction can earn its own fee | ALPHA-06 | Not run |
 | R04 | A test that also passes on baseline cannot establish a regression repair | ALPHA-07 | Negative gate tested in local harness; marketplace integration not run |
-| R05 | Build changes cannot silently transfer a result to the new build | ALPHA-02, ALPHA-04, ALPHA-05 | ALPHA-02 proves immutable build/term records and rejects foreign builds; claim/result binding and actual deployment verification remain unimplemented |
+| R05 | Build changes cannot silently transfer a result to the new build | ALPHA-02, ALPHA-04, ALPHA-05 | ALPHA-02 proves immutable build/term records; ALPHA-04 pins one exact terms version and build per claim and never follows the latest version. Runtime build verification remains ALPHA-05 |
 | R06 | Crash after broadcast reconciles the original payment without another transfer | ALPHA-08 | Passed in VAL-03 local provider spike; marketplace/outbox integration not run |
 | R07 | Resource timeout after settlement retains its commitment until reconciliation | ALPHA-09 | VAL-04 simulated lost/500 responses after actual local USDC settlement; commitment retained until fresh-process chain reconciliation. Live provider and marketplace ledger untested |
-| R08 | Policy revocation after acceptance preserves debt, shows the block, and pauses claims | ALPHA-04, ALPHA-08 | VAL-03 preserves a synthetic accepted payable as blocked; marketplace and claims pausing not implemented |
-| R09 | Cancellation stops claims and preserves accepted work/disclosed incurred costs | ALPHA-04, ALPHA-09 | Not run |
+| R08 | Policy revocation after acceptance preserves debt, shows the block, and pauses claims | ALPHA-04, ALPHA-08 | VAL-03 preserves a synthetic accepted payable as blocked; ALPHA-04 keeps accepted liabilities after a revoked authorization and supports owner pausing. Automatic pausing on lost payment authority and the operator-visible block remain ALPHA-08 |
+| R09 | Cancellation stops claims and preserves accepted work/disclosed incurred costs | ALPHA-04, ALPHA-09 | Passed locally for claims and accepted liabilities; live assignments drain under pinned terms. Disclosed incurred resource costs remain ALPHA-09 |
 | R10 | Sensitive evidence is withheld pending redaction and access review | ALPHA-05, PILOT-01 | Not run |
 | R11 | A linked agent cannot independently verify its own operator's work | ALPHA-03, ALPHA-06 | ALPHA-03 binds one operator identity per account and one live payout address across operators; separation of discoverer, repairer, and verifier is unimplemented |
-| R12 | Expired attempts cannot spend further or create another accepted delivery | ALPHA-04, ALPHA-05 | Not run |
+| R12 | Expired attempts cannot spend further or create another accepted delivery | ALPHA-04, ALPHA-05 | Passed locally: expiry retires the attempt token, returns its reservation, and refuses every later action under it. Runner spending and late artifact review remain ALPHA-05 |
 
 ## Additional gates
 
@@ -60,5 +60,6 @@ These IDs correspond to the twelve numbered PRD scenarios. Each needs an impleme
 | 2026-10-27 | ALPHA-01 | Source hashes in [manifest](evidence/ALPHA-01.json) | Clean install, lint/type/build, `npm test`, `npm run test:db`, `npm run test:e2e`, local worker smoke | Passed locally | 28 existing checks, seven database checks, 18 browser checks; zero detected axe violations on four routes/two viewports. CI configured but not run remotely; fixture-only app |
 | 2026-10-27 | ALPHA-02 | Source hashes in [manifest](evidence/ALPHA-02.json) | `npm run check`, `npm run test:db`, production build, `npm run test:e2e`, private owner invitation | Passed locally | 28 capability, 24 database, 30 desktop/mobile browser checks; real sessions/roles, tenant boundaries, authorized project/build records, append-only terms, edit races, HTTP defenses, and accessibility. Drafts only; no claim/result binding, payment authority, or production readiness claim |
 | 2026-10-27 | ALPHA-03 | Source hashes in [manifest](evidence/ALPHA-03.json) | `npm run check`, `npm run test:db`, production build, `npm run test:e2e` | Passed locally | 49 database and 34 desktop/mobile browser checks; wallet proof with single-use nonces, scoped credential lifecycle, qualification grading and eligibility, idempotent agent mutations, and the enforced publication gate. No published work, claims, execution, or payouts |
+| 2026-10-27 | ALPHA-04 | Source hashes in [manifest](evidence/ALPHA-04.json) | `npm run check`, `npm run test:db`, production build, `npm run test:e2e` | Passed locally | 64 database and 34 desktop/mobile browser checks; ceiling invariant as a table check, ledger replay reconciliation, pinned terms and build per claim, concurrent last-slot claim, lease renewal and attempt fencing, release and expiry, cancellation preserving obligations. No acceptance decisions, evidence, or payouts |
 
 Raw private traces and credentials are not commit artifacts. Commit sanitized fixtures, test code, and approved evidence summaries; use access-controlled records for private artifacts when the platform exists.

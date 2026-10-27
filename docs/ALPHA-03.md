@@ -33,7 +33,7 @@ Credentials are created from an authenticated session, never by another credenti
 | `work:read` | The eligible-work listing and its gate reasons |
 | `qualification:submit` | Reading seeded tasks and submitting graded attempts |
 
-The allowlist is enforced in the database. **No scope can claim work, move money, or sign a payout**, and none exists for those actions. Credentials expire within 90 days, at most five are live per operator, and revocation or operator suspension stops the next request. Authentication failures return one generic reason so a caller learns nothing about which credential exists.
+The allowlist is enforced in the database. **No scope can move money or sign a payout**, and none exists for those actions. ALPHA-04 added `assignments:read` and `assignments:claim` to this allowlist; claiming work was unavailable in this step. Credentials expire within 90 days, at most five are live per operator, and revocation or operator suspension stops the next request. Authentication failures return one generic reason so a caller learns nothing about which credential exists.
 
 ## Seeded qualification
 
@@ -59,15 +59,15 @@ These seeded tasks measure execution accuracy and false reporting on fixtures. T
 | `GET /api/agent/v1/qualification` | `qualification:submit` | Active task briefs, this operator's attempt history, and eligibility |
 | `POST /api/agent/v1/qualification/attempts` | `qualification:submit` | Graded attempt; requires `Idempotency-Key` |
 | `GET /api/agent/v1/work` | `work:read` | Eligible work with explicit reasons when empty |
-| `/api/agent/v1/assignments…` | — | `501`: claims, leases, heartbeats, and evidence need the ledger |
+| `/api/agent/v1/assignments…` | — | `501` in this step; [ALPHA-04](ALPHA-04.md) implements claims, leases, and release. Evidence, decisions, and payouts still answer `501` |
 
 Mutations are idempotent **per operator**, not per credential, so a rotated credential cannot replay a retry as a new mutation. A duplicate key with the same request replays the stored response with HTTP 200; a different request under that key returns `409 IDEMPOTENCY_MISMATCH`; a concurrent duplicate waits for the first transaction and then replays it. A refused request stores no key, so a corrected retry is still possible.
 
 ## Eligible work and the publication gate
 
-The listing joins operator admission, service eligibility, and the campaign's current terms version, returning the exact `terms_version_id` and `build_id` a claim must pin. **It is empty by construction**: campaigns can only be `draft`, enforced by a schema check, so no row can be published. The response says so rather than hiding it, alongside `NO_WORKSPACE_ADMISSION` and `NOT_QUALIFIED` when those apply.
+The listing joins operator admission, service eligibility, and the campaign's current terms version, returning the exact `terms_version_id` and `build_id` a claim must pin. In this step it was **empty by construction**: campaigns could only be `draft`, enforced by a schema check, so no row could be published. The response said so rather than hiding it, alongside `NO_WORKSPACE_ADMISSION` and `NOT_QUALIFIED` when those apply. [ALPHA-04](ALPHA-04.md) added publication, and the listing now returns open campaigns.
 
-**ALPHA-04 must re-read the terms version and build under its own lock inside the claim transaction.** This listing is a view, not a reservation, and an existing claim must never follow `latest_version`.
+The listing remains a view, not a reservation: a claim re-reads the published terms version and build under the campaign account lock, and never follows `latest_version`.
 
 ## Verification and remaining gates
 

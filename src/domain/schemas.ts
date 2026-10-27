@@ -82,6 +82,7 @@ export const agentScopes = [
   'qualification:submit',
   'assignments:read',
   'assignments:claim',
+  'runs:execute',
 ] as const;
 export type AgentScope = (typeof agentScopes)[number];
 export const credentialSchema = z
@@ -123,3 +124,117 @@ export const campaignStatusSchema = z
   .strict();
 export const attemptTokenSchema = z.object({ attemptToken: uuid }).strict();
 export const claimSchema = z.object({ campaignId: uuid }).strict();
+
+export const runStartSchema = attemptTokenSchema;
+export const artifactKinds = [
+  'trace',
+  'assertions',
+  'report',
+  'screenshot',
+  'log',
+  'patch',
+  'test',
+] as const;
+export type ArtifactKind = (typeof artifactKinds)[number];
+/** Only these pairs exist; the same allowlist is a check on the artifact table. */
+export const artifactMediaTypes: Record<ArtifactKind, string[]> = {
+  trace: ['application/zip'],
+  assertions: ['application/json'],
+  report: ['application/json', 'text/markdown'],
+  screenshot: ['image/png'],
+  log: ['text/plain'],
+  patch: ['text/x-diff'],
+  test: ['text/plain'],
+};
+export const artifactUploadSchema = z
+  .object({
+    name: z.string().regex(/^[a-z0-9][a-z0-9._-]{0,80}$/, 'Use a short lowercase artifact name.'),
+    kind: z.enum(artifactKinds),
+    sha256: z.string().regex(/^[a-f0-9]{64}$/, 'Declare the artifact SHA-256 before uploading.'),
+  })
+  .strict();
+export const blockedReasons = [
+  'invalid_credentials',
+  'infrastructure_unavailable',
+  'agent_limitation',
+  'target_changed',
+] as const;
+const line = z.string().trim().min(1).max(300);
+export const evidenceSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    // Restated identities exist so a mismatch is refused, not silently accepted.
+    campaignId: uuid,
+    assignmentId: uuid,
+    termsVersionId: uuid,
+    termsContentHash: z.string().regex(/^[a-f0-9]{64}$/),
+    build: z
+      .object({
+        id: uuid,
+        revision: z.string().trim().min(1).max(200),
+        fixtureVersion: z.string().trim().min(1).max(200),
+        targetUrl: z.string().max(2048),
+      })
+      .strict(),
+    environment: z.enum(['preview', 'staging']),
+    agent: z
+      .object({
+        runtime: z.string().trim().min(1).max(120),
+        browser: z.string().trim().min(1).max(120),
+        viewport: z.string().regex(/^[0-9]{3,5}x[0-9]{3,5}$/),
+        configurationHash: z.string().regex(/^[a-f0-9]{64}$/),
+      })
+      .strict(),
+    // Attested isolation must match the profile the manifest issued.
+    isolation: z
+      .object({
+        freshBrowserContext: z.literal(true),
+        ephemeralProfile: z.literal(true),
+        clearedStorage: z.literal(true),
+      })
+      .strict(),
+    startedAt: z.iso.datetime(),
+    finishedAt: z.iso.datetime(),
+    observedOrigins: z.array(z.string().max(2048)).min(1).max(20),
+    steps: z
+      .array(
+        z
+          .object({
+            index: z.number().int().min(1).max(200),
+            action: line,
+            expected: line,
+            actual: line,
+            status: z.enum(['passed', 'failed', 'blocked', 'skipped']),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(200),
+    assertions: z
+      .array(
+        z
+          .object({
+            name: z.string().trim().min(1).max(200),
+            passed: z.boolean(),
+            detail: z.string().trim().min(1).max(500),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(200),
+    outcome: z.enum(['executed', 'product_failed', 'blocked']),
+    blockedReason: z.enum(blockedReasons).optional(),
+    summary: paragraph,
+    artifacts: z
+      .array(
+        z.object({ name: z.string().max(81), sha256: z.string().regex(/^[a-f0-9]{64}$/) }).strict(),
+      )
+      .min(1)
+      .max(12),
+  })
+  .strict()
+  .refine(
+    (value) => (value.outcome === 'blocked') === (value.blockedReason !== undefined),
+    'A blocked run needs a blocked reason, and only a blocked run may carry one.',
+  );
+export type EvidenceInput = z.infer<typeof evidenceSchema>;

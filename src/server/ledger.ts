@@ -4,13 +4,19 @@ import { settlementCurrency } from '../domain/values.ts';
 
 export type Category = 'execution' | 'discovery' | 'resource' | 'fee';
 export type Breakdown = Record<Category, bigint>;
-export type TermsDocument = {
-  service: string;
-  deadline: string;
+/** The only fields a reservation depends on. */
+export type TermsPricing = {
   priceUnits: string;
   discoveryRewardCapUnits: string;
   resourceAllowanceUnits: string;
   platformFeeBps: number;
+};
+export type TermsDocument = TermsPricing & {
+  service: string;
+  scope: string;
+  allowedActions: string[];
+  exclusions: string[];
+  deadline: string;
 };
 export type Account = {
   campaign_id: string;
@@ -27,7 +33,7 @@ export const total = (parts: Breakdown) => categories.reduce((sum, key) => sum +
  * The maximum this campaign can owe for one assignment under these exact terms.
  * The platform fee rounds up so a reservation can never fall short of the charge.
  */
-export function maximumLiability(document: TermsDocument): Breakdown {
+export function maximumLiability(document: TermsPricing): Breakdown {
   const execution = BigInt(document.priceUnits);
   const discovery = BigInt(document.discoveryRewardCapUnits);
   const resource = BigInt(document.resourceAllowanceUnits);

@@ -182,8 +182,6 @@ after(async () => {
 
 test('maximum liability rounds the platform fee up so a reservation is never short', () => {
   const parts = maximumLiability({
-    service: 'test',
-    deadline: new Date().toISOString(),
     priceUnits: '1',
     discoveryRewardCapUnits: '0',
     resourceAllowanceUnits: '0',
@@ -193,8 +191,6 @@ test('maximum liability rounds the platform fee up so a reservation is never sho
   assert.equal(parts.fee, 1n);
   assert.equal(total(parts), 2n);
   const typical = maximumLiability({
-    service: 'bug_discovery',
-    deadline: new Date().toISOString(),
     priceUnits: '2000000',
     discoveryRewardCapUnits: '1000000',
     resourceAllowanceUnits: '500000',

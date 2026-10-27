@@ -14,8 +14,17 @@ import {
   releaseAssignment,
 } from '@/server/assignments';
 import { getPool } from '@/server/database';
-import { handleApi, json, limitRequest, readJson } from '@/server/http';
+import { storeArtifact, submitEvidence } from '@/server/evidence';
+import { handleApi, json, limitRequest, readBytes, readJson } from '@/server/http';
 import { qualificationStatus, recordAttempt } from '@/server/qualification';
+import {
+  abandonRun,
+  authenticateRun,
+  issueRun,
+  prepareRun,
+  runLimits,
+  runView,
+} from '@/server/runner';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,6 +38,37 @@ async function handler(request: Request) {
       const method = request.method;
       const pool = getPool();
       await limitRequest('agent', 'global', 1200);
+      // A run grant is a separate, narrower credential: it reaches these routes
+      // and nothing else, and no agent credential can use them.
+      if (parts[0] === 'runs' && parts.length >= 2 && parts[2] !== 'abandon') {
+        const run = await authenticateRun(pool, bearerToken(request));
+        if (uuid.parse(parts[1]) !== run.run.id)
+          throw new AppError('RUN_MISMATCH', 'This grant belongs to a different run.', 403);
+        await limitRequest('run', run.run.id, 240);
+        if (parts.length === 2 && method === 'GET') return json(runView(run.run));
+        if (parts.length === 3 && method === 'POST' && parts[2] === 'artifacts') {
+          const query = new URL(request.url).searchParams;
+          const mediaType = (request.headers.get('content-type') ?? '').split(';')[0].trim();
+          const bytes = await readBytes(request, runLimits.maxArtifactBytes + 1);
+          return json(
+            await storeArtifact(
+              pool,
+              run,
+              {
+                name: query.get('name') ?? '',
+                kind: query.get('kind') ?? '',
+                sha256: query.get('sha256') ?? '',
+              },
+              mediaType,
+              bytes,
+            ),
+            201,
+          );
+        }
+        if (parts.length === 3 && method === 'POST' && parts[2] === 'evidence')
+          return json(await submitEvidence(pool, run, await readJson(request, 262144)), 201);
+        throw new AppError('NOT_FOUND', 'This run action is not available.', 404);
+      }
       const session = await authenticateAgent(pool, bearerToken(request));
       await limitRequest('agent', session.credential.id, 120);
       if (route === 'identity' && method === 'GET') {
@@ -68,6 +108,15 @@ async function handler(request: Request) {
         requireScope(session, 'work:read');
         return json(await listEligibleWork(pool, session));
       }
+      if (
+        parts[0] === 'runs' &&
+        parts.length === 3 &&
+        parts[2] === 'abandon' &&
+        method === 'POST'
+      ) {
+        requireScope(session, 'runs:execute');
+        return json(await abandonRun(pool, session, uuid.parse(parts[1]), await readJson(request)));
+      }
       if (parts[0] === 'assignments') {
         if (parts.length === 1 && method === 'GET') {
           requireScope(session, 'assignments:read');
@@ -86,9 +135,23 @@ async function handler(request: Request) {
           );
         }
         if (parts.length === 3 && method === 'POST') {
-          requireScope(session, 'assignments:claim');
           const assignmentId = uuid.parse(parts[1]);
           const body = await readJson(request);
+          if (parts[2] === 'runs') {
+            requireScope(session, 'runs:execute');
+            const key = idempotencyKeySchema.parse(request.headers.get('idempotency-key') ?? '');
+            // The target check runs first; the grant is issued inside the
+            // idempotency transaction so a retry cannot leave an orphan run.
+            const prepared = await prepareRun(pool, session, assignmentId, body);
+            const result = await withIdempotency(pool, session, route, body, key, (db) =>
+              issueRun(db, session, prepared),
+            );
+            return json(
+              { ...result.body, replayed: result.replayed },
+              result.replayed ? 200 : result.status,
+            );
+          }
+          requireScope(session, 'assignments:claim');
           if (parts[2] === 'heartbeat')
             return json(await heartbeatAssignment(pool, session, assignmentId, body));
           if (parts[2] === 'release')
@@ -96,7 +159,7 @@ async function handler(request: Request) {
         }
         throw new AppError(
           'ASSIGNMENTS_UNAVAILABLE',
-          'Evidence submission, decisions, and payouts are not implemented. They require the runner, review, and settlement work.',
+          'Acceptance decisions and payouts are not implemented. They require the review and settlement work.',
           501,
         );
       }

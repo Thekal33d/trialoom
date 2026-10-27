@@ -16,7 +16,7 @@ export function sameOrigin(request: Request) {
   if (request.headers.get('origin') !== authSettings().baseURL)
     throw new AppError('ORIGIN_REJECTED', 'Request origin is not allowed.', 403);
 }
-export async function readJson(request: Request): Promise<unknown> {
+export async function readJson(request: Request, limit = 32768): Promise<unknown> {
   if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json'))
     throw new AppError('JSON_REQUIRED', 'Send an application/json request.', 415);
   const reader = request.body?.getReader();
@@ -28,9 +28,9 @@ export async function readJson(request: Request): Promise<unknown> {
       const { done, value } = await reader.read();
       if (done) break;
       size += value.length;
-      if (size > 32768) {
+      if (size > limit) {
         await reader.cancel();
-        throw new AppError('BODY_TOO_LARGE', 'Request exceeds 32 KiB.', 413);
+        throw new AppError('BODY_TOO_LARGE', `Request exceeds ${limit} bytes.`, 413);
       }
       chunks.push(value);
     }
@@ -43,6 +43,33 @@ export async function readJson(request: Request): Promise<unknown> {
     throw new AppError('INVALID_JSON', 'Request JSON is invalid.');
   }
 }
+/** Reads a raw body under an explicit cap, for evidence artifacts. */
+export async function readBytes(request: Request, limit: number): Promise<Uint8Array> {
+  const reader = request.body?.getReader();
+  if (!reader) throw new AppError('BODY_REQUIRED', 'Request body is required.');
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.length;
+      if (size > limit) {
+        await reader.cancel();
+        throw new AppError(
+          'ARTIFACT_TOO_LARGE',
+          `This artifact exceeds the ${limit} byte limit.`,
+          413,
+        );
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return Buffer.concat(chunks);
+}
+
 export async function sessionActor(request: Request): Promise<Actor | null> {
   const session = await getAuth().api.getSession({ headers: request.headers });
   return session

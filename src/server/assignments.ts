@@ -231,6 +231,14 @@ export async function expireLapsedAssignments(db: PoolClient, campaignId?: strin
     ${campaignId ? 'AND campaign_id=$1' : ''} RETURNING id,campaign_id`,
     campaignId ? [campaignId] : [],
   );
+  if (rows.length)
+    // The same moment retires the run grant a runner is holding.
+    await db.query(
+      `UPDATE runs SET state='expired',closed_at=clock_timestamp(),
+      closed_reason='Claim lease expired during the run'
+      WHERE assignment_id = ANY($1::uuid[]) AND state IN ('issued','active')`,
+      [rows.map((row) => row.id)],
+    );
   for (const row of rows) {
     await lockAccount(db, row.campaign_id);
     await releaseCommitment(db, row.campaign_id, row.id, 'Claim expired', null);
@@ -365,7 +373,8 @@ export async function claim(pool: Pool, session: AgentSession, input: unknown) {
   return transaction(pool, (db) => claimAssignment(db, session, input));
 }
 
-async function liveAssignment(
+/** The single fencing check: the right operator, the active attempt, still live. */
+export async function liveAssignment(
   db: PoolClient,
   session: AgentSession,
   assignmentId: string,
@@ -409,6 +418,11 @@ export async function heartbeatAssignment(
     const { rows } = await db.query(
       `UPDATE assignments SET state='running',lease_expires_at=$2 WHERE id=$1
       RETURNING id,state,lease_expires_at,deadline`,
+      [assignment.id, lease],
+    );
+    // A run grant never outlives the lease that justifies it.
+    await db.query(
+      `UPDATE runs SET grant_expires_at=$2 WHERE assignment_id=$1 AND state IN ('issued','active')`,
       [assignment.id, lease],
     );
     return {

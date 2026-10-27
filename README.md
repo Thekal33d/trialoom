@@ -24,7 +24,7 @@ The project is being developed with the Celo agentic hackathon in mind. USDC on 
 | [Agent instructions](AGENTS.md) | Working and commit protocol for future coding sessions |
 | [Claude entry point](CLAUDE.md) | Loads the shared agent instructions |
 
-The local [browser/evidence experiment](spikes/browser-evidence/README.md) reproduces a seeded invitation defect twice, exports sanitized traces, and verifies a regression repair. The [Remesso experiment](spikes/payments/README.md) proves USDC policy payments and crash recovery on a local Celo fork. The Next.js application now has [invited accounts, workspace roles, authorized projects, pinned builds, and immutable draft terms](docs/ALPHA-02.md), backed by PostgreSQL. Assignment/ledger workflows, production infrastructure, and provider integrations remain pending.
+The local [browser/evidence experiment](spikes/browser-evidence/README.md) reproduces a seeded invitation defect twice, exports sanitized traces, and verifies a regression repair. The [Remesso experiment](spikes/payments/README.md) proves USDC policy payments and crash recovery on a local Celo fork. The Next.js application now has [invited accounts, workspace roles, authorized projects, pinned builds, and immutable draft terms](docs/ALPHA-02.md) plus [operator connection and qualification](docs/ALPHA-03.md), backed by PostgreSQL. Claims and ledger workflows, production infrastructure, and provider integrations remain pending.
 
 ## Run the application
 

@@ -4,7 +4,7 @@ Last updated: 2026-10-27 (Africa/Lagos).
 
 ## State
 
-**M2 in progress: ALPHA-02 accounts and project setup are verified locally.** Invitation-only sessions, workspace roles, authorized targets, pinned builds, and immutable draft terms are implemented. The demo remains separate. Claims, ledger, execution, settlement, and deployment remain pending. M1 still has open independent-operator and paid-resource gates.
+**M2 in progress: ALPHA-03 operator connection and qualification are verified locally.** On top of ALPHA-02's invitation-only sessions, roles, authorized targets, pinned builds, and immutable draft terms, operators now register a platform-level identity, prove wallet control with EIP-4361, hold scoped revocable agent credentials, and earn per-service eligibility from graded seeded tasks. The agent API is versioned, bearer-only, and idempotent per operator. The eligible-work listing is empty by construction because campaigns cannot be published. Claims, ledger, execution, settlement, and deployment remain pending. M1 still has open independent-operator and paid-resource gates.
 
 | Area | State | Evidence |
 | --- | --- | --- |
@@ -18,6 +18,7 @@ Last updated: 2026-10-27 (Africa/Lagos).
 | Marketplace architecture | Selected | [Architecture](../docs/ARCHITECTURE.md), D013 |
 | Application scaffold | Verified locally | [Run guide](../docs/DEVELOPMENT.md), [ALPHA-01 evidence](../docs/evidence/ALPHA-01.json): demo UI, database/worker, 53 checks, production build; CI configured |
 | Accounts and project setup | Verified locally | [ALPHA-02 design and limits](../docs/ALPHA-02.md), [evidence](../docs/evidence/ALPHA-02.json): real sessions/roles, authorized projects/builds, draft term versions; claims/payment authority unavailable |
+| Operator connection and qualification | Verified locally | [ALPHA-03 design and limits](../docs/ALPHA-03.md), [evidence](../docs/evidence/ALPHA-03.json): wallet proof, scoped credentials, graded seeded tasks, idempotent agent API; no claimable work or payout authority |
 | Celo / Remesso capability | Passed on local Celo fork | [Experiment](../spikes/payments/README.md), [19-check evidence](../docs/evidence/VAL-03.json); production integration pending |
 | buy resource capability | Local controls passed; provisioning pending | [Experiment](../spikes/resources/README.md), [quotes](../docs/evidence/VAL-04-quotes.json), [14-check fork evidence](../docs/evidence/VAL-04.json) |
 | Git remote and public repository | Not configured | Local checkpoint history only |
@@ -25,9 +26,9 @@ Last updated: 2026-10-27 (Africa/Lagos).
 
 ## Next action
 
-**ALPHA-03:** implement operator connection and qualification, starting with wallet-control challenges and scoped/revocable agent credentials bound to the authenticated operator. Check current official sources before choosing the signature flow. Then add seeded qualification and eligibility records; claiming work remains dependent on ALPHA-04.
+**ALPHA-04:** implement the campaign ledger and atomic claims, leases, and cancellation. A claim must pin one exact immutable `terms_versions.id` and `build_id` inside the claim transaction and must never resolve through `latest_version`; the ALPHA-03 work listing is a view, not a reservation. Publication belongs with funding and reservations, so the `campaigns.status='draft'` check should only be relaxed when a ceiling and commitment accounting exist. Concurrent last-slot claims must admit exactly one operator.
 
-ALPHA-04 is also ready: implement the ledger and atomic claims/reservations. A claim must pin one exact immutable terms/build identity; existing claims must never follow a campaign's latest version. Full FR02/FR03 and R05 remain integration gates until publication/claims/execution exist.
+ALPHA-05 then needs runner isolation before any operator executes anything; ALPHA-03 grants no execution access and no scoped runtime credentials.
 
 A local **Trialoom** owner invitation has been created for the user and saved privately under ignored `artifacts/invitations/`. Enrollment awaits the user choosing their password; no email was sent. The local app runs at [the workspace](http://127.0.0.1:3000/workspace). Do not put its private invitation token or the user's email in repository records.
 
@@ -52,6 +53,7 @@ No dependency blocks local capability work. Registration, wallet funding, and de
 - VAL-04: live unsigned browser/VM quotes recorded; 14 fork checks passed with real SDK EIP-3009 signatures/local USDC settlement and simulated lost/500 responses. Fresh processes matched exact receipts without another purchase. No provider resource was allocated.
 - Latest `npm test`: 28 passing checks, including 13 resource-control cases. Signed resource transport is restricted to the simulation fixture.
 - ALPHA-01: clean `npm ci --ignore-scripts`, lint/type checks, and production build passed. Seven database tests cover migration serialization/checksums, rollback, deduplication, fencing, process restart, and exhaustion. All 18 browser checks pass, including accessibility scans on four routes at two viewports, report download, mobile navigation, and unavailable-database readiness. Local smoke job enqueued and completed; setup preserves the existing private `.env`.
+- ALPHA-03: lint/type checks and production build pass; 49 database checks and 34 desktop/mobile browser checks pass. Covered: server-built EIP-4361 messages bound to origin/scheme/address/nonce/chain 42220, single-use nonces against replay, borrowed challenges, foreign signers and self-written messages, row-level and message-level expiry, one live address claim across operators, one live payout designation, revocation and re-proof, credential digests/scopes/caps/expiry/revocation/suspension, grading of correct, incorrect and false reports, attempt caps under five concurrent submissions, all four eligibility reasons, idempotent replay/mismatch/in-progress/concurrent retry with no key stored after a refusal, and a real draft brief refusing publication. Browser checks drive registration, wallet proof pasted from an external signature, credential issuance, the agent API over real HTTP, and refusal immediately after revocation. No axe violations or document overflow on the operator console. [Evidence](../docs/evidence/ALPHA-03.json).
 - ALPHA-02: lint/type checks and production build pass; 28 capability checks, 24 database checks, and 30 desktop/mobile browser checks pass. Real SDK credentials/sessions, invite races, role/tenant isolation, expiry/revocation, SSRF admission, immutable builds/terms, exact base units, concurrent edits, and browser onboarding/setup are covered. No detected axe violations or document overflow on checked account/project/access and demo surfaces. [Evidence](../docs/evidence/ALPHA-02.json) records boundaries and hashes.
 - CI is configured but has not run on GitHub. Screens use labelled demo data; the calm green/light design is provisional pending user preference.
 - No marketplace acceptance or production payment tests have run; local evidence does not establish production readiness.

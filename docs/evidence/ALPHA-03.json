@@ -1,0 +1,543 @@
+{
+  "schemaVersion": 1,
+  "task": "ALPHA-03",
+  "verifiedAt": "2026-10-27T00:22:05.160Z",
+  "sourceRevision": "24bab3bc88307834759397ce0ec3791fb0a9e564",
+  "sourceTreeDirty": true,
+  "scope": "Local operator registration, EIP-4361 wallet control, scoped revocable agent credentials, seeded qualification grading with derived eligibility, and a versioned agent API with idempotent mutations; claims, payouts, and published work are unavailable",
+  "runtime": {
+    "node": "v24.11.1",
+    "postgres": "18.6",
+    "better-auth": "1.7.14",
+    "next": "16.4.3",
+    "react": "19.3.1",
+    "viem": "2.57.7",
+    "pg": "8.23.1",
+    "zod": "4.6.7",
+    "playwright": "1.64.1",
+    "axe": "4.14.0"
+  },
+  "signatureFlow": {
+    "standard": "EIP-4361 (ERC-191 personal_sign recovery)",
+    "messageAuthor": "server; the stored message is the only one verified",
+    "acceptedAccountTypes": [
+      "eoa"
+    ],
+    "refusedAccountTypes": [
+      "ERC-1271 / ERC-6492 contract accounts (need an RPC check)"
+    ],
+    "chainId": 42220,
+    "nonceLifetimeSeconds": 600,
+    "nonceSingleUse": true,
+    "storedProof": "exact message plus SHA-256 digest of the accepted signature",
+    "sourcesCheckedAt": "2026-10-27",
+    "sources": [
+      "https://eips.ethereum.org/EIPS/eip-4361",
+      "https://viem.sh/docs/siwe/utilities/parseSiweMessage",
+      "https://viem.sh/docs/siwe/actions/verifySiweMessage"
+    ]
+  },
+  "credentialScopes": {
+    "allowlist": [
+      "operator:read",
+      "work:read",
+      "qualification:submit"
+    ],
+    "claimScope": false,
+    "paymentScope": false,
+    "payoutSigning": "never delegated to an operator credential",
+    "storage": "SHA-256 digest only; secret shown once",
+    "maximumLifetimeDays": 90,
+    "liveCredentialsPerOperator": 5
+  },
+  "qualification": {
+    "seededTasks": 4,
+    "services": [
+      "bug_discovery",
+      "repair",
+      "test"
+    ],
+    "outcomes": [
+      "correct",
+      "incorrect",
+      "false_report"
+    ],
+    "maxAttemptsPerTask": 3,
+    "accuracyFloor": 0.5,
+    "answerKeysServed": false,
+    "eligibility": "derived projection recomputed from immutable attempts in the same transaction"
+  },
+  "checks": [
+    {
+      "command": "npm run lint",
+      "result": "passed"
+    },
+    {
+      "command": "npm run typecheck",
+      "result": "passed; strict TypeScript"
+    },
+    {
+      "command": "npm test",
+      "passed": 28,
+      "failed": 0,
+      "result": "existing capability checks unchanged"
+    },
+    {
+      "command": "npm run test:db",
+      "passed": 49,
+      "failed": 0,
+      "coverage": [
+        "operator handle ownership, idempotent re-registration and handle conflicts",
+        "server-built EIP-4361 message bound to origin authority, scheme, address, nonce and chain 42220",
+        "single-use nonces: replay, borrowed challenge, foreign signer and self-written message refused",
+        "row-level and message-level expiry both refuse a proof",
+        "one live address claim across operators and one live payout designation per operator",
+        "revocation releases the address and clears payout designation; re-proof succeeds",
+        "credential digest storage, scope allowlist, expiry, live cap, revocation and operator suspension",
+        "grading separates correct, incorrect and false_report; refusal names mismatched fields",
+        "malformed report fields are refused and record no attempt",
+        "attempt cap holds under five concurrent submissions (1,2,3 only)",
+        "eligibility transitions: qualified, incomplete, false_report, accuracy_below_threshold",
+        "idempotent replay, mismatch, in-progress, concurrent retry, and no key stored after refusal",
+        "eligible work empty with named gates; a real draft brief cannot be published (23514)"
+      ]
+    },
+    {
+      "command": "npm run build",
+      "result": "passed; production Next.js build"
+    },
+    {
+      "command": "npm run test:e2e",
+      "passed": 34,
+      "failed": 0,
+      "durationSeconds": 19.8,
+      "viewports": [
+        {
+          "browser": "Chromium",
+          "width": 1440,
+          "height": 1000
+        },
+        {
+          "browser": "Chromium mobile emulation",
+          "width": 390,
+          "height": 664
+        }
+      ],
+      "axeDetectedViolations": 0,
+      "coverage": [
+        "operator-role member is routed from the workspace to the operator console",
+        "registration, challenge request, wallet-signed proof pasted into the console, payout badge",
+        "credential creation with the secret shown once",
+        "agent API identity, scopes and proven wallet over real HTTP",
+        "idempotent attempt submission: 201, replay 200, mismatch 409",
+        "work listing empty with PUBLICATION_UNAVAILABLE; assignments return 501",
+        "credential revocation refuses the next agent request",
+        "anonymous, cookie-bearing and unknown agent routes refused; session API still 401",
+        "existing ALPHA-01/ALPHA-02 browser checks unchanged"
+      ]
+    }
+  ],
+  "visualReview": {
+    "reviewed": true,
+    "privateScreenshots": "test-results/operator-*/",
+    "surfaces": [
+      "operator console: wallets, credentials, qualification, work gates"
+    ],
+    "visualDirection": "provisional existing light/green design"
+  },
+  "ci": {
+    "configured": true,
+    "remoteExecuted": false,
+    "workflow": ".github/workflows/ci.yml"
+  },
+  "limitations": [
+    "No published work, claims, reservations, leases, heartbeats, evidence ingestion, decisions or payouts",
+    "The eligible-work listing is empty by construction; ALPHA-04 must re-pin terms and build inside the claim transaction",
+    "Externally owned accounts only; ERC-1271/ERC-6492 contract accounts are refused and no RPC check is performed",
+    "A wallet signature is attribution, not proof of correct work or of independent operation",
+    "Seeded qualification measures fixture accuracy and false reporting only; it does not establish general agent competence",
+    "No appeal or qualification reset path; a false report requires a reviewer who does not exist yet",
+    "No runner isolation or scoped execution credentials; operators execute nothing through the platform yet",
+    "Expired challenges, credentials and idempotency keys are not yet cleaned up",
+    "No email ownership verification, production perimeter, deployment or payout execution",
+    "Axe and Chromium mobile emulation do not establish complete accessibility or real-device coverage"
+  ],
+  "sourceFiles": [
+    {
+      "path": ".env.example",
+      "sha256": "7705abd629a0b804f2e742e0fcdfde0c0372c4b13045c93e8f076c60e175d32b"
+    },
+    {
+      "path": ".gitattributes",
+      "sha256": "952c9f6ae0360dd2e1a02f2dd2668789de128e91702daab304e0653e8f8e7e2b"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "1e12035ba2ca5ed43097a17b7498f2afcd4a313928bfeb43a9b645cecf6792f0"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "3d6a1df5293ccafeff0aafd9ce6157e302f6ccc84a9584ff6dd62b76adb6fe6c"
+    },
+    {
+      "path": ".impeccable.md",
+      "sha256": "02f6e9bd1ddfd7c7b512085e0d8b2bd42dd03d96436a535332418038431c6dc4"
+    },
+    {
+      "path": ".nvmrc",
+      "sha256": "d3fbdabc6e79cd4db661944014629a9d677d22d5e7656eadeea8ef55ddf9c9e3"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "bbe4ecd2b3e6abddb7f9edf9e245e3b48fde8dc2cbe87c9ae8cd3163f3963165"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "3bbb0c64d0aa55b18212efc03131ae4b5c8f6770e21cb3b8a1d325c2f8bd0ccd"
+    },
+    {
+      "path": "README.md",
+      "sha256": "c89313995318cf665fdc2a87557981e7040534a487db88e589bc3cece33f57c2"
+    },
+    {
+      "path": "biome.json",
+      "sha256": "267adc89fa68280dd86722430c19a2a5b5074045550ee7df7c5e796e5c59162f"
+    },
+    {
+      "path": "compose.yaml",
+      "sha256": "118e8892fb1ffc7f742acce35e816148baee1dd4e3facbba1de57d83342e85ce"
+    },
+    {
+      "path": "db/migrations/0001_runtime.sql",
+      "sha256": "80682b750d72933ee94a919d504d8feed2d5ce86d4e3c46245995d9c357b9e32"
+    },
+    {
+      "path": "db/migrations/0002_accounts.sql",
+      "sha256": "eba218e54aa6ede6ded1e87b6e7e5199703c46098a4e132b7fd1430e3772ad2f"
+    },
+    {
+      "path": "db/migrations/0003_projects_terms.sql",
+      "sha256": "a4f8bc15978ee0273629eb44eb1a50f40519f112863e39545c45ba742f31617c"
+    },
+    {
+      "path": "db/migrations/0004_operators.sql",
+      "sha256": "80dbda6a95f478c5806fbfaf05e361fdac1c684af13a1ed8d752754fa7dfa1f3"
+    },
+    {
+      "path": "docs/ALPHA-02.md",
+      "sha256": "0bc89f1575bf80e4ba1eab387d4cc518b5b271d88d32693f6a8a720fee4247af"
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "sha256": "d53ce4579e617160dc72be0e86c13898c1a52ff8e0a2e996d70ee0b4082b2fdb"
+    },
+    {
+      "path": "docs/BACKLOG.md",
+      "sha256": "2ea16efc4007a65335da4d0af8f52f3ee5cf72e47a608f8a69b32bd5e501390f"
+    },
+    {
+      "path": "docs/DEVELOPMENT.md",
+      "sha256": "76b2fb1451dab34b365fb6816bc27f297bbf61ee19d16ea947393da4762baad7"
+    },
+    {
+      "path": "docs/HACKATHON.md",
+      "sha256": "38acc0208268cc8bc776ab7f909a9c876010ec2756d3e64c1517a27ecd8472a5"
+    },
+    {
+      "path": "docs/PRD.md",
+      "sha256": "c8f2ee691f7c0b111836999c96e33b8effe13b649a9e0cbbbf8e7a7566e1590d"
+    },
+    {
+      "path": "docs/ROADMAP.md",
+      "sha256": "c1896112781e070ffe84746df1fadac736744d1c0b4c62c249b3e99d5378d794"
+    },
+    {
+      "path": "docs/VALIDATION.md",
+      "sha256": "38d4318f2c1c855eef3a37e4bc0c67622446b7b675c1dcbff5f1429f387ad938"
+    },
+    {
+      "path": "memory/BUILD_LOG.md",
+      "sha256": "1f31c0a2cef6fd0b69b34499770ad3f66dd11fdd80c8f6a01b4a0f6ea8ac26fa"
+    },
+    {
+      "path": "memory/DECISIONS.md",
+      "sha256": "1057c02c881d31ba5a37d7c1673895f9c8e5653c2ac6ff6f54d2c1efdb3da0c0"
+    },
+    {
+      "path": "memory/PROJECT.md",
+      "sha256": "c2027955e2354594de464e280e83feadcc2c1c1872f49918e4f9d428b4afd06f"
+    },
+    {
+      "path": "memory/STATUS.md",
+      "sha256": "650b9f57d8262961bcf75abc08d2f57e10dcb08f1e69abe94836cac6051697d3"
+    },
+    {
+      "path": "next-env.d.ts",
+      "sha256": "1862ac4bbbc5192d4bf562161df66ea547ed3e67173100656ab606ae9797db2b"
+    },
+    {
+      "path": "next.config.ts",
+      "sha256": "7e4df4dfba315d7163b67310d2db5c3d7f2ff17c435880428c969b1e1d5796ba"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "30435edbe7459637cea07aad280e427e21f39bd99d4cf4024bcd01fb7748f1a9"
+    },
+    {
+      "path": "package.json",
+      "sha256": "747fd24e83aff0f56e5a2dc5d6a4151304eeffcb9ad55118a49356e2afd0bd45"
+    },
+    {
+      "path": "playwright.config.ts",
+      "sha256": "5f860d457addca74a70ab7b63edb449ba6fc59f55596f97990375b8eb221015c"
+    },
+    {
+      "path": "scripts/enqueue.ts",
+      "sha256": "434d6e2b2113e79be90e024316486f97aaff3ced8deb7c20618a3603c72637e0"
+    },
+    {
+      "path": "scripts/invite.ts",
+      "sha256": "43105d726baa94f885959e63d0e89444585665e03ca9994e05b17b27dda0352b"
+    },
+    {
+      "path": "scripts/migrate.ts",
+      "sha256": "feab793bd67138c66a65f1909c27b79d05bf603c081e5b27a259ff4f145ce4f8"
+    },
+    {
+      "path": "scripts/setup-auth.mjs",
+      "sha256": "6a350df10687f69820f55d9ab87dd37fcefd97a5b7afa41949cc0f5e2d1477a7"
+    },
+    {
+      "path": "scripts/setup-local.mjs",
+      "sha256": "0b2efad9cb1a05a8386a25112c1b766dd59f855fb2b333df4a4d2e0185cf4286"
+    },
+    {
+      "path": "scripts/test-browser.ts",
+      "sha256": "06b5672f413c99c7a630642deda15fc2ef1889f5caae634f8dcafe68145d7aed"
+    },
+    {
+      "path": "src/app/account.css",
+      "sha256": "8fb467c4ebe27c25484058230e30879ddd0a9028018dec4c71ec43c5be11af2c"
+    },
+    {
+      "path": "src/app/api/agent/v1/[...path]/route.ts",
+      "sha256": "2a3bebf34ee237bb1ebcb301ef9de9de80dee5728bebc25349c9617635ecdf86"
+    },
+    {
+      "path": "src/app/api/auth/[...all]/route.ts",
+      "sha256": "74441d8384cf5b676e2f9e5bcf0e5c904a6daab12ad11aa81df1177f48031d3a"
+    },
+    {
+      "path": "src/app/api/demo/report/route.ts",
+      "sha256": "ed1e229c9f964ba781298a1fae937fadfd563cba75c2e3ef855d452a9d0b579b"
+    },
+    {
+      "path": "src/app/api/health/route.ts",
+      "sha256": "fbbbcaf7ef028415b950ffe656ebb8959a92e6fb37f333a069b3482c811791a1"
+    },
+    {
+      "path": "src/app/api/ready/route.ts",
+      "sha256": "e996e06361ce6aff91d362a3f6ae4b2a1fb78a58d8de5765c0b20b6be25f3c79"
+    },
+    {
+      "path": "src/app/api/v1/[...path]/route.ts",
+      "sha256": "1a3994d2946287fb7074d051121672a3874a0b812ae672edd01b9bfcfffad1e2"
+    },
+    {
+      "path": "src/app/demo/evidence/page.tsx",
+      "sha256": "b84d1a270ec182ed853e6a419aeb21a3b814519ce8880cca590c67ea4829b5f0"
+    },
+    {
+      "path": "src/app/demo/guide/page.tsx",
+      "sha256": "f21c861861ecc41ee1be030dcbf23e2b1ca85492caecd4252525803cb81de53c"
+    },
+    {
+      "path": "src/app/demo/page.tsx",
+      "sha256": "f30590dbdde42e1fc2692ac28ca5f4e8c269e617f900d1748c5db36def82d0af"
+    },
+    {
+      "path": "src/app/demo/payments/page.tsx",
+      "sha256": "5cf87be0bdc4297cdd85537280364e1b66ef29506306a3d93bd81e807c065379"
+    },
+    {
+      "path": "src/app/globals.css",
+      "sha256": "5a5eb1d23e32c0d1619cb8700994cd785218f269cbb3af1ab9911aac8b2205b2"
+    },
+    {
+      "path": "src/app/icon.svg",
+      "sha256": "96318a4e9c08f97ab765beb2c22bda0ddf0d86492b3bffd2c55ee423200ca21a"
+    },
+    {
+      "path": "src/app/join/page.tsx",
+      "sha256": "62ffbcfc904f1ff84b99c9fd47adc77bd3aa8f546d4d50e01c36c63f7e9045f7"
+    },
+    {
+      "path": "src/app/layout.tsx",
+      "sha256": "0bc5c45f2c73eafe8629e65c53bc68ca8d340aa34040b3316b78a524d834a2bb"
+    },
+    {
+      "path": "src/app/operator/page.tsx",
+      "sha256": "167d2beb1288dd3ffd9f36a0871b04a1cdf1b65decab0128cd5e3f7119027d59"
+    },
+    {
+      "path": "src/app/page.tsx",
+      "sha256": "17332aff66ebd92d84312852c8b2f61ab248f135b66b2abc36a394fc9c174447"
+    },
+    {
+      "path": "src/app/sign-in/page.tsx",
+      "sha256": "0f7b49e679d4ad6b89701d857bb6c6d1c52f7f49af816048ebbc5e4fdab8c635"
+    },
+    {
+      "path": "src/app/workspace/page.tsx",
+      "sha256": "fb93df4fe081cdac19f2f0ce336b3ac77be64823b9995656146612518d80345d"
+    },
+    {
+      "path": "src/components/access-panel.tsx",
+      "sha256": "0a1bf5ee4efe3b116c9b117f04726ab513eed888d21ee97e22fe6fe1d10aeb3c"
+    },
+    {
+      "path": "src/components/auth-form.tsx",
+      "sha256": "eeb388f850e3662d378dabd0136e53e0f77d98bd18bcacd3dea4279ac73ba7db"
+    },
+    {
+      "path": "src/components/icons.tsx",
+      "sha256": "ded3090157954b69598f1e28afec5a48ab8d30159ce83563129c26a604c2d665"
+    },
+    {
+      "path": "src/components/live-types.ts",
+      "sha256": "84a3b8f16093b11f3776a555019d8c2d1fb4c94bff6ecc8526c19a46d547a720"
+    },
+    {
+      "path": "src/components/live-workspace.tsx",
+      "sha256": "26afc939b2ccc9281c1395675cb247847e2acfd16d7df7b06aa3b401e885ae82"
+    },
+    {
+      "path": "src/components/operator-console.tsx",
+      "sha256": "29cf4c0202f19c9d580958943ccf654cae7324cef920c403f34505a7d77ecae6"
+    },
+    {
+      "path": "src/components/project-panel.tsx",
+      "sha256": "9ec4e9105c3e8ef7abdb6971f655963f17fd8af024455f5039f0a9b8fe5558d7"
+    },
+    {
+      "path": "src/components/terms-form.tsx",
+      "sha256": "2c2896a0f3da53a99444b410a411c6ec26102f3d77fd695503a01c39040053d2"
+    },
+    {
+      "path": "src/components/workspace.tsx",
+      "sha256": "e35e9285e5f14e72cfc6d2200ca702c08eba45cee8c8e9c4aa3e0f789b46924a"
+    },
+    {
+      "path": "src/demo/data.ts",
+      "sha256": "fb256a436264ba86875e18ca6a51854f6c868d25fe179b5b8b94997839cedbae"
+    },
+    {
+      "path": "src/domain/errors.ts",
+      "sha256": "dba69283676705bbcb3a62f21d9b9840ac2b50c332a8dbb95e0f26f7f23662f8"
+    },
+    {
+      "path": "src/domain/schemas.ts",
+      "sha256": "90aff1dbb715275c7e950ca434f712bde96b88d8859507b80086c91cfac1522f"
+    },
+    {
+      "path": "src/domain/values.ts",
+      "sha256": "84b519da75e1d6dc673603858f6483395005ba903550549a1d870c059e58e418"
+    },
+    {
+      "path": "src/server/access.ts",
+      "sha256": "4e32fc440ab04d7881676f7d6d9f7cad559a2ce1f99b1b5e09ff4b72abcbd92e"
+    },
+    {
+      "path": "src/server/agents.ts",
+      "sha256": "b1a251dcebf889ec2d2def7ada4829b743db7f3c8b29a57fb567ea585b183497"
+    },
+    {
+      "path": "src/server/auth/config.ts",
+      "sha256": "bc43879307ee90e7f0523314d284ed17e740a65f0f2f2c49c994a3db93fce7a9"
+    },
+    {
+      "path": "src/server/database.ts",
+      "sha256": "d91d0257ea53122c1b810b0d8fce31927ded245bb09db1f2fee96675e0620f64"
+    },
+    {
+      "path": "src/server/http.ts",
+      "sha256": "e84602e8fe3366792c9b27d83ebe72cfb9de999f67d4d5c46411354834b4ba60"
+    },
+    {
+      "path": "src/server/invitations.ts",
+      "sha256": "6e007692535991c6d1aead98ee77e37923287f1c50fb27aefbc1e1ca30dbbd7f"
+    },
+    {
+      "path": "src/server/jobs.ts",
+      "sha256": "a1a4bcd06c49bc723953e1dadb05b65d1109307aa3c592a629e61f6d11897972"
+    },
+    {
+      "path": "src/server/migrations.ts",
+      "sha256": "181c139e174afb7bf25ecb3ec8120423084fa31ab36b064b78d23361f5507513"
+    },
+    {
+      "path": "src/server/operators.ts",
+      "sha256": "a1de292578ef973b8fd0e65db3b0a25b6141d93632aa549b0322054fdffac98f"
+    },
+    {
+      "path": "src/server/projects.ts",
+      "sha256": "dbe3c3d3b15d8ef90c3c0a5de9ecb7a68596ae270addaff72e4184114da12fac"
+    },
+    {
+      "path": "src/server/qualification.ts",
+      "sha256": "d6e594fbb9f08dbc45862a74518f3ac89f066a3845a8425c345b8a5881310b5e"
+    },
+    {
+      "path": "src/server/targets.ts",
+      "sha256": "d3afc9112b2382abef906177d061c9f40c62f2e470fe8c927ed8747c76565651"
+    },
+    {
+      "path": "src/server/workspaces.ts",
+      "sha256": "aba42d65ef43ed5432dcfbdc2120d2d69cf3802d9e37f38b169bd540ff2ff83f"
+    },
+    {
+      "path": "tests/accounts.test.ts",
+      "sha256": "c49889098b52be1e2293200bda2701b9def4602dd538f89dc51844c114b92db3"
+    },
+    {
+      "path": "tests/agents.test.ts",
+      "sha256": "9a5410748c7345a0ae61c3ed6be7f77c226139a86ab3965295c8b8422eaa3454"
+    },
+    {
+      "path": "tests/backend.test.ts",
+      "sha256": "8a0a0274468e7acb7f0924e054241a0e17e3126add79c7314d7c1d917d751bbe"
+    },
+    {
+      "path": "tests/browser/accounts.spec.ts",
+      "sha256": "a155f78c07fd1bd1d00185d15c35446d37f09c2871d0998cf2aeee0deb3a4c69"
+    },
+    {
+      "path": "tests/browser/operator.spec.ts",
+      "sha256": "db9a2888f5fe9b499731fdfb387518b1b5a980f33af232e25559c01ccc3dbd21"
+    },
+    {
+      "path": "tests/browser/workspace.spec.ts",
+      "sha256": "e91fe3495d91e8c23a9a4228d77a0e8b6bd45cd0c6d128f3f3551fbc9cfe156a"
+    },
+    {
+      "path": "tests/helpers/database.ts",
+      "sha256": "8832e5c948db1c72a2d308f8e639f07e93c436055b8e1943fd322801101eb439"
+    },
+    {
+      "path": "tests/operators.test.ts",
+      "sha256": "2910fcbc412021166d7e333520d0d663727ae60a4823db31ffee1dc1f0e72e71"
+    },
+    {
+      "path": "tests/projects.test.ts",
+      "sha256": "c96113c2287df185ac923a9ca02b3563ab0a0fd940b107bfbd560d14a773895e"
+    },
+    {
+      "path": "tsconfig.json",
+      "sha256": "07ea5aae2e78809233b49771e534578ec5b249083dd45394614fcda8a24994a6"
+    },
+    {
+      "path": "workers/main.ts",
+      "sha256": "d5806625e76e2abdde0a5b641bc38572985120696bd0f520481371da7d1b1376"
+    }
+  ]
+}

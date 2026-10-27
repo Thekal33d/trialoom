@@ -10,7 +10,12 @@ export const privateHeaders = {
   'X-Robots-Tag': 'noindex',
 };
 export function json(value: unknown, status = 200) {
-  return Response.json(value, { status, headers: privateHeaders });
+  // Money is held as BigInt in the server, which has no JSON form of its own.
+  // Serializing it as a decimal string keeps exact base units across the API.
+  return new Response(
+    JSON.stringify(value, (_key, item) => (typeof item === 'bigint' ? item.toString() : item)),
+    { status, headers: { ...privateHeaders, 'Content-Type': 'application/json' } },
+  );
 }
 export function sameOrigin(request: Request) {
   if (request.headers.get('origin') !== authSettings().baseURL)

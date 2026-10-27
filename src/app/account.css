@@ -228,6 +228,41 @@ button:disabled {
 .artifact-list .text-button {
   margin-top: 0;
 }
+.review-block {
+  border-top: 1px solid var(--line);
+  margin-top: 22px;
+  padding-top: 18px;
+}
+.review-block h5 {
+  font: 600 14px var(--display);
+}
+.review-block .editor-panel {
+  margin: 16px 0 0;
+  padding: 20px;
+}
+.review-block .app-form {
+  margin-top: 16px;
+}
+.decision-trail {
+  display: grid;
+  gap: 14px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+.decision-trail li {
+  border-left: 2px solid var(--line);
+  padding-left: 14px;
+}
+.decision-trail strong {
+  text-transform: capitalize;
+}
+.decision-trail p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
 .status-actions {
   display: flex;
   flex-wrap: wrap;

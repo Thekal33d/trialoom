@@ -434,7 +434,7 @@ test('valid execution is payable without the discovery decision, and the fee nev
     accept,
   );
   // 2.00 execution plus its 10% fee, and nothing of the discovery reserve.
-  assert.equal(decision.movedUnits, 2_200_000n);
+  assert.equal(decision.movedUnits, '2200000');
   const mid = await campaignAccounting(db.pool, campaign.campaignId);
   assert.equal(mid?.acceptedUnits, '2200000');
   // The discovery reserve stays committed while that matter is open.
@@ -462,7 +462,7 @@ test('valid execution is payable without the discovery decision, and the fee nev
       evidenceRefs: [report.result.finding?.findingId as string],
     },
   );
-  assert.equal(awarded.movedUnits, 1_100_000n);
+  assert.equal(awarded.movedUnits, '1100000');
   const after = await campaignAccounting(db.pool, campaign.campaignId);
   // The fee is charged once on the running total, never twice on the parts.
   assert.equal(after?.acceptedUnits, '3300000');
@@ -509,7 +509,7 @@ test('separate acceptances never round past the single reserved fee', async () =
     },
   );
   // Charging each award its own rounded fee would have needed two units.
-  assert.equal(awarded.movedUnits, 1n);
+  assert.equal(awarded.movedUnits, '1');
   const accounting = await campaignAccounting(db.pool, campaign.campaignId);
   assert.equal(accounting?.acceptedUnits, '3');
   assert.equal(accounting?.reconciled, true);
@@ -626,7 +626,7 @@ test('one defect earns one discovery reward, and a later report is still paid fo
     b.assignment.assignmentId,
     accept,
   );
-  assert.equal(paid.movedUnits, 2_200_000n);
+  assert.equal(paid.movedUnits, '2200000');
   await decideDiscovery(
     db.pool,
     reviewer,
@@ -800,7 +800,7 @@ test('an operator appeals a refusal, and an overturned appeal pays it', async ()
       evidenceRefs: [report.result.submissionId],
     },
   );
-  assert.equal(resolved.movedUnits, 2_200_000n);
+  assert.equal(resolved.movedUnits, '2200000');
   const assignment = (
     await db.pool.query('SELECT state,accepted_units FROM assignments WHERE id=$1', [
       report.assignment.assignmentId,

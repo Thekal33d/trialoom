@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { formatUnits, toUnits } from '@/domain/values';
 import { api, type CampaignRecord, field, type TermsRecord } from './live-types';
+import { ReviewPanel } from './review-panel';
 
 type Accounting = {
   ceilingUnits: string;
@@ -60,6 +61,7 @@ type Submissions = {
   }[];
   submissions: {
     id: string;
+    assignment_id: string;
     handle: string;
     outcome: string;
     blocked_reason: string | null;
@@ -88,12 +90,15 @@ export function CampaignPanel({
   campaign,
   versions,
   isOwner,
+  canDecide,
   reload,
 }: {
   base: string;
   campaign: CampaignRecord;
   versions: TermsRecord[];
   isOwner: boolean;
+  // Owners and reviewers record decisions; a member can read but not decide.
+  canDecide: boolean;
   reload: () => Promise<void>;
 }) {
   const campaignBase = `${base}/campaigns/${campaign.id}`;
@@ -259,7 +264,7 @@ export function CampaignPanel({
               ? 'Every entry in the ledger replays to these balances.'
               : 'These balances do not match the ledger entries. Do not act on them.'}{' '}
             Committed amounts are reservations for live assignments, not payments. Nothing here has
-            been paid: acceptance decisions and settlement are not implemented.
+            been paid: accepted amounts are recorded as owed, and settlement is not implemented.
           </p>
           {ledger?.campaign.latestVersion !== undefined &&
             versions[0] &&
@@ -292,8 +297,8 @@ export function CampaignPanel({
             <div className="evidence-block">
               <h5>Execution and evidence</h5>
               <p className="section-description">
-                Raw artifacts stay private. Only a verified redacted copy can be opened, and no
-                acceptance decision has been recorded: reviewing and paying are not implemented.
+                Raw artifacts stay private, and only a verified redacted copy can be opened. An
+                accepted amount is owed and unpaid: payouts are not implemented.
               </p>
               {evidence.runs.map((item) => (
                 <div className="member-row" key={item.id}>
@@ -359,6 +364,17 @@ export function CampaignPanel({
                   </ul>
                 </div>
               ))}
+              <ReviewPanel
+                campaignBase={campaignBase}
+                submissions={evidence.submissions.map((submission) => ({
+                  id: submission.id,
+                  assignment_id: submission.assignment_id,
+                  handle: submission.handle,
+                  outcome: submission.outcome,
+                }))}
+                canDecide={canDecide}
+                reload={load}
+              />
             </div>
           )}
           {isOwner && !['cancelled', 'completed'].includes(status) && (

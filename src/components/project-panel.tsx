@@ -10,6 +10,7 @@ export function ProjectPanel({
   base,
   canWrite,
   isOwner,
+  canDecide,
   reload,
   onBack,
 }: {
@@ -17,6 +18,7 @@ export function ProjectPanel({
   base: string;
   canWrite: boolean;
   isOwner: boolean;
+  canDecide: boolean;
   reload: () => Promise<void>;
   onBack: () => void;
 }) {
@@ -232,6 +234,7 @@ export function ProjectPanel({
                       campaign={campaign}
                       versions={versions}
                       isOwner={isOwner}
+                      canDecide={canDecide}
                       reload={reload}
                     />
                   </article>

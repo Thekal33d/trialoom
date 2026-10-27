@@ -124,7 +124,8 @@ async function post(
       { releaseRemainder: false },
     );
   }
-  return { decisionId: rows[0].id, createdAt: rows[0].created_at, movedUnits: moved };
+  // Base units cross the API as strings; a BigInt has no JSON form.
+  return { decisionId: rows[0].id, createdAt: rows[0].created_at, movedUnits: moved.toString() };
 }
 
 /** References must point at this assignment's own evidence, not anywhere else. */

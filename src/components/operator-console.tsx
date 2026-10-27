@@ -647,7 +647,7 @@ export function OperatorConsole({ user }: { user: { name: string; email: string 
           )}
           <footer className="page-footer">
             <span>Test. Fix. Ship.</span>
-            <span>Operator connection · No acceptance decisions or payouts yet</span>
+            <span>Operator connection · Accepted work is owed; no payouts yet</span>
           </footer>
         </main>
       </div>

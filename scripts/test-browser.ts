@@ -223,7 +223,14 @@ try {
         await submitAttempt(db.pool, operator, { task, report });
       const credential = await createCredential(db.pool, actor, {
         name: 'Isolated runner',
-        scopes: ['work:read', 'assignments:read', 'assignments:claim', 'runs:execute'],
+        scopes: [
+          'work:read',
+          'assignments:read',
+          'assignments:claim',
+          'runs:execute',
+          'decisions:read',
+          'appeals:submit',
+        ],
         expiresInDays: 7,
       });
       const session = await authenticateAgent(db.pool, credential.secret);
@@ -356,6 +363,9 @@ try {
       evidenceTermsVersionId: evidenceCampaign.id,
       evidenceTermsContentHash: evidenceCampaign.contentHash,
       submittedRunId: submitted.run.runId,
+      submittedAssignmentId: submitted.assignment.assignmentId,
+      submittedCredential: submitted.credential.secret,
+      submitterHandle: `${viewport}-submitter`,
       liveRunId: live.run.runId,
       liveRunToken: live.run.runToken,
       liveAssignmentId: live.assignment.assignmentId,

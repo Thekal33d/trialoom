@@ -14,6 +14,9 @@ type Fixture = {
   evidenceTermsVersionId: string;
   evidenceTermsContentHash: string;
   submittedRunId: string;
+  submittedAssignmentId: string;
+  submittedCredential: string;
+  submitterHandle: string;
   liveRunId: string;
   liveRunToken: string;
   liveAssignmentId: string;
@@ -56,7 +59,7 @@ test('a builder reads redacted evidence and sees that nothing has been decided',
   await expect(brief).toContainText('revision confirmed');
   // Both claims still reserve their maximum liability: nothing has been paid.
   await expect(brief).toContainText('7.60 USDC');
-  await expect(brief).toContainText('acceptance decision');
+  await expect(brief).toContainText('owed and unpaid');
   await expect(brief).toContainText('This policy cannot redact archived or binary evidence.');
   await expect(brief.getByRole('link', { name: 'Open redacted copy' })).toHaveCount(2);
   const results = await new AxeBuilder({ page })
@@ -244,4 +247,81 @@ test('a run grant reaches only its own run, and evidence is ingested once', asyn
   const replayed = await request.post(`${runBase}/evidence`, { headers: grant, data: document });
   expect(replayed.status()).toBe(409);
   expect((await replayed.json()).error.code).toBe('RUN_CLOSED');
+});
+
+test('a builder records decisions that pay for the work and the reward', async ({ page }, info) => {
+  const fixture = fixtures[info.project.name];
+  await signIn(page, fixture.evidenceOwnerEmail, fixture.password);
+  await page.getByRole('button', { name: /Evidence fixture project/ }).click();
+  const brief = page.locator('.brief-record', { hasText: 'Evidence fixture campaign' });
+  const review = brief.locator('.review-block');
+  await expect(review).toContainText('Reports and decisions');
+  // Two independent operators reported the same failure on the same build.
+  await expect(review).toContainText('confirmed');
+  await expect(review).toContainText('2 reports');
+  await expect(review).toContainText('2 independent');
+  await expect(review).toContainText('Clustering is deterministic and decides nothing');
+
+  const pending = review.locator('.editor-panel', {
+    hasText: `${fixture.submitterHandle} · execution not decided`,
+  });
+  await pending.getByLabel('Outcome').selectOption('accepted');
+  await pending
+    .getByLabel('Reason, against the pinned acceptance criteria')
+    .fill('Every assigned step ran and the trace replays.');
+  await pending.getByRole('button', { name: 'Record decision' }).click();
+  await expect(review.locator('.decision-trail')).toContainText('execution accepted');
+  await expect(review.locator('.decision-trail')).toContainText('2.00 USDC');
+  await expect(review.locator('.decision-trail')).toContainText(
+    'Criteria applied: Reports must replay from the exported trace',
+  );
+  // Accepting the work moved exactly its price and fee out of the reservation.
+  await expect(brief).toContainText('2.20 USDC');
+
+  const finding = review
+    .locator('.editor-panel', { hasText: `@${fixture.submitterHandle}` })
+    .first();
+  await finding.getByRole('button', { name: 'Discovery decision' }).click();
+  await finding.getByLabel('Outcome').selectOption('awarded');
+  await finding.getByLabel('Reward (USDC, up to the published cap)').fill('1');
+  await finding
+    .getByLabel('Reason, against the published rubric')
+    .fill('First complete report of a confirmed in-scope defect.')
+    .catch(() => undefined);
+  await finding.getByRole('button', { name: 'Record decision' }).click();
+  await expect(review.locator('.decision-trail')).toContainText('discovery awarded');
+  await expect(review.locator('.decision-trail')).toContainText('1.00 USDC');
+  const results = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+    .analyze();
+  expect(
+    results.violations.map(({ id, nodes }) => ({ id, targets: nodes.map((node) => node.target) })),
+  ).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+  await page.screenshot({ path: info.outputPath('review.png'), fullPage: true, scale: 'css' });
+});
+
+test('an operator reads the decisions on their work and cannot appeal an acceptance', async ({
+  request,
+}, info) => {
+  const fixture = fixtures[info.project.name];
+  const auth = { Authorization: `Bearer ${fixture.submittedCredential}` };
+  const read = await request.get('/api/agent/v1/decisions', { headers: auth });
+  expect(read.status()).toBe(200);
+  const body = await read.json();
+  expect(body.appealWindowHours).toBe(168);
+  const execution = body.decisions.find(
+    (decision: { matter: string }) => decision.matter === 'execution',
+  );
+  expect(execution.outcome).toBe('accepted');
+  expect(execution.amount_units).toBe('2000000');
+  expect(execution.criteria).toBe('Reports must replay from the exported trace');
+  const refused = await request.post(
+    `/api/agent/v1/assignments/${fixture.submittedAssignmentId}/appeal`,
+    { headers: auth, data: { subject: 'execution', reason: 'Appealing an acceptance.' } },
+  );
+  expect(refused.status()).toBe(409);
+  expect((await refused.json()).error.code).toBe('NOT_REFUSED');
 });

@@ -59,7 +59,7 @@ test('a builder reads redacted evidence and sees that nothing has been decided',
   await expect(brief).toContainText('revision confirmed');
   // Both claims still reserve their maximum liability: nothing has been paid.
   await expect(brief).toContainText('7.60 USDC');
-  await expect(brief).toContainText('owed and unpaid');
+  await expect(brief).toContainText('owed and queued for payment');
   await expect(brief).toContainText('This policy cannot redact archived or binary evidence.');
   await expect(brief.getByRole('link', { name: 'Open redacted copy' })).toHaveCount(2);
   const results = await new AxeBuilder({ page })
@@ -324,4 +324,44 @@ test('an operator reads the decisions on their work and cannot appeal an accepta
   );
   expect(refused.status()).toBe(409);
   expect((await refused.json()).error.code).toBe('NOT_REFUSED');
+});
+
+test('an accepted decision shows as an owed payment, blocked until a payout wallet exists', async ({
+  page,
+  request,
+}, info) => {
+  const fixture = fixtures[info.project.name];
+  await signIn(page, fixture.evidenceOwnerEmail, fixture.password);
+  await page.getByRole('button', { name: /Evidence fixture project/ }).click();
+  const payments = page
+    .locator('.brief-record', { hasText: 'Evidence fixture campaign' })
+    .locator('.payout-block');
+  await expect(payments).toContainText('Payments');
+  await expect(payments).toContainText('paid only after finalized verification');
+  // The work is accepted and owed; no recipient can be fixed yet.
+  await expect(payments).toContainText('2.00 USDC');
+  await expect(payments).toContainText('no recipient fixed yet');
+  await expect(payments).toContainText('no payout wallet');
+  // The platform fee is its own transfer, waiting on its own recipient.
+  await expect(payments).toContainText('Platform fee');
+  await expect(payments).toContainText('fee recipient unconfigured');
+
+  const listed = await (await page.request.get(`${campaignBase(fixture)}/payouts`)).json();
+  const execution = listed.payouts.find(
+    (payout: { category: string }) => payout.category === 'execution',
+  );
+  expect(execution.state).toBe('blocked');
+  expect(execution.transaction_hash).toBe(null);
+  expect(execution.operation_key).toMatch(/^trp_[a-f0-9]{48}$/);
+
+  // The operator sees the same block over the agent API.
+  const payouts = await request.get('/api/agent/v1/payouts', {
+    headers: { Authorization: `Bearer ${fixture.submittedCredential}` },
+  });
+  expect(payouts.status()).toBe(200);
+  const body = await payouts.json();
+  expect(body.currency.address).toBe('0xcebA9300f2b948710d2653dD7B07f33A8B32118C');
+  expect(body.payouts.every((payout: { state: string }) => payout.state === 'blocked')).toBe(true);
+  expect(body.payouts[0].blocked_reason).toBe('no_payout_wallet');
+  expect(body.note).toContain('finalized verification');
 });

@@ -279,7 +279,7 @@ export function CampaignPanel({
               ? 'Every entry in the ledger replays to these balances.'
               : 'These balances do not match the ledger entries. Do not act on them.'}{' '}
             Committed amounts are reservations for live assignments, not payments. Nothing here has
-            been paid: accepted amounts are recorded as owed, and settlement is not implemented.
+            been paid: no funded payment authority is configured, so accepted amounts stay owed.
           </p>
           {ledger?.campaign.latestVersion !== undefined &&
             versions[0] &&
@@ -313,7 +313,7 @@ export function CampaignPanel({
               <h5>Execution and evidence</h5>
               <p className="section-description">
                 Raw artifacts stay private, and only a verified redacted copy can be opened. An
-                accepted amount is owed and unpaid: payouts are not implemented.
+                accepted amount is owed and queued for payment.
               </p>
               {evidence.runs.map((item) => (
                 <div className="member-row" key={item.id}>

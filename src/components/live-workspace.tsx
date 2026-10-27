@@ -366,7 +366,7 @@ export function LiveWorkspace({
           )}
           <footer className="page-footer">
             <span>Test. Fix. Ship.</span>
-            <span>Private workspace · Accepted work is owed; no payouts yet</span>
+            <span>Private workspace · Accepted work is owed; no funded payment authority</span>
           </footer>
         </main>
       </div>

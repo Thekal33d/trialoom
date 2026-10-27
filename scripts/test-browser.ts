@@ -230,6 +230,7 @@ try {
           'runs:execute',
           'decisions:read',
           'appeals:submit',
+          'payouts:read',
         ],
         expiresInDays: 7,
       });

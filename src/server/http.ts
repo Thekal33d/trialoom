@@ -61,10 +61,17 @@ export async function limitRequest(purpose: string, identity: string, maximum: n
   if (rows[0].count > maximum)
     throw new AppError('RATE_LIMITED', 'Too many attempts. Please wait a minute.', 429);
 }
-export async function handleApi(request: Request, handler: () => Promise<Response>) {
+export async function handleApi(
+  request: Request,
+  handler: () => Promise<Response>,
+  // The agent API authenticates with a bearer credential and refuses cookies, so
+  // the browser same-origin rule does not apply to it.
+  options: { requireSameOrigin?: boolean } = {},
+) {
   const requestId = randomUUID();
   try {
-    if (!['GET', 'HEAD'].includes(request.method)) sameOrigin(request);
+    if ((options.requireSameOrigin ?? true) && !['GET', 'HEAD'].includes(request.method))
+      sameOrigin(request);
     const response = await handler();
     response.headers.set('X-Request-Id', requestId);
     return response;

@@ -165,6 +165,19 @@ export const blockedReasons = [
   'target_changed',
 ] as const;
 const line = z.string().trim().min(1).max(300);
+/** A replay of the regression test on one build, recorded per clean session. */
+const replay = z
+  .object({
+    assertion: z.string().trim().min(1).max(200),
+    passed: z.boolean(),
+    cleanSession: z.literal(true),
+  })
+  .strict();
+// Two consistent clean replays per build are the default for a deterministic
+// defect, so neither side can rest on a single run.
+const replaySchema = z
+  .object({ baseline: z.array(replay).min(2).max(5), candidate: z.array(replay).min(2).max(5) })
+  .strict();
 export const evidenceSchema = z
   .object({
     schemaVersion: z.literal(1),
@@ -227,6 +240,55 @@ export const evidenceSchema = z
       )
       .min(1)
       .max(200),
+    // A repair delivery and an independent verification of one. Which block is
+    // required depends on the operator's role in the repair campaign.
+    repair: z
+      .object({
+        baseRevision: z.string().trim().min(1).max(200),
+        candidateRevision: z.string().trim().min(1).max(200),
+        changedFiles: z
+          .array(
+            z
+              .object({
+                path: z.string().trim().min(1).max(300),
+                beforeSha256: z
+                  .string()
+                  .regex(/^[a-f0-9]{64}$/)
+                  .nullable(),
+                afterSha256: z.string().regex(/^[a-f0-9]{64}$/),
+              })
+              .strict(),
+          )
+          .min(1)
+          .max(50),
+        patchSha256: z.string().regex(/^[a-f0-9]{64}$/),
+        testSha256: z.string().regex(/^[a-f0-9]{64}$/),
+        regression: replaySchema,
+        requiredChecks: z
+          .array(
+            z
+              .object({
+                label: z.string().trim().min(1).max(120),
+                baselinePassed: z.boolean(),
+                candidatePassed: z.boolean(),
+              })
+              .strict(),
+          )
+          .min(1)
+          .max(20),
+      })
+      .strict()
+      .optional(),
+    repairVerification: z
+      .object({
+        outcome: z.enum(['confirmed', 'refuted', 'inconclusive']),
+        baseRevision: z.string().trim().min(1).max(200),
+        candidateRevision: z.string().trim().min(1).max(200),
+        regression: replaySchema,
+        detail: z.string().trim().min(3).max(500),
+      })
+      .strict()
+      .optional(),
     outcome: z.enum(['executed', 'product_failed', 'blocked']),
     blockedReason: z.enum(blockedReasons).optional(),
     // The operator proposes; a reviewer applies the published rubric.
@@ -285,5 +347,29 @@ export const appealResolutionSchema = z
     outcome: z.enum(['upheld', 'overturned']),
     amountUnits: units.optional(),
     ...decisionBase,
+  })
+  .strict();
+
+const scopePath = z
+  .string()
+  .trim()
+  .min(1)
+  .max(300)
+  .regex(/^[^\s]+$/, 'Use a repository path without spaces.');
+export const repairQuoteSchema = z
+  .object({
+    campaignId: uuid,
+    defectId: uuid,
+    operatorId: uuid,
+    baseBuildId: uuid,
+    amountUnits: units,
+    // The paths this repair may change. Anything else needs a revised quote.
+    scopePaths: z.array(scopePath).min(1).max(50),
+  })
+  .strict();
+export const quoteDecisionSchema = z
+  .object({
+    outcome: z.enum(['approved', 'rejected', 'withdrawn']),
+    reason: z.string().trim().min(3).max(500),
   })
   .strict();

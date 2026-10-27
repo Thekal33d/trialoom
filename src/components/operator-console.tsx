@@ -53,6 +53,37 @@ type Qualification = {
   }[];
 };
 type Challenge = { nonce: string; message: string; expiresAt: string; chainId: number };
+type Work = {
+  items: {
+    campaign_id: string;
+    name: string;
+    workspace: string;
+    service: string;
+    price_units: string;
+    deadline: string;
+    slots: number;
+    slots_used: number;
+    available_units: string;
+    already_claimed: boolean;
+    terms_version_id: string;
+    version: number;
+  }[];
+  unavailable: { code: string; message: string }[];
+};
+type Assignments = {
+  assignments: {
+    id: string;
+    campaign: string;
+    service: string;
+    state: string;
+    terms_version: number;
+    max_liability_units: string;
+    lease_expires_at: string;
+    deadline: string;
+    closed_reason: string | null;
+  }[];
+};
+const units = (value: string) => `${(Number(value) / 1_000_000).toFixed(2)} USDC`;
 const reasons: Record<string, string> = {
   qualified: 'Every seeded task for this service is passed.',
   incomplete: 'Some seeded tasks for this service are not passed yet.',
@@ -64,6 +95,8 @@ export function OperatorConsole({ user }: { user: { name: string; email: string 
   const [data, setData] = useState<Overview>();
   const [qualification, setQualification] = useState<Qualification>();
   const [challenge, setChallenge] = useState<Challenge>();
+  const [work, setWork] = useState<Work>();
+  const [assignments, setAssignments] = useState<Assignments>();
   const [secret, setSecret] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -71,8 +104,11 @@ export function OperatorConsole({ user }: { user: { name: string; email: string 
   const load = useCallback(async () => {
     const overview = await api<Overview>('/api/v1/operator');
     setData(overview);
-    if (overview.operator)
+    if (overview.operator) {
       setQualification(await api<Qualification>('/api/v1/operator/qualification'));
+      setWork(await api<Work>('/api/v1/operator/work'));
+      setAssignments(await api<Assignments>('/api/v1/operator/assignments'));
+    }
   }, []);
   useEffect(() => {
     load().catch((e) => setError(e instanceof Error ? e.message : 'Console could not be loaded.'));
@@ -502,29 +538,90 @@ export function OperatorConsole({ user }: { user: { name: string; email: string 
                 )}
               </section>
               <section className="live-section">
-                <h2>Available work</h2>
+                <div className="section-heading">
+                  <h2>
+                    Available work <span className="count">{work?.items.length ?? 0}</span>
+                  </h2>
+                  <span className="subtle">Claim through the agent API</span>
+                </div>
                 <p className="section-description">
                   Builders who admitted you:{' '}
                   {data.admissions.length
                     ? data.admissions.map((item) => item.name).join(', ')
                     : 'none yet'}
-                  . Work briefs are drafts only: campaign funding, publication, claims, and
-                  reservations are not implemented, so nothing is claimable and no payout can be
-                  earned yet.
+                  . A claim pins one exact terms version and build and reserves its maximum
+                  liability against the campaign budget. Acceptance decisions, evidence, and payouts
+                  are not implemented yet, so no work here can be paid.
                 </p>
+                {work?.items.length ? (
+                  <div className="record-list">
+                    {work.items.map((item) => (
+                      <div className="member-row" key={item.campaign_id}>
+                        <div>
+                          <strong>{item.name}</strong>
+                          <p>
+                            {item.workspace} · {item.service} · terms v{item.version} ·{' '}
+                            {units(item.price_units)} · {item.slots_used} of {item.slots} slots
+                            taken · {units(item.available_units)} budget left · due{' '}
+                            {new Date(item.deadline).toLocaleString()}
+                          </p>
+                        </div>
+                        <span className="neutral-label">
+                          {item.already_claimed ? 'claimed by you' : 'open'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <ul className="plain-list">
+                    {work?.unavailable.map((entry) => (
+                      <li key={entry.code}>{entry.message}</li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+              <section className="live-section">
+                <div className="section-heading">
+                  <h2>
+                    Your assignments{' '}
+                    <span className="count">{assignments?.assignments.length ?? 0}</span>
+                  </h2>
+                  <span className="subtle">Attempt tokens are shown once, to the agent</span>
+                </div>
+                {assignments?.assignments.length ? (
+                  <div className="record-list">
+                    {assignments.assignments.map((item) => (
+                      <div className="member-row" key={item.id}>
+                        <div>
+                          <strong>{item.campaign}</strong>
+                          <p>
+                            {item.service} · terms v{item.terms_version} · reserves{' '}
+                            {units(item.max_liability_units)} ·{' '}
+                            {['claimed', 'running'].includes(item.state)
+                              ? `lease until ${new Date(item.lease_expires_at).toLocaleString()}`
+                              : (item.closed_reason ?? 'closed')}
+                          </p>
+                        </div>
+                        <span className="neutral-label">{item.state}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="section-description">No assignment has been claimed yet.</p>
+                )}
                 <p className="section-description">
-                  Agent API: <code>GET /api/agent/v1/identity</code>,{' '}
-                  <code>GET /api/agent/v1/qualification</code>,{' '}
-                  <code>POST /api/agent/v1/qualification/attempts</code> with an
-                  <code> Idempotency-Key</code> header, and <code>GET /api/agent/v1/work</code>.
-                  Send your credential as <code>Authorization: Bearer</code>.
+                  Agent API: <code>GET /api/agent/v1/work</code>,{' '}
+                  <code>POST /api/agent/v1/assignments</code> with an <code>Idempotency-Key</code>{' '}
+                  header, then <code>POST /api/agent/v1/assignments/:id/heartbeat</code> or{' '}
+                  <code>/release</code> with the attempt token. Send your credential as{' '}
+                  <code>Authorization: Bearer</code>.
                 </p>
               </section>
             </>
           )}
           <footer className="page-footer">
             <span>Test. Fix. Ship.</span>
-            <span>Operator connection · No claims or payouts yet</span>
+            <span>Operator connection · No acceptance decisions or payouts yet</span>
           </footer>
         </main>
       </div>

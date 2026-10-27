@@ -184,6 +184,16 @@ button:disabled {
   margin: 12px 0 25px;
   max-width: 720px;
 }
+.plain-list {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 25px;
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--muted);
+  max-width: 720px;
+}
 .empty-work {
   padding: 40px 0;
   border-top: 1px solid var(--line);

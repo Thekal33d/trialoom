@@ -1,4 +1,5 @@
 import { setTimeout } from 'node:timers/promises';
+import { sweepExpiredAssignments } from '../src/server/assignments.ts';
 import { createPool, databaseUrl } from '../src/server/database.ts';
 import { processOne } from '../src/server/jobs.ts';
 
@@ -7,8 +8,16 @@ const controller = new AbortController();
 process.once('SIGINT', () => controller.abort());
 process.once('SIGTERM', () => controller.abort());
 const once = process.argv.includes('--once');
+// Claim leases are fenced on every operator action as well; this sweep returns
+// a lapsed assignment's reservation to its campaign without waiting for one.
+let nextSweep = 0;
 try {
   do {
+    if (Date.now() >= nextSweep) {
+      nextSweep = Date.now() + 30_000;
+      const expired = await sweepExpiredAssignments(pool);
+      if (expired) console.log(JSON.stringify({ event: 'assignments.expired', count: expired }));
+    }
     const worked = await processOne(pool);
     if (once) break;
     if (!worked) await setTimeout(1000, undefined, { signal: controller.signal });

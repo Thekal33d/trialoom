@@ -76,7 +76,13 @@ export const challengeSchema = z.object({ address: addressSchema }).strict();
 export const walletProofSchema = z
   .object({ nonce: nonceSchema, signature: signatureSchema, designatePayout: z.boolean() })
   .strict();
-export const agentScopes = ['operator:read', 'work:read', 'qualification:submit'] as const;
+export const agentScopes = [
+  'operator:read',
+  'work:read',
+  'qualification:submit',
+  'assignments:read',
+  'assignments:claim',
+] as const;
 export type AgentScope = (typeof agentScopes)[number];
 export const credentialSchema = z
   .object({
@@ -98,3 +104,22 @@ export const attemptSchema = z
   })
   .strict();
 export const idempotencyKeySchema = z.string().trim().min(8).max(200);
+
+export const publicationSchema = z
+  .object({
+    termsVersionId: uuid,
+    slots: z.number().int().min(1).max(1000),
+    maxConcurrent: z.number().int().min(1).max(100),
+    authorizeUnits: units,
+    spendingAuthorization: z.string().trim().min(1).max(200),
+    authorizationConfirmed: z.literal(true),
+  })
+  .strict();
+export const campaignStatusSchema = z
+  .object({
+    status: z.enum(['open', 'paused', 'draining', 'cancelled']),
+    reason: z.string().trim().min(3).max(200),
+  })
+  .strict();
+export const attemptTokenSchema = z.object({ attemptToken: uuid }).strict();
+export const claimSchema = z.object({ campaignId: uuid }).strict();

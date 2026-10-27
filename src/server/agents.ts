@@ -118,41 +118,54 @@ export async function withIdempotency<T>(
 }
 
 /**
- * Work an operator may act on: published campaigns in workspaces that admitted
- * this operator, for a service it is eligible for. The returned terms version
- * and build identify exactly what an ALPHA-04 claim must pin; a claim must
- * re-read them under its own lock rather than trusting this listing.
+ * Work an operator may act on: open campaigns in workspaces that admitted this
+ * operator, for a service it is eligible for. The listed terms version and build
+ * are the exact identities a claim pins. The claim re-reads them under the
+ * campaign account lock rather than trusting this listing, which can be stale.
  */
-export async function listEligibleWork(pool: Pool, session: AgentSession) {
+export type WorkViewer = { operatorId: string; userId: string };
+export async function listEligibleWork(pool: Pool, viewer: WorkViewer | AgentSession) {
+  const { operatorId, userId } =
+    'operator' in viewer ? { operatorId: viewer.operator.id, userId: viewer.userId } : viewer;
   const items = (
     await pool.query(
       `SELECT c.id AS campaign_id,c.name,p.id AS project_id,w.id AS workspace_id,
         w.name AS workspace,t.id AS terms_version_id,t.version,t.build_id,t.content_hash,
         t.document->>'service' AS service,t.document->>'priceUnits' AS price_units,
-        t.document->>'deadline' AS deadline
+        t.document->>'deadline' AS deadline,t.document AS terms,
+        c.slots,c.max_concurrent,
+        (SELECT count(*) FROM assignments a WHERE a.campaign_id=c.id
+          AND a.state IN ('claimed','running','submitted','accepted'))::int AS slots_used,
+        (SELECT count(*) FROM assignments a WHERE a.campaign_id=c.id
+          AND a.state IN ('claimed','running','submitted'))::int AS live_assignments,
+        (acc.ceiling_units-acc.committed_units-acc.accepted_units-acc.finalized_units)::text
+          AS available_units,
+        EXISTS (SELECT 1 FROM assignments a WHERE a.campaign_id=c.id AND a.operator_id=$2
+          AND a.state IN ('claimed','running','submitted')) AS already_claimed
       FROM campaigns c
       JOIN projects p ON p.id=c.project_id
       JOIN workspaces w ON w.id=p.workspace_id
       JOIN memberships m ON m.workspace_id=w.id AND m.user_id=$1 AND m.role='operator'
-      JOIN terms_versions t ON t.campaign_id=c.id AND t.version=c.latest_version
+      JOIN terms_versions t ON t.id=c.published_terms_id
+      JOIN campaign_accounts acc ON acc.campaign_id=c.id
       JOIN operator_eligibility e ON e.operator_id=$2 AND e.service=t.document->>'service'
         AND e.state='eligible'
-      WHERE c.status='published'
+      WHERE c.status='open' AND (t.document->>'deadline')::timestamptz>clock_timestamp()
       ORDER BY t.created_at`,
-      [session.userId, session.operator.id],
+      [userId, operatorId],
     )
   ).rows;
   const admissions = (
     await pool.query(
       `SELECT w.id,w.name FROM memberships m JOIN workspaces w ON w.id=m.workspace_id
       WHERE m.user_id=$1 AND m.role='operator' ORDER BY w.name`,
-      [session.userId],
+      [userId],
     )
   ).rows;
   const eligible = (
     await pool.query(
       "SELECT service FROM operator_eligibility WHERE operator_id=$1 AND state='eligible' ORDER BY service",
-      [session.operator.id],
+      [operatorId],
     )
   ).rows.map((row) => row.service as string);
   const unavailable: { code: string; message: string }[] = [];
@@ -166,12 +179,11 @@ export async function listEligibleWork(pool: Pool, session: AgentSession) {
       code: 'NOT_QUALIFIED',
       message: 'Pass the seeded qualification tasks for a service to become eligible.',
     });
-  // Publication and claiming depend on the ledger and reservation work in
-  // ALPHA-04, so this listing is empty by construction today.
-  unavailable.push({
-    code: 'PUBLICATION_UNAVAILABLE',
-    message:
-      'Work briefs can only be drafts until campaign funding, publication, and reservations exist. No campaign is claimable yet.',
-  });
+  if (admissions.length && eligible.length && !items.length)
+    unavailable.push({
+      code: 'NO_OPEN_CAMPAIGN',
+      message:
+        'No builder has an open campaign for a service you are eligible for, with budget and slots left.',
+    });
   return { items, admissions, eligibleServices: eligible, unavailable };
 }

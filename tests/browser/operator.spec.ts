@@ -3,7 +3,15 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, test } from '@playwright/test';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 
-type Fixture = { password: string; operatorEmail: string };
+type Fixture = {
+  password: string;
+  operatorEmail: string;
+  ownerEmail: string;
+  workspaceId: string;
+  projectId: string;
+  campaignId: string;
+  termsVersionId: string;
+};
 const fixtures = JSON.parse(readFileSync(process.env.TRIALOOM_E2E_FIXTURE ?? '', 'utf8')) as Record<
   string,
   Fixture
@@ -30,7 +38,8 @@ async function signIn(page: Page, fixture: Fixture) {
   await expect(page).toHaveURL('/workspace');
 }
 
-test('an operator registers, proves a payout wallet, and issues a scoped credential', async ({
+test('an operator registers, proves a payout wallet, claims work, and keeps a lease', async ({
+  browser,
   page,
   request,
 }, info) => {
@@ -76,7 +85,13 @@ test('an operator registers, proves a payout wallet, and issues a scoped credent
   expect(body.operator.handle).toBe(`agent-${info.project.name}`);
   expect(body.wallets[0].address).toBe(account.address);
   expect(body.payoutSigning).toBe('never_delegated');
-  expect(body.credential.scopes).toEqual(['operator:read', 'qualification:submit', 'work:read']);
+  expect(body.credential.scopes).toEqual([
+    'assignments:claim',
+    'assignments:read',
+    'operator:read',
+    'qualification:submit',
+    'work:read',
+  ]);
 
   // Grading, idempotency, and the gates an agent is told about.
   for (const [task, report] of Object.entries(correctReports)) {
@@ -100,17 +115,108 @@ test('an operator registers, proves a payout wallet, and issues a scoped credent
   expect(conflict.status()).toBe(409);
   expect((await conflict.json()).error.code).toBe('IDEMPOTENCY_MISMATCH');
 
-  const work = await request.get('/api/agent/v1/work', { headers: auth });
-  expect(work.status()).toBe(200);
-  const listing = await work.json();
-  expect(listing.items).toEqual([]);
-  expect(listing.eligibleServices).toEqual(['bug_discovery']);
-  expect(listing.unavailable.map((entry: { code: string }) => entry.code)).toEqual([
-    'PUBLICATION_UNAVAILABLE',
+  // Nothing is offered until a builder publishes a brief against a real budget.
+  const before = await request.get('/api/agent/v1/work', { headers: auth });
+  expect(before.status()).toBe(200);
+  const idle = await before.json();
+  expect(idle.items).toEqual([]);
+  expect(idle.eligibleServices).toEqual(['bug_discovery']);
+  expect(idle.unavailable.map((entry: { code: string }) => entry.code)).toEqual([
+    'NO_OPEN_CAMPAIGN',
   ]);
-  const assignments = await request.get('/api/agent/v1/assignments', { headers: auth });
-  expect(assignments.status()).toBe(501);
-  expect((await assignments.json()).error.code).toBe('ASSIGNMENTS_UNAVAILABLE');
+  expect((await request.get('/api/agent/v1/assignments', { headers: auth })).status()).toBe(200);
+
+  // The builder publishes one exact terms version from their own session.
+  const builder = await browser.newContext({ baseURL: 'http://127.0.0.1:3100' });
+  const builderPage = await builder.newPage();
+  await builderPage.goto('/sign-in');
+  await builderPage.getByLabel('Email address').fill(fixture.ownerEmail);
+  await builderPage.getByLabel('Password', { exact: true }).fill(fixture.password);
+  await builderPage.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await expect(builderPage).toHaveURL('/workspace');
+  const campaignBase = `/api/v1/workspaces/${fixture.workspaceId}/projects/${fixture.projectId}/campaigns/${fixture.campaignId}`;
+  const origin = { Origin: 'http://127.0.0.1:3100' };
+  const published = await builderPage.request.post(`${campaignBase}/publication`, {
+    headers: origin,
+    data: {
+      termsVersionId: fixture.termsVersionId,
+      slots: 1,
+      maxConcurrent: 1,
+      authorizeUnits: '20000000',
+      spendingAuthorization: 'remesso-policy-browser-fixture',
+      authorizationConfirmed: true,
+    },
+  });
+  expect(published.status()).toBe(201);
+  expect((await published.json()).perAssignmentUnits).toBe('3800000');
+
+  // The operator claims it, which pins the terms and reserves the liability.
+  const work = await request.get('/api/agent/v1/work', { headers: auth });
+  const listing = await work.json();
+  expect(listing.items).toHaveLength(1);
+  expect(listing.items[0].terms_version_id).toBe(fixture.termsVersionId);
+  const claim = await request.post('/api/agent/v1/assignments', {
+    headers: { ...auth, 'Idempotency-Key': `${info.project.name}-claim` },
+    data: { campaignId: fixture.campaignId },
+  });
+  expect(claim.status()).toBe(201);
+  const assignment = await claim.json();
+  expect(assignment.termsVersionId).toBe(fixture.termsVersionId);
+  expect(assignment.maxLiabilityUnits).toBe('3800000');
+  // A retried claim returns the same assignment instead of a second one.
+  const retried = await request.post('/api/agent/v1/assignments', {
+    headers: { ...auth, 'Idempotency-Key': `${info.project.name}-claim` },
+    data: { campaignId: fixture.campaignId },
+  });
+  expect(retried.status()).toBe(200);
+  expect((await retried.json()).assignmentId).toBe(assignment.assignmentId);
+
+  const beat = await request.post(
+    `/api/agent/v1/assignments/${assignment.assignmentId}/heartbeat`,
+    {
+      headers: auth,
+      data: { attemptToken: assignment.attemptToken },
+    },
+  );
+  expect(beat.status()).toBe(200);
+  expect((await beat.json()).state).toBe('running');
+  const stale = await request.post(
+    `/api/agent/v1/assignments/${assignment.assignmentId}/heartbeat`,
+    {
+      headers: auth,
+      data: { attemptToken: '00000000-0000-4000-8000-000000000000' },
+    },
+  );
+  expect(stale.status()).toBe(409);
+  expect((await stale.json()).error.code).toBe('STALE_ATTEMPT');
+
+  // The builder sees the reservation in their own accounting view.
+  const ledger = await (await builderPage.request.get(`${campaignBase}/ledger`)).json();
+  expect(ledger.accounting.committedUnits).toBe('3800000');
+  expect(ledger.accounting.availableUnits).toBe('16200000');
+  expect(ledger.accounting.reconciled).toBe(true);
+  expect(ledger.assignments[0].id).toBe(assignment.assignmentId);
+
+  // Cancelling stops new claims without touching the live assignment.
+  const cancelled = await builderPage.request.post(`${campaignBase}/status`, {
+    headers: origin,
+    data: { status: 'cancelled', reason: 'Builder stopped the browser check campaign' },
+  });
+  expect(cancelled.status()).toBe(200);
+  expect((await cancelled.json()).drainingAssignments).toBe(1);
+  const released = await request.post(
+    `/api/agent/v1/assignments/${assignment.assignmentId}/release`,
+    {
+      headers: auth,
+      data: { attemptToken: assignment.attemptToken },
+    },
+  );
+  expect(released.status()).toBe(200);
+  expect((await released.json()).releasedUnits).toBe('3800000');
+  const settled = await (await builderPage.request.get(`${campaignBase}/ledger`)).json();
+  expect(settled.accounting.committedUnits).toBe('0');
+  expect(settled.accounting.availableUnits).toBe('20000000');
+  await builder.close();
 
   // The graded result is visible to the person behind the operator.
   await page.reload();

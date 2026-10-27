@@ -1,5 +1,5 @@
 import { AppError } from '@/domain/errors';
-import { idempotencyKeySchema } from '@/domain/schemas';
+import { idempotencyKeySchema, uuid } from '@/domain/schemas';
 import {
   authenticateAgent,
   bearerToken,
@@ -7,6 +7,12 @@ import {
   requireScope,
   withIdempotency,
 } from '@/server/agents';
+import {
+  claimAssignment,
+  heartbeatAssignment,
+  operatorAssignments,
+  releaseAssignment,
+} from '@/server/assignments';
 import { getPool } from '@/server/database';
 import { handleApi, json, limitRequest, readJson } from '@/server/http';
 import { qualificationStatus, recordAttempt } from '@/server/qualification';
@@ -62,12 +68,38 @@ async function handler(request: Request) {
         requireScope(session, 'work:read');
         return json(await listEligibleWork(pool, session));
       }
-      if (parts[0] === 'assignments')
+      if (parts[0] === 'assignments') {
+        if (parts.length === 1 && method === 'GET') {
+          requireScope(session, 'assignments:read');
+          return json(await operatorAssignments(pool, session.operator.id));
+        }
+        if (parts.length === 1 && method === 'POST') {
+          requireScope(session, 'assignments:claim');
+          const key = idempotencyKeySchema.parse(request.headers.get('idempotency-key') ?? '');
+          const body = await readJson(request);
+          const result = await withIdempotency(pool, session, route, body, key, (db) =>
+            claimAssignment(db, session, body),
+          );
+          return json(
+            { ...result.body, replayed: result.replayed },
+            result.replayed ? 200 : result.status,
+          );
+        }
+        if (parts.length === 3 && method === 'POST') {
+          requireScope(session, 'assignments:claim');
+          const assignmentId = uuid.parse(parts[1]);
+          const body = await readJson(request);
+          if (parts[2] === 'heartbeat')
+            return json(await heartbeatAssignment(pool, session, assignmentId, body));
+          if (parts[2] === 'release')
+            return json(await releaseAssignment(pool, session, assignmentId, body));
+        }
         throw new AppError(
           'ASSIGNMENTS_UNAVAILABLE',
-          'Claims, leases, heartbeats, and evidence submission are not implemented. They require the campaign ledger and atomic reservations.',
+          'Evidence submission, decisions, and payouts are not implemented. They require the runner, review, and settlement work.',
           501,
         );
+      }
       throw new AppError('NOT_FOUND', 'This agent action is not available.', 404);
     },
     { requireSameOrigin: false },

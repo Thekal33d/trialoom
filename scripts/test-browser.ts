@@ -8,7 +8,7 @@ import {
   createInvitation,
 } from '../src/server/invitations.ts';
 import { migrate } from '../src/server/migrations.ts';
-import { createProject } from '../src/server/projects.ts';
+import { addBuild, createCampaign, createProject } from '../src/server/projects.ts';
 import { disposableDatabase } from '../tests/helpers/database.ts';
 
 const db = await disposableDatabase();
@@ -51,6 +51,40 @@ try {
       },
       async () => ['93.184.215.14'],
     );
+    const build = await addBuild(
+      db.pool,
+      owner,
+      first.workspaceId,
+      project.id,
+      {
+        revision: 'baseline-1',
+        fixtureVersion: 'invitation-1',
+        targetUrl: 'https://example.com/',
+      },
+      async () => ['93.184.215.14'],
+    );
+    const campaign = await createCampaign(db.pool, owner, first.workspaceId, project.id, {
+      name: 'Find invitation defects',
+      terms: {
+        buildId: build.id,
+        expectedVersion: 0,
+        service: 'bug_discovery',
+        scope: 'Exercise the seeded invitation journey',
+        allowedActions: ['Create sandbox invitations'],
+        exclusions: ['No real emails'],
+        acceptanceCriteria: 'Reports must replay from the exported trace',
+        rewardRubric: 'One reward per distinct accepted defect',
+        artifactRights: 'Builder retains reports and regression tests',
+        deadline: new Date(Date.now() + 86_400_000).toISOString(),
+        reviewWindowHours: 48,
+        priceUnits: '2000000',
+        discoveryRewardCapUnits: '1000000',
+        resourceAllowanceUnits: '500000',
+        platformFeeBps: 1000,
+        paymentTerms: 'Authorized spending is not escrow; accepted work remains owed.',
+        scopeApproved: true,
+      },
+    });
     const join = await bootstrapWorkspace(db.pool, {
       email: `${viewport}-join@example.test`,
       name: 'Invited browser workspace',
@@ -60,6 +94,8 @@ try {
       ownerEmail,
       workspaceId: first.workspaceId,
       projectId: project.id,
+      campaignId: campaign.campaignId,
+      termsVersionId: campaign.id,
       joinToken: join.token,
       reviewerEmail: `${viewport}-reviewer@example.test`,
       operatorEmail: `${viewport}-operator@example.test`,

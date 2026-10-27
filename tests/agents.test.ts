@@ -12,6 +12,7 @@ import {
   requireScope,
   withIdempotency,
 } from '../src/server/agents.ts';
+import { claim } from '../src/server/assignments.ts';
 import {
   acceptInvitation,
   bootstrapWorkspace,
@@ -371,7 +372,7 @@ test('an unfinished key is refused rather than replayed as a new mutation', asyn
   );
 });
 
-test('eligible work is empty because publication and claims do not exist yet', async () => {
+test('an unpublished draft brief is never offered to a qualified operator', async () => {
   const { actor, operator } = await operatorFor('work-reader');
   for (const slug of ['invite-alias-defect', 'invite-alias-repaired'])
     await submitAttempt(db.pool, operator, { task: slug, report: correctReports[slug] });
@@ -385,11 +386,13 @@ test('eligible work is empty because publication and claims do not exist yet', a
   assert.deepEqual(work.items, []);
   assert.deepEqual(work.eligibleServices, ['bug_discovery']);
   assert.ok(work.admissions.some((row) => row.id === workspaceId));
-  const reasons = work.unavailable.map((entry) => entry.code);
-  // A qualified, admitted operator sees only the publication gate.
-  assert.deepEqual(reasons, ['PUBLICATION_UNAVAILABLE']);
-  // That gate is enforced by the schema, not only by this listing. A real draft
-  // brief for a service this operator qualified for still cannot be published.
+  // A qualified, admitted operator with nothing published sees that reason alone.
+  assert.deepEqual(
+    work.unavailable.map((entry) => entry.code),
+    ['NO_OPEN_CAMPAIGN'],
+  );
+  // A real draft brief for a service this operator qualified for stays invisible
+  // until its owner publishes it against an authorized budget.
   const project = await createProject(
     db.pool,
     owner,
@@ -436,11 +439,24 @@ test('eligible work is empty because publication and claims do not exist yet', a
       scopeApproved: true,
     },
   });
-  await assert.rejects(
-    db.pool.query("UPDATE campaigns SET status='published' WHERE id=$1", [campaign.campaignId]),
-    (error: unknown) => (error as { code?: string }).code === '23514',
+  assert.equal(
+    (await db.pool.query('SELECT status FROM campaigns WHERE id=$1', [campaign.campaignId])).rows[0]
+      .status,
+    'draft',
+  );
+  // Forcing the status open without an authorized budget still offers nothing:
+  // both the listing and the claim path require a campaign account.
+  await db.pool.query(
+    `UPDATE campaigns SET status='open',slots=1,max_concurrent=1,published_terms_id=$2,
+    published_by=$3,published_at=clock_timestamp(),spending_authorization='forced-without-budget'
+    WHERE id=$1`,
+    [campaign.campaignId, campaign.id, owner.id],
   );
   assert.deepEqual((await listEligibleWork(db.pool, session)).items, []);
+  await assert.rejects(
+    claim(db.pool, session, { campaignId: campaign.campaignId }),
+    code('CAMPAIGN_UNFUNDED'),
+  );
 });
 
 test('an operator with no admission or qualification is told which gate applies', async () => {
@@ -461,7 +477,7 @@ test('an operator with no admission or qualification is told which gate applies'
   const work = await listEligibleWork(db.pool, await authenticateAgent(db.pool, credential.secret));
   assert.deepEqual(
     work.unavailable.map((entry) => entry.code),
-    ['NO_WORKSPACE_ADMISSION', 'NOT_QUALIFIED', 'PUBLICATION_UNAVAILABLE'],
+    ['NO_WORKSPACE_ADMISSION', 'NOT_QUALIFIED'],
   );
 });
 

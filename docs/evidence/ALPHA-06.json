@@ -1,0 +1,599 @@
+{
+  "schemaVersion": 1,
+  "task": "ALPHA-06",
+  "verifiedAt": "2026-10-27T12:10:00.000Z",
+  "sourceRevision": "a353ed4c1422c077a60406723b36591442ee449b",
+  "sourceTreeDirty": true,
+  "scope": "Local deterministic defect clustering, an independence rule for reproduction, and immutable decisions that carry criteria, reason, evidence and actor and authorize the ledger's accepted liability; reproduction cannot be commissioned, nothing is replayed, and no payment exists",
+  "runtime": {
+    "node": "v24.11.1",
+    "postgres": "18.6",
+    "next": "16.4.3",
+    "react": "19.3.1",
+    "viem": "2.57.7",
+    "pg": "8.23.1",
+    "zod": "4.6.7",
+    "playwright": "1.64.1",
+    "axe": "4.14.0"
+  },
+  "clustering": {
+    "signature": "failing assertion names plus failing steps' action, expected and actual, normalized, against the pinned build",
+    "defectKey": "project, build, signature hash",
+    "crossCampaign": "the same failure under another campaign on the same build is the same defect",
+    "exactMatch": "joins the existing defect automatically",
+    "uncertainMatch": "same failing assertions, different detail: attached to nothing, candidates recorded, defect flagged uncertain_duplicate",
+    "newDefect": "opens its own defect",
+    "automationDecidesNothing": true,
+    "inconsistentResult": "a clean run of the same assertions marks the defect flaky and flags it for review, and is not treated as proof the report was false"
+  },
+  "independence": {
+    "linkedWhen": [
+      "the same operator identity",
+      "the same account",
+      "any payout wallet either operator has ever proven, including one revoked before the other proved it"
+    ],
+    "linkedReportCanConfirm": false,
+    "linkedReportFlag": "independence_failed",
+    "confirmedBy": "two independent reports of the same failure",
+    "replaysExecuted": 0,
+    "reroutesJob": false
+  },
+  "decisions": {
+    "immutable": true,
+    "actorRequired": "a real account; owner, reviewer or operator",
+    "modelOrAgentCanDecide": false,
+    "criteriaSource": "the terms version the claim pinned, not the latest revision",
+    "evidenceRefsMustBelongToAssignment": true,
+    "writtenBeforeMoneyMoves": true,
+    "matters": {
+      "execution": [
+        "accepted",
+        "rejected"
+      ],
+      "discovery": [
+        "awarded",
+        "declined"
+      ],
+      "duplicate": [
+        "duplicate"
+      ],
+      "severity": [
+        "changed"
+      ],
+      "appeal": [
+        "opened",
+        "upheld",
+        "overturned"
+      ]
+    },
+    "oneExecutionPerAssignment": true,
+    "oneDiscoveryPerFinding": true,
+    "oneOpenAppealPerAssignment": true
+  },
+  "money": {
+    "executionIndependentOfDiscovery": true,
+    "feeChargedOn": "the running payout total, never per award",
+    "discoveryAwardsPerDefect": 1,
+    "discoveryGoesTo": "the earliest complete report of that defect",
+    "laterReportStillPaidForExecution": true,
+    "refusalKeepsReservation": true,
+    "appealWindowHours": 168,
+    "openAppealSuspendsRelease": true,
+    "overturnedAppealPays": true,
+    "transfersPerformed": 0,
+    "acceptedAmountsState": "owed and unpaid"
+  },
+  "newScopes": [
+    "decisions:read",
+    "appeals:submit"
+  ],
+  "scopeAllowlistCanMoveMoney": false,
+  "releaseScenarios": {
+    "R02": "Passed for the decision: execution and discovery are separate, and accepting execution pays its price and fee whatever the discovery outcome. The transfer remains ALPHA-08",
+    "R03": "Partial: one award per defect to its earliest complete report, with a later report still paid for its execution. An explicitly assigned reproduction fee is not implemented",
+    "R11": "Partial: a linked report cannot confirm a defect and is flagged for review. The job is not rerouted, and repair verification awaits ALPHA-07",
+    "R12": "Unchanged from ALPHA-05: an expired claim is fenced and cannot submit or be decided into a second delivery"
+  },
+  "checks": {
+    "lint": "biome check, 80 files",
+    "types": "tsc --noEmit, strict",
+    "capability": "28 spike checks",
+    "database": 106,
+    "browser": 42,
+    "build": "next build succeeded",
+    "covered": [
+      "the same failure on the same build clusters into one defect and two independent reports confirm it",
+      "the same assertion with different detail is a candidate, not a duplicate, and a recorded grouping resolves it",
+      "a defect that is not one of a report's candidates is refused as its grouping",
+      "a different failure is its own defect",
+      "a linked operator cannot independently reproduce a finding, and the defect is flagged instead",
+      "a clean run of the same assertions marks the defect potentially flaky",
+      "valid execution is payable without the discovery decision, and the discovery reserve stays committed",
+      "separate acceptances never round past the single reserved fee",
+      "a decision cannot exceed the pinned terms",
+      "a member cannot record a decision",
+      "evidence references must belong to the assignment",
+      "a second decision on a settled matter is refused",
+      "one defect earns one discovery reward, and a later report is still paid for its work",
+      "an earlier report must be decided before a later one can take the reward",
+      "an unclustered report cannot be rewarded or given a severity before its grouping is decided",
+      "a refused amount stays reserved until its appeal window closes, then the worker releases it",
+      "an accepted assignment releases its remainder with nothing left to appeal",
+      "an operator appeals a refusal, an open appeal holds the reservation, and an overturned appeal pays while the original refusal stays on the record",
+      "an appeal needs a refusal and a window that is still open",
+      "decisions record criteria, reason, evidence and actor, and are immutable",
+      "an operator reads the decisions on their own work and a reviewer read is audited",
+      "over real HTTP: a builder sees two independent reports confirm a defect, records an acceptance that moves exactly the price and fee, awards the reward, reads the pinned criteria from the trail, and an operator reads their decisions and cannot appeal an acceptance",
+      "no axe violations or document overflow on the review screen at two viewports"
+    ]
+  },
+  "visualReview": "Review screen checked from the rendered desktop and mobile screenshots; no axe violations or document overflow",
+  "ci": "configured; not run on GitHub",
+  "limits": [
+    "reproduction cannot be commissioned, so the PRD's explicitly assigned reproduction fee does not exist",
+    "a linked report is detected and flagged but the job is not rerouted to another operator",
+    "nothing is replayed or re-executed; reports are compared, not verified against a trace",
+    "the published severity rubric is prose and a recorded severity is not checked against it",
+    "no builder-silence escalation, no dispute state beyond an appeal, and no retention or deletion of decided evidence",
+    "the out_of_scope and disputed finding states exist in the schema and no decision sets them",
+    "repairs, payouts and resource accounting are untouched; accepted amounts are owed and unpaid"
+  ],
+  "sourceFiles": [
+    {
+      "path": ".env.example",
+      "sha256": "e30c8f35a693c56b331c1f889f99baba7a44152116ee1c3432c6fd246ae66cfd"
+    },
+    {
+      "path": ".gitattributes",
+      "sha256": "952c9f6ae0360dd2e1a02f2dd2668789de128e91702daab304e0653e8f8e7e2b"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "1e12035ba2ca5ed43097a17b7498f2afcd4a313928bfeb43a9b645cecf6792f0"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "3d6a1df5293ccafeff0aafd9ce6157e302f6ccc84a9584ff6dd62b76adb6fe6c"
+    },
+    {
+      "path": ".impeccable.md",
+      "sha256": "02f6e9bd1ddfd7c7b512085e0d8b2bd42dd03d96436a535332418038431c6dc4"
+    },
+    {
+      "path": ".nvmrc",
+      "sha256": "d3fbdabc6e79cd4db661944014629a9d677d22d5e7656eadeea8ef55ddf9c9e3"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "bbe4ecd2b3e6abddb7f9edf9e245e3b48fde8dc2cbe87c9ae8cd3163f3963165"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "3bbb0c64d0aa55b18212efc03131ae4b5c8f6770e21cb3b8a1d325c2f8bd0ccd"
+    },
+    {
+      "path": "README.md",
+      "sha256": "bde374eaf2740b79cd90c6e5fc019176d9eea53b067b08104bbe3299c5663851"
+    },
+    {
+      "path": "biome.json",
+      "sha256": "267adc89fa68280dd86722430c19a2a5b5074045550ee7df7c5e796e5c59162f"
+    },
+    {
+      "path": "compose.yaml",
+      "sha256": "118e8892fb1ffc7f742acce35e816148baee1dd4e3facbba1de57d83342e85ce"
+    },
+    {
+      "path": "db/migrations/0001_runtime.sql",
+      "sha256": "80682b750d72933ee94a919d504d8feed2d5ce86d4e3c46245995d9c357b9e32"
+    },
+    {
+      "path": "db/migrations/0002_accounts.sql",
+      "sha256": "eba218e54aa6ede6ded1e87b6e7e5199703c46098a4e132b7fd1430e3772ad2f"
+    },
+    {
+      "path": "db/migrations/0003_projects_terms.sql",
+      "sha256": "a4f8bc15978ee0273629eb44eb1a50f40519f112863e39545c45ba742f31617c"
+    },
+    {
+      "path": "db/migrations/0004_operators.sql",
+      "sha256": "80dbda6a95f478c5806fbfaf05e361fdac1c684af13a1ed8d752754fa7dfa1f3"
+    },
+    {
+      "path": "db/migrations/0005_ledger_claims.sql",
+      "sha256": "add12ca135cd329dcf968d29e64e22f7f9d6d3e44402e834deecb02b17560688"
+    },
+    {
+      "path": "db/migrations/0006_runs_evidence.sql",
+      "sha256": "465f2780e684b4da15515ad763ce937b6c57d8caa13beddce1ff4ab984630844"
+    },
+    {
+      "path": "db/migrations/0007_findings_decisions.sql",
+      "sha256": "70fc529d5b3ee6337f4e204bc4136ebbda2715c73e27cc8603c4968cab10ebd9"
+    },
+    {
+      "path": "docs/ALPHA-02.md",
+      "sha256": "0bc89f1575bf80e4ba1eab387d4cc518b5b271d88d32693f6a8a720fee4247af"
+    },
+    {
+      "path": "docs/ALPHA-03.md",
+      "sha256": "2b712d8b0029d979aa65d67a48b32db8734cd35f1c3b9c2fcb94023c08ed27f1"
+    },
+    {
+      "path": "docs/ALPHA-04.md",
+      "sha256": "111ab8de51d1246cb6503a5d3acd16ce80f829b6a09c5d5bf0b9b8997003808c"
+    },
+    {
+      "path": "docs/ALPHA-05.md",
+      "sha256": "301ac3a6d4b9e7417cdf5d38a7442a3955e65c05184daebd509fa29607fda110"
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "sha256": "f0323d90c46cccf574df7cccca36f9c54e8070a219ceda2ac36cf50e47327084"
+    },
+    {
+      "path": "docs/BACKLOG.md",
+      "sha256": "050c472953f3a4bebeab4ebae630d9b4584e7777f597af2b695043af8a61c31d"
+    },
+    {
+      "path": "docs/DEVELOPMENT.md",
+      "sha256": "d2375ef64413758e62b76d277c7edd7ca57f8a7ae81b093099bc745bb2c6530c"
+    },
+    {
+      "path": "docs/HACKATHON.md",
+      "sha256": "38acc0208268cc8bc776ab7f909a9c876010ec2756d3e64c1517a27ecd8472a5"
+    },
+    {
+      "path": "docs/PRD.md",
+      "sha256": "c8f2ee691f7c0b111836999c96e33b8effe13b649a9e0cbbbf8e7a7566e1590d"
+    },
+    {
+      "path": "docs/ROADMAP.md",
+      "sha256": "de0f0c65bd1117e371e205c3f145af9384c5f33e8623bb1da57ce73e43f54f35"
+    },
+    {
+      "path": "docs/VALIDATION.md",
+      "sha256": "18c7fb139b53546131ddf6a28e791e281e86d360e2da950ab3ae4fa7f3c38dea"
+    },
+    {
+      "path": "memory/BUILD_LOG.md",
+      "sha256": "039929dccd6ba7952d8464662f5496b7a23668be7dc869195fe62d98e4e8a95c"
+    },
+    {
+      "path": "memory/DECISIONS.md",
+      "sha256": "19f5d699f6332f6cb5897a5b8531ec45ea363060d19efadb61f573f9e18ad44a"
+    },
+    {
+      "path": "memory/PROJECT.md",
+      "sha256": "7f1cc4ead48f5aa0be3fbeed9af3908eed8ed860077e2ac2eca8b293d916694b"
+    },
+    {
+      "path": "memory/STATUS.md",
+      "sha256": "e0f6d51ae2c3e58a8dcc866df5508df3f8108f5662f9fee00e328f31cac4cbfd"
+    },
+    {
+      "path": "next-env.d.ts",
+      "sha256": "1862ac4bbbc5192d4bf562161df66ea547ed3e67173100656ab606ae9797db2b"
+    },
+    {
+      "path": "next.config.ts",
+      "sha256": "7e4df4dfba315d7163b67310d2db5c3d7f2ff17c435880428c969b1e1d5796ba"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "30435edbe7459637cea07aad280e427e21f39bd99d4cf4024bcd01fb7748f1a9"
+    },
+    {
+      "path": "package.json",
+      "sha256": "747fd24e83aff0f56e5a2dc5d6a4151304eeffcb9ad55118a49356e2afd0bd45"
+    },
+    {
+      "path": "playwright.config.ts",
+      "sha256": "5f860d457addca74a70ab7b63edb449ba6fc59f55596f97990375b8eb221015c"
+    },
+    {
+      "path": "scripts/enqueue.ts",
+      "sha256": "434d6e2b2113e79be90e024316486f97aaff3ced8deb7c20618a3603c72637e0"
+    },
+    {
+      "path": "scripts/invite.ts",
+      "sha256": "43105d726baa94f885959e63d0e89444585665e03ca9994e05b17b27dda0352b"
+    },
+    {
+      "path": "scripts/migrate.ts",
+      "sha256": "feab793bd67138c66a65f1909c27b79d05bf603c081e5b27a259ff4f145ce4f8"
+    },
+    {
+      "path": "scripts/setup-auth.mjs",
+      "sha256": "6a350df10687f69820f55d9ab87dd37fcefd97a5b7afa41949cc0f5e2d1477a7"
+    },
+    {
+      "path": "scripts/setup-local.mjs",
+      "sha256": "0b2efad9cb1a05a8386a25112c1b766dd59f855fb2b333df4a4d2e0185cf4286"
+    },
+    {
+      "path": "scripts/test-browser.ts",
+      "sha256": "a0f103e56d5b9a9b65788e541c94c9ac12c0aa75f50291f4c2426ed4579c5117"
+    },
+    {
+      "path": "src/app/account.css",
+      "sha256": "c4ab73e6cea72b42ad496738fcf5324a09bd7e4334b8576bedfc5ece805c62a6"
+    },
+    {
+      "path": "src/app/api/agent/v1/[...path]/route.ts",
+      "sha256": "1992fa51be13863e48bc2dcedbfdd7c27fe21ba1415d163f99b83f0c1df2b76e"
+    },
+    {
+      "path": "src/app/api/auth/[...all]/route.ts",
+      "sha256": "74441d8384cf5b676e2f9e5bcf0e5c904a6daab12ad11aa81df1177f48031d3a"
+    },
+    {
+      "path": "src/app/api/demo/report/route.ts",
+      "sha256": "ed1e229c9f964ba781298a1fae937fadfd563cba75c2e3ef855d452a9d0b579b"
+    },
+    {
+      "path": "src/app/api/health/route.ts",
+      "sha256": "fbbbcaf7ef028415b950ffe656ebb8959a92e6fb37f333a069b3482c811791a1"
+    },
+    {
+      "path": "src/app/api/ready/route.ts",
+      "sha256": "e996e06361ce6aff91d362a3f6ae4b2a1fb78a58d8de5765c0b20b6be25f3c79"
+    },
+    {
+      "path": "src/app/api/v1/[...path]/route.ts",
+      "sha256": "bd7b41fb3aa5657bfa85b5706ab3973f9ba56432178027cdc3b40581b2067935"
+    },
+    {
+      "path": "src/app/demo/evidence/page.tsx",
+      "sha256": "b84d1a270ec182ed853e6a419aeb21a3b814519ce8880cca590c67ea4829b5f0"
+    },
+    {
+      "path": "src/app/demo/guide/page.tsx",
+      "sha256": "f21c861861ecc41ee1be030dcbf23e2b1ca85492caecd4252525803cb81de53c"
+    },
+    {
+      "path": "src/app/demo/page.tsx",
+      "sha256": "f30590dbdde42e1fc2692ac28ca5f4e8c269e617f900d1748c5db36def82d0af"
+    },
+    {
+      "path": "src/app/demo/payments/page.tsx",
+      "sha256": "5cf87be0bdc4297cdd85537280364e1b66ef29506306a3d93bd81e807c065379"
+    },
+    {
+      "path": "src/app/globals.css",
+      "sha256": "5a5eb1d23e32c0d1619cb8700994cd785218f269cbb3af1ab9911aac8b2205b2"
+    },
+    {
+      "path": "src/app/icon.svg",
+      "sha256": "96318a4e9c08f97ab765beb2c22bda0ddf0d86492b3bffd2c55ee423200ca21a"
+    },
+    {
+      "path": "src/app/join/page.tsx",
+      "sha256": "62ffbcfc904f1ff84b99c9fd47adc77bd3aa8f546d4d50e01c36c63f7e9045f7"
+    },
+    {
+      "path": "src/app/layout.tsx",
+      "sha256": "0bc5c45f2c73eafe8629e65c53bc68ca8d340aa34040b3316b78a524d834a2bb"
+    },
+    {
+      "path": "src/app/operator/page.tsx",
+      "sha256": "167d2beb1288dd3ffd9f36a0871b04a1cdf1b65decab0128cd5e3f7119027d59"
+    },
+    {
+      "path": "src/app/page.tsx",
+      "sha256": "17332aff66ebd92d84312852c8b2f61ab248f135b66b2abc36a394fc9c174447"
+    },
+    {
+      "path": "src/app/sign-in/page.tsx",
+      "sha256": "0f7b49e679d4ad6b89701d857bb6c6d1c52f7f49af816048ebbc5e4fdab8c635"
+    },
+    {
+      "path": "src/app/workspace/page.tsx",
+      "sha256": "fb93df4fe081cdac19f2f0ce336b3ac77be64823b9995656146612518d80345d"
+    },
+    {
+      "path": "src/components/access-panel.tsx",
+      "sha256": "0a1bf5ee4efe3b116c9b117f04726ab513eed888d21ee97e22fe6fe1d10aeb3c"
+    },
+    {
+      "path": "src/components/auth-form.tsx",
+      "sha256": "eeb388f850e3662d378dabd0136e53e0f77d98bd18bcacd3dea4279ac73ba7db"
+    },
+    {
+      "path": "src/components/campaign-panel.tsx",
+      "sha256": "597b2481870253c492ccecb9a7cd4105c568418417908a84c609e5d0694e816a"
+    },
+    {
+      "path": "src/components/icons.tsx",
+      "sha256": "ded3090157954b69598f1e28afec5a48ab8d30159ce83563129c26a604c2d665"
+    },
+    {
+      "path": "src/components/live-types.ts",
+      "sha256": "c70f379c6addc53277052349b66d3edbe2708f408b5f6c1797708fd97e492d6c"
+    },
+    {
+      "path": "src/components/live-workspace.tsx",
+      "sha256": "a10cc481a33e034b00f8af71c007034408262f7ab5eac2af9537057ac9e37c94"
+    },
+    {
+      "path": "src/components/operator-console.tsx",
+      "sha256": "798b7e0f69420be1c05a5cd196ae805c0a102c3601b8a1cdf35d6eddc73c4874"
+    },
+    {
+      "path": "src/components/project-panel.tsx",
+      "sha256": "8904b5d93dec15ebbef06de2dfdaeef672d162edb8887cc003cafbde15cb1973"
+    },
+    {
+      "path": "src/components/review-panel.tsx",
+      "sha256": "1411cb1ddb16e4b140af038cac84554064e2ef0a3d03f8ae635ad40128eaa036"
+    },
+    {
+      "path": "src/components/terms-form.tsx",
+      "sha256": "2c2896a0f3da53a99444b410a411c6ec26102f3d77fd695503a01c39040053d2"
+    },
+    {
+      "path": "src/components/workspace.tsx",
+      "sha256": "e35e9285e5f14e72cfc6d2200ca702c08eba45cee8c8e9c4aa3e0f789b46924a"
+    },
+    {
+      "path": "src/demo/data.ts",
+      "sha256": "fb256a436264ba86875e18ca6a51854f6c868d25fe179b5b8b94997839cedbae"
+    },
+    {
+      "path": "src/domain/errors.ts",
+      "sha256": "dba69283676705bbcb3a62f21d9b9840ac2b50c332a8dbb95e0f26f7f23662f8"
+    },
+    {
+      "path": "src/domain/schemas.ts",
+      "sha256": "b6e0b1cc5940c243723cf0930818c3b7dc1d784563c109d2692aa601d85589e8"
+    },
+    {
+      "path": "src/domain/values.ts",
+      "sha256": "8738eb2dc36fb32649f206e860044c4c3a6debbf9be9fe5e47d7ec036b026ade"
+    },
+    {
+      "path": "src/server/access.ts",
+      "sha256": "4e32fc440ab04d7881676f7d6d9f7cad559a2ce1f99b1b5e09ff4b72abcbd92e"
+    },
+    {
+      "path": "src/server/agents.ts",
+      "sha256": "7cc3c3b02ad3cf9b7fe76d017e31e2bd27dd7f6d16a4084df59d2e246c03fc3a"
+    },
+    {
+      "path": "src/server/assignments.ts",
+      "sha256": "16180dcd5775e8d837f864e23e70ea2f15a451b0ad5fe2cd7557c9d465993b40"
+    },
+    {
+      "path": "src/server/auth/config.ts",
+      "sha256": "bc43879307ee90e7f0523314d284ed17e740a65f0f2f2c49c994a3db93fce7a9"
+    },
+    {
+      "path": "src/server/database.ts",
+      "sha256": "d91d0257ea53122c1b810b0d8fce31927ded245bb09db1f2fee96675e0620f64"
+    },
+    {
+      "path": "src/server/decisions.ts",
+      "sha256": "13af73c4203f45d89e0f3a53e87e9d0f79d93be8e8ee16e7c58d80f279e27442"
+    },
+    {
+      "path": "src/server/evidence.ts",
+      "sha256": "2218074d752f1259902b0e9e26b967c9c41d64598f751bdf8cbfd3e3c4109f2d"
+    },
+    {
+      "path": "src/server/findings.ts",
+      "sha256": "314b2a4ac097b24bb1ecbc471585a6243508f1c383623e28f81ddea9c1a7a7d1"
+    },
+    {
+      "path": "src/server/http.ts",
+      "sha256": "29591bab594a13d1754230a4fe60e3ff0379b26412d9cb42c32a5fb42c38c276"
+    },
+    {
+      "path": "src/server/invitations.ts",
+      "sha256": "6e007692535991c6d1aead98ee77e37923287f1c50fb27aefbc1e1ca30dbbd7f"
+    },
+    {
+      "path": "src/server/jobs.ts",
+      "sha256": "a1a4bcd06c49bc723953e1dadb05b65d1109307aa3c592a629e61f6d11897972"
+    },
+    {
+      "path": "src/server/ledger.ts",
+      "sha256": "a16d91799354dbc30671bd0f36b01092437f34e5a0c6cb6f8d0c68ee58cb73b0"
+    },
+    {
+      "path": "src/server/migrations.ts",
+      "sha256": "181c139e174afb7bf25ecb3ec8120423084fa31ab36b064b78d23361f5507513"
+    },
+    {
+      "path": "src/server/operators.ts",
+      "sha256": "a1de292578ef973b8fd0e65db3b0a25b6141d93632aa549b0322054fdffac98f"
+    },
+    {
+      "path": "src/server/projects.ts",
+      "sha256": "dbe3c3d3b15d8ef90c3c0a5de9ecb7a68596ae270addaff72e4184114da12fac"
+    },
+    {
+      "path": "src/server/qualification.ts",
+      "sha256": "d6e594fbb9f08dbc45862a74518f3ac89f066a3845a8425c345b8a5881310b5e"
+    },
+    {
+      "path": "src/server/redaction.ts",
+      "sha256": "24ee249347823535e291c1f6c82274cad5135991635ecffdd9be340b7134a90d"
+    },
+    {
+      "path": "src/server/runner.ts",
+      "sha256": "24f509ae68ab8f7b29bdd9f96ef3bd18f43c9fda326376e2bb6f236a78639882"
+    },
+    {
+      "path": "src/server/storage.ts",
+      "sha256": "0138059c26cfaa79b51ccba7456659eef5050ed54e7740c9049a0ad1c72c688c"
+    },
+    {
+      "path": "src/server/targets.ts",
+      "sha256": "d3afc9112b2382abef906177d061c9f40c62f2e470fe8c927ed8747c76565651"
+    },
+    {
+      "path": "src/server/workspaces.ts",
+      "sha256": "aba42d65ef43ed5432dcfbdc2120d2d69cf3802d9e37f38b169bd540ff2ff83f"
+    },
+    {
+      "path": "tests/accounts.test.ts",
+      "sha256": "c49889098b52be1e2293200bda2701b9def4602dd538f89dc51844c114b92db3"
+    },
+    {
+      "path": "tests/agents.test.ts",
+      "sha256": "4337c41441c069955c453c0c94e4f6c5544917bd4b6c96fd07d21c3c0d18963c"
+    },
+    {
+      "path": "tests/backend.test.ts",
+      "sha256": "8a0a0274468e7acb7f0924e054241a0e17e3126add79c7314d7c1d917d751bbe"
+    },
+    {
+      "path": "tests/browser/accounts.spec.ts",
+      "sha256": "252daec4e02fccfc393f19623fb0bbf1b99fa9ddf86a7a02e154cefd6284f8e9"
+    },
+    {
+      "path": "tests/browser/evidence.spec.ts",
+      "sha256": "a666fd98e4cb059be5349ed523d03e436f7e5217e465b963138ce4dbbe0e4def"
+    },
+    {
+      "path": "tests/browser/operator.spec.ts",
+      "sha256": "5cc5c7f184513292a392000cfaf48facffa6f805a5763472b8df7c2758a9ed45"
+    },
+    {
+      "path": "tests/browser/workspace.spec.ts",
+      "sha256": "e91fe3495d91e8c23a9a4228d77a0e8b6bd45cd0c6d128f3f3551fbc9cfe156a"
+    },
+    {
+      "path": "tests/decisions.test.ts",
+      "sha256": "c3b7c2c623fa881a37cdac1398e378d33a2f87be450a1be68cebf5ea9305ea90"
+    },
+    {
+      "path": "tests/helpers/database.ts",
+      "sha256": "8832e5c948db1c72a2d308f8e639f07e93c436055b8e1943fd322801101eb439"
+    },
+    {
+      "path": "tests/ledger.test.ts",
+      "sha256": "4d54f179effc29a14d20a86c0a4a0e16f7fabd71be3821bb916a4ad518933798"
+    },
+    {
+      "path": "tests/operators.test.ts",
+      "sha256": "2910fcbc412021166d7e333520d0d663727ae60a4823db31ffee1dc1f0e72e71"
+    },
+    {
+      "path": "tests/projects.test.ts",
+      "sha256": "c96113c2287df185ac923a9ca02b3563ab0a0fd940b107bfbd560d14a773895e"
+    },
+    {
+      "path": "tests/runner.test.ts",
+      "sha256": "ffa47fb8cb3812f1e711fcd14217ef253daf113f9a2635997e8c264a0c8da18e"
+    },
+    {
+      "path": "tsconfig.json",
+      "sha256": "07ea5aae2e78809233b49771e534578ec5b249083dd45394614fcda8a24994a6"
+    },
+    {
+      "path": "workers/main.ts",
+      "sha256": "b9735758d44303ba11785bc497ffe88c1cb313eb4db88eba063e08d3b9bcb5d3"
+    }
+  ]
+}

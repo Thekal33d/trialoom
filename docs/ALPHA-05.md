@@ -57,7 +57,7 @@ Artifacts are uploaded one at a time with a declared digest, then one submission
 | `EVIDENCE_INCOMPLETE` | No trace and assertions for a browser service, or no patch, test and assertions for a repair. A screenshot does not establish that a workflow ran |
 | `OUTCOME_UNSUPPORTED` | An outcome its own steps and assertions do not support. A blocked run needs a blocked step and is not a product defect |
 
-A submission is recorded once per assignment, its row is immutable, and it decides nothing: the claim keeps its reservation, `decision_state` can only be `pending_review`, and no route accepts work or authorizes payment. The assignment moves to `submitted`, which holds the reservation and takes it out of the lease sweep while review is owed.
+A submission is recorded once per assignment, its row is immutable, and it decides nothing: the claim keeps its reservation and no route accepted work in this step. The assignment moves to `submitted`, which holds the reservation and takes it out of the lease sweep while review is owed. [ALPHA-06](ALPHA-06.md) added the recorded decision that can act on it, and derives a submission's review state from those decisions rather than stamping it back onto the immutable record.
 
 ## Private storage and redaction
 
@@ -72,4 +72,4 @@ Archives and images cannot be cleaned by a text policy, so they are stored priva
 - Real isolation: the gVisor runner host, resource caps, and an egress proxy that enforces the allowlist instead of checking a report.
 - A target that exposes no revision can still change under a pinned build without this check noticing (R05's remaining gap).
 - Reviewable traces, retention and deletion controls, and evidence export.
-- Acceptance and rejection decisions with criteria, reason, evidence references and actor (ALPHA-06), reproduction and duplicate clustering (FR09), and settlement (ALPHA-08). Nothing in this step pays anyone.
+- Settlement (ALPHA-08). Nothing in this step pays anyone, and acceptance and rejection arrived in [ALPHA-06](ALPHA-06.md).

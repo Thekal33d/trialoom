@@ -52,7 +52,7 @@ Claims are idempotent per operator through the ALPHA-03 `Idempotency-Key` path, 
 
 ## Agent and builder surfaces
 
-Two scopes were added to the credential allowlist, `assignments:read` and `assignments:claim`. **No scope can still move money or sign a payout**, and no route accepts work or authorizes payment.
+Two scopes were added to the credential allowlist, `assignments:read` and `assignments:claim`. **No scope can still move money or sign a payout.** No route accepted work in this step; ALPHA-06 added that as a decision recorded by a person, and an operator scope still cannot authorize payment.
 
 | Route | Purpose |
 | --- | --- |
@@ -70,7 +70,7 @@ The builder's accounting view never contains an operator's attempt token.
 
 ## What this step deliberately does not do
 
-Acceptance and rejection are implemented as **ledger primitives only** and are reachable from no HTTP route. Accepting work needs the evidence ingestion of ALPHA-05 and the recorded decision of ALPHA-06; exposing it now would let a decision authorize money without the criteria, reason, and evidence references FR12 requires. The same applies to payouts (ALPHA-08) and resource reimbursement (ALPHA-09). So an assignment today ends only by release, expiry, or campaign cancellation.
+Acceptance and rejection were implemented here as **ledger primitives only**, reachable from no HTTP route, because accepting work needs the evidence ingestion of ALPHA-05 and the recorded decision of ALPHA-06. [ALPHA-06](ALPHA-06.md) wired them to decisions that carry the criteria, reason, evidence references and actor FR12 requires; payouts (ALPHA-08) and resource reimbursement (ALPHA-09) remain unimplemented. In this step an assignment ended only by release, expiry, or campaign cancellation.
 
 Also still open: campaign completion when obligations resolve, automatic pausing when payment authority disappears (R08), appeals, cleanup of expired rows, and any on-chain verification of the declared spending authorization.
 

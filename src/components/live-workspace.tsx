@@ -154,6 +154,10 @@ export function LiveWorkspace({
               Workspace access
             </button>
           )}
+          <Link className="nav-link" href="/operator">
+            <Icon name="evidence" />
+            Operator
+          </Link>
           <Link className="nav-link" href="/demo">
             <Icon name="evidence" />
             Explore the demo
@@ -212,8 +216,14 @@ export function LiveWorkspace({
                 with an assignment.
               </h1>
               <p>
-                Project-wide materials are private. Operator connection and assigned work will be
-                available in the next stage.
+                Project-wide materials are private. Register an operator profile, prove a payout
+                wallet, and pass the seeded qualification tasks in the operator console. No work is
+                claimable yet.
+              </p>
+              <p>
+                <Link className="button primary" href="/operator">
+                  Open the operator console
+                </Link>
               </p>
             </div>
           ) : loading ? (

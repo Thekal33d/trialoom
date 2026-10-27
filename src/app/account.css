@@ -74,6 +74,25 @@
   margin-top: 2px;
   accent-color: #304c35;
 }
+.app-form .check-group {
+  border: 1px solid var(--line);
+  padding: 16px 18px;
+  display: grid;
+  gap: 12px;
+}
+.app-form .check-group legend {
+  font: 600 11px var(--display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0 6px;
+}
+.app-form textarea[readonly] {
+  background: #edf0e7;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.7;
+}
 .app-form .button {
   width: fit-content;
   min-width: 130px;

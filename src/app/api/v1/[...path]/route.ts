@@ -1,6 +1,6 @@
 import { AppError } from '@/domain/errors';
 import { uuid } from '@/domain/schemas';
-import { getPool } from '@/server/database';
+import { getPool, transaction } from '@/server/database';
 import { handleApi, json, limitRequest, readJson, sessionActor } from '@/server/http';
 import {
   acceptInvitation,
@@ -12,9 +12,10 @@ import {
 import {
   createCredential,
   issueWalletChallenge,
-  operatorProfile,
+  operatorOverview,
   proveWallet,
   registerOperator,
+  requireOperator,
   revokeCredential,
   revokeWallet,
 } from '@/server/operators';
@@ -26,6 +27,7 @@ import {
   projectDetail,
   reviseTerms,
 } from '@/server/projects';
+import { qualificationStatus } from '@/server/qualification';
 import { listWorkspaces, workspaceAccess } from '@/server/workspaces';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -52,7 +54,11 @@ async function handler(request: Request) {
     if (method !== 'GET') await limitRequest('mutation', actor.id, 100);
     if (parts.length === 1 && parts[0] === 'me' && method === 'GET') return json({ user: actor });
     if (parts[0] === 'operator') {
-      if (parts.length === 1 && method === 'GET') return json(await operatorProfile(pool, actor));
+      if (parts.length === 1 && method === 'GET') return json(await operatorOverview(pool, actor));
+      if (parts.length === 2 && parts[1] === 'qualification' && method === 'GET') {
+        const operator = await transaction(pool, (db) => requireOperator(db, actor));
+        return json(await qualificationStatus(pool, operator.id));
+      }
       if (parts.length === 1 && method === 'POST')
         return json(await registerOperator(pool, actor, await readJson(request)), 201);
       if (parts.length === 2 && parts[1] === 'wallet-challenges' && method === 'POST')

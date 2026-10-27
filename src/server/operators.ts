@@ -72,6 +72,31 @@ export async function registerOperator(pool: Pool, actor: Actor, input: unknown)
   });
 }
 
+async function admissionsFor(db: PoolClient | Pool, actor: Actor) {
+  // Builders admit operators through workspace memberships; this is the work perimeter.
+  return (
+    await db.query(
+      `SELECT w.id,w.name FROM memberships m JOIN workspaces w ON w.id=m.workspace_id
+      WHERE m.user_id=$1 AND m.role='operator' ORDER BY w.name`,
+      [actor.id],
+    )
+  ).rows;
+}
+
+/** The console view. An account with no operator profile sees what it can join. */
+export async function operatorOverview(pool: Pool, actor: Actor) {
+  const registered = await pool.query('SELECT 1 FROM operators WHERE user_id=$1', [actor.id]);
+  if (!registered.rowCount)
+    return {
+      operator: null,
+      wallets: [],
+      credentials: [],
+      eligibility: [],
+      admissions: await admissionsFor(pool, actor),
+    };
+  return operatorProfile(pool, actor);
+}
+
 export async function operatorProfile(pool: Pool, actor: Actor) {
   return transaction(pool, async (db) => {
     const operator = await requireOperator(db, actor);
@@ -95,15 +120,13 @@ export async function operatorProfile(pool: Pool, actor: Actor) {
         [operator.id],
       )
     ).rows;
-    // Builders admit operators through workspace memberships; this is the work perimeter.
-    const admissions = (
-      await db.query(
-        `SELECT w.id,w.name FROM memberships m JOIN workspaces w ON w.id=m.workspace_id
-        WHERE m.user_id=$1 AND m.role='operator' ORDER BY w.name`,
-        [actor.id],
-      )
-    ).rows;
-    return { operator, wallets, credentials, eligibility, admissions };
+    return {
+      operator,
+      wallets,
+      credentials,
+      eligibility,
+      admissions: await admissionsFor(db, actor),
+    };
   });
 }
 

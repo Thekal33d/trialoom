@@ -465,9 +465,15 @@ export async function operatorAssignments(pool: Pool, operatorId: string) {
   const { rows } = await pool.query(
     `SELECT a.id,a.campaign_id,a.project_id,a.terms_version_id,a.build_id,a.state,
       a.max_liability_units,a.lease_expires_at,a.deadline,a.claimed_at,a.closed_reason,
-      c.name AS campaign,t.document->>'service' AS service,t.version AS terms_version
+      c.name AS campaign,t.document->>'service' AS service,t.version AS terms_version,
+      (SELECT r.state FROM runs r WHERE r.assignment_id=a.id
+        ORDER BY r.issued_at DESC LIMIT 1) AS run_state,
+      (SELECT r.id FROM runs r WHERE r.assignment_id=a.id AND r.state IN ('issued','active')
+        LIMIT 1) AS live_run_id,
+      s.outcome,s.decision_state,s.submitted_at
     FROM assignments a JOIN campaigns c ON c.id=a.campaign_id
     JOIN terms_versions t ON t.id=a.terms_version_id
+    LEFT JOIN evidence_submissions s ON s.assignment_id=a.id
     WHERE a.operator_id=$1 ORDER BY a.claimed_at DESC LIMIT 100`,
     [operatorId],
   );

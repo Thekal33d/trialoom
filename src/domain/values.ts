@@ -21,5 +21,7 @@ export function toUnits(value: string, decimals = 6): string {
 }
 export function formatUnits(value: string, decimals = 6): string {
   const padded = value.padStart(decimals + 1, '0');
-  return `${padded.slice(0, -decimals)}.${padded.slice(-decimals).replace(/0+$/, '') || '00'}`;
+  // Money keeps at least two decimal places, so 7.6 never reads as less exact.
+  const fraction = padded.slice(-decimals).replace(/0+$/, '');
+  return `${padded.slice(0, -decimals)}.${fraction.padEnd(2, '0')}`;
 }

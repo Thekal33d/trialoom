@@ -81,6 +81,10 @@ type Assignments = {
     lease_expires_at: string;
     deadline: string;
     closed_reason: string | null;
+    run_state: string | null;
+    live_run_id: string | null;
+    outcome: string | null;
+    decision_state: string | null;
   }[];
 };
 const units = (value: string) => `${(Number(value) / 1_000_000).toFixed(2)} USDC`;
@@ -601,6 +605,13 @@ export function OperatorConsole({ user }: { user: { name: string; email: string 
                               ? `lease until ${new Date(item.lease_expires_at).toLocaleString()}`
                               : (item.closed_reason ?? 'closed')}
                           </p>
+                          <p className="subtle">
+                            {item.run_state ? `run ${item.run_state}` : 'no run started'}
+                            {item.outcome ? ` · submitted ${item.outcome}` : ''}
+                            {item.decision_state === 'pending_review'
+                              ? ' · awaiting a builder decision'
+                              : ''}
+                          </p>
                         </div>
                         <span className="neutral-label">{item.state}</span>
                       </div>
@@ -615,6 +626,16 @@ export function OperatorConsole({ user }: { user: { name: string; email: string 
                   header, then <code>POST /api/agent/v1/assignments/:id/heartbeat</code> or{' '}
                   <code>/release</code> with the attempt token. Send your credential as{' '}
                   <code>Authorization: Bearer</code>.
+                </p>
+                <p className="section-description">
+                  To execute, <code>POST /api/agent/v1/assignments/:id/runs</code> with the attempt
+                  token and an <code>Idempotency-Key</code>. Trialoom rechecks the pinned target and
+                  returns a run manifest with its limits and a run token, once. The isolated runner
+                  sends that token as <code>Authorization: Bearer</code> to{' '}
+                  <code>POST /api/agent/v1/runs/:id/artifacts</code> and <code>/evidence</code>; it
+                  expires with your lease, works for that one run, and carries no payout authority.
+                  Your long-lived credential cannot reach those routes, and a run grant cannot reach
+                  any other.
                 </p>
               </section>
             </>

@@ -9,7 +9,15 @@ import {
   setCampaignStatus,
 } from '@/server/assignments';
 import { getPool, transaction } from '@/server/database';
-import { handleApi, json, limitRequest, readJson, sessionActor } from '@/server/http';
+import { campaignSubmissions, readArtifact } from '@/server/evidence';
+import {
+  handleApi,
+  json,
+  limitRequest,
+  privateHeaders,
+  readJson,
+  sessionActor,
+} from '@/server/http';
 import {
   acceptInvitation,
   createInvitation,
@@ -36,6 +44,7 @@ import {
   reviseTerms,
 } from '@/server/projects';
 import { qualificationStatus } from '@/server/qualification';
+import { redactionPolicy } from '@/server/redaction';
 import { listWorkspaces, workspaceAccess } from '@/server/workspaces';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -110,10 +119,35 @@ async function handler(request: Request) {
               await createCampaign(pool, actor, workspaceId, projectId, await readJson(request)),
               201,
             );
+          if (parts.length === 8 && parts[4] === 'campaigns' && parts[6] === 'artifacts') {
+            const artifact = await readArtifact(
+              pool,
+              actor,
+              workspaceId,
+              projectId,
+              uuid.parse(parts[5]),
+              parts[7],
+            );
+            // Operator-supplied evidence is never rendered inline on this origin,
+            // and only the verified redacted copy is served.
+            return new Response(new Uint8Array(artifact.bytes), {
+              headers: {
+                ...privateHeaders,
+                'Content-Type': artifact.mediaType,
+                'Content-Disposition': `attachment; filename="redacted-${artifact.name}"`,
+                'X-Content-Type-Options': 'nosniff',
+                'X-Trialoom-Redaction': redactionPolicy,
+              },
+            });
+          }
           if (parts.length === 7 && parts[4] === 'campaigns') {
             const campaignId = uuid.parse(parts[5]);
             if (parts[6] === 'ledger' && method === 'GET')
               return json(await campaignLedger(pool, actor, workspaceId, projectId, campaignId));
+            if (parts[6] === 'submissions' && method === 'GET')
+              return json(
+                await campaignSubmissions(pool, actor, workspaceId, projectId, campaignId),
+              );
             if (parts[6] === 'publication' && method === 'POST')
               return json(
                 await publishCampaign(

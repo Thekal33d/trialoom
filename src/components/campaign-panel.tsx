@@ -32,7 +32,54 @@ type Ledger = {
     closed_reason: string | null;
   }[];
 };
+type Artifact = {
+  id: string;
+  name: string;
+  kind: string;
+  bytes: string;
+  sha256: string;
+  reviewable: boolean;
+  redaction: { mode?: string; decision?: string; reason?: string };
+};
+type Submissions = {
+  runs: {
+    id: string;
+    assignment_id: string;
+    state: string;
+    handle: string;
+    issued_at: string;
+    closed_reason: string | null;
+    artifact_count: number;
+    target_check: {
+      finalUrl: string;
+      hops: { url: string; status: number }[];
+      revisionConfirmed: boolean;
+      targetHealthy: boolean;
+      addressesChanged: boolean;
+    };
+  }[];
+  submissions: {
+    id: string;
+    handle: string;
+    outcome: string;
+    blocked_reason: string | null;
+    content_hash: string;
+    artifact_count: number;
+    total_bytes: string;
+    started_at: string;
+    finished_at: string;
+    submitted_at: string;
+    decision_state: string;
+    document: { summary: string; steps: { status: string }[] };
+    artifacts: Artifact[];
+  }[];
+};
 const money = (value: string) => `${formatUnits(value)} USDC`;
+const outcomes: Record<string, string> = {
+  executed: 'Executed as assigned',
+  product_failed: 'Reported a product failure',
+  blocked: 'Blocked run, not a product defect',
+};
 
 /** Publication, budget, and the campaign's accounting. Only an owner can change money. */
 export function CampaignPanel({
@@ -50,11 +97,13 @@ export function CampaignPanel({
 }) {
   const campaignBase = `${base}/campaigns/${campaign.id}`;
   const [ledger, setLedger] = useState<Ledger>();
+  const [evidence, setEvidence] = useState<Submissions>();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const load = useCallback(async () => {
     setLedger(await api<Ledger>(`${campaignBase}/ledger`));
+    setEvidence(await api<Submissions>(`${campaignBase}/submissions`));
   }, [campaignBase]);
   useEffect(() => {
     load().catch((e) => setError(e instanceof Error ? e.message : 'Ledger unavailable.'));
@@ -237,6 +286,79 @@ export function CampaignPanel({
           </div>
           {!ledger?.assignments.length && (
             <p className="section-description">No operator has claimed this work yet.</p>
+          )}
+          {Boolean(evidence?.runs.length || evidence?.submissions.length) && evidence && (
+            <div className="evidence-block">
+              <h5>Execution and evidence</h5>
+              <p className="section-description">
+                Raw artifacts stay private. Only a verified redacted copy can be opened, and no
+                acceptance decision has been recorded: reviewing and paying are not implemented.
+              </p>
+              {evidence.runs.map((item) => (
+                <div className="member-row" key={item.id}>
+                  <div>
+                    <strong>@{item.handle}</strong>
+                    <p>
+                      Target rechecked at {item.target_check.hops.length} hop
+                      {item.target_check.hops.length === 1 ? '' : 's'} ·{' '}
+                      {item.target_check.revisionConfirmed
+                        ? 'revision confirmed'
+                        : 'revision not exposed by the target'}
+                      {item.target_check.targetHealthy ? '' : ' · target returned a server error'}
+                      {item.target_check.addressesChanged
+                        ? ' · addresses changed since pinning'
+                        : ''}{' '}
+                      · {item.artifact_count} artifact{item.artifact_count === 1 ? '' : 's'}
+                    </p>
+                  </div>
+                  <span className="neutral-label">run {item.state}</span>
+                </div>
+              ))}
+              {evidence.submissions.map((submission) => (
+                <div className="editor-panel" key={submission.id}>
+                  <div className="section-heading">
+                    <h5>
+                      @{submission.handle} · {outcomes[submission.outcome] ?? submission.outcome}
+                    </h5>
+                    <span className="neutral-label">
+                      {submission.decision_state === 'pending_review'
+                        ? 'Pending review'
+                        : submission.decision_state}
+                    </span>
+                  </div>
+                  <p>{submission.document.summary}</p>
+                  <p className="section-description">
+                    {submission.document.steps.length} recorded step
+                    {submission.document.steps.length === 1 ? '' : 's'} ·{' '}
+                    {submission.artifact_count} artifact
+                    {submission.artifact_count === 1 ? '' : 's'} · evidence hash{' '}
+                    <code>{submission.content_hash.slice(0, 12)}</code>
+                    {submission.blocked_reason ? ` · ${submission.blocked_reason}` : ''}
+                  </p>
+                  <ul className="artifact-list">
+                    {submission.artifacts.map((artifact) => (
+                      <li key={artifact.id}>
+                        <span>
+                          {artifact.name} · {artifact.kind} · {artifact.bytes} bytes
+                        </span>
+                        {artifact.reviewable ? (
+                          <a
+                            className="text-button"
+                            href={`${campaignBase}/artifacts/${artifact.id}`}
+                          >
+                            Open redacted copy
+                          </a>
+                        ) : (
+                          <span className="subtle">
+                            {artifact.redaction.reason ?? 'Private: no redacted copy exists.'}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
           )}
           {isOwner && !['cancelled', 'completed'].includes(status) && (
             <div className="status-actions">

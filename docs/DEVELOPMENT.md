@@ -35,7 +35,29 @@ npm run start
 
 This serves the local production build on port 3000. Stop a running development server first, or pass `-- --port 3002` to `start`. Hosting/deployment is not configured yet.
 
-The worker deliberately supports only a harmless database-local `system.ping` job:
+## The whole loop in one command
+
+```sh
+npm run loop
+```
+
+This drives one seeded campaign from publication to an owed payable against a
+disposable database and the real server modules: publication, two independent
+reports confirming a defect, decisions, payables, a blocked payout, settlement
+through inclusion to finality, crash recovery, a fenced lapsed claim, a quoted
+and independently verified repair, a capped resource purchase, the queue, and
+an export. It asserts as it goes and exits non-zero on the first failure.
+
+It prints a transcript and writes `transcript.json`, the export zip and its
+private evidence store to `artifacts/loop/<timestamp>/`, which Git ignores
+because execution evidence can hold private customer data. The run needs the
+local database running (`npm run db:up`); it creates and drops its own
+database and never touches `trialoom_dev`. The payment authority and the
+resource provider are recording fixtures: no value moves and nothing is bought.
+See [the loop and its boundaries](ALPHA-11.md).
+
+The worker supports the harmless database-local `system.ping` job, payout
+dispatch, and resource reconciliation:
 
 ```sh
 npm run jobs:enqueue -- my-first-smoke-job

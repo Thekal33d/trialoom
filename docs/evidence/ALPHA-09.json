@@ -1,0 +1,686 @@
+{
+  "schemaVersion": 1,
+  "task": "ALPHA-09",
+  "verifiedAt": "2026-10-28T10:05:00.000Z",
+  "sourceRevision": "2ce117c",
+  "sourceTreeDirty": true,
+  "scope": "The application half of resource brokering: a capped purchase against a fresh quote, two separate authorizations, reimbursement of the eligible actual cost exactly once, a platform-absorbed provisioning failure, and a retained commitment until an uncertain settlement is reconciled. No resource wallet is configured, the live buy adapter is disabled, and nothing has been bought from a real provider",
+  "runtime": {
+    "node": "v24.11.1",
+    "postgres": "18.6",
+    "next": "16.4.3",
+    "react": "19.3.1",
+    "viem": "2.57.7",
+    "pg": "8.23.1",
+    "zod": "4.6.7",
+    "playwright": "1.64.1",
+    "axe": "4.14.0"
+  },
+  "liveSourcesChecked": {
+    "checkedOn": "2026-10-28",
+    "buyDocumentation": {
+      "url": "https://usebuy.ai/docs",
+      "facts": [
+        "payments are final and there are no refunds; mainnet payments are real and irreversible",
+        "do not automatically retry 500 provision_failed or 500 settle_uncertain: settlement may already have happened",
+        "a 4xx or 503 refusal happens before settlement",
+        "--resolve asks the token contract whether the payment settled, which is where reconciliation belongs",
+        "--max-amount caps a call and the request is refused before signing if the quote is higher",
+        "payment is x402 over HTTP 402, an EIP-3009 transfer signed locally and sent in an X-PAYMENT header",
+        "documented routes are gateway /v1/... capabilities, Chainstack Celo RPC, Cencori, and Google Cloud VMs with a poll URL"
+      ],
+      "changeSinceVal04": "the browser-session route VAL-04 quoted on 2026-10-26 is no longer in the documented resource list, so the recorded SKUs are fixtures and a fresh quote is required before any purchase"
+    },
+    "package": {
+      "name": "@celo/buy-core",
+      "registry": "https://registry.npmjs.org/@celo/buy-core",
+      "latest": "0.8.4",
+      "published": "2026-10-21T22:27:47.858Z",
+      "pinnedHere": "0.8.4",
+      "integrated": false
+    }
+  },
+  "authorizations": {
+    "assignmentAllowance": "the builder's published resourceAllowanceUnits, reserved by the claim",
+    "platformAccount": "Trialoom's own outstanding exposure, one row with a table check, seeded at 0",
+    "platformCeilingRaisedBy": "a recorded resource_authorizations row; no interface reaches it",
+    "refusalPastPlatformCap": "RESOURCE_CEILING_EXCEEDED, and the amount is not owed by the builder",
+    "conflated": false
+  },
+  "purchase": {
+    "states": [
+      "quoted",
+      "reserved",
+      "submitted",
+      "usable",
+      "reconciled",
+      "refused",
+      "failed",
+      "uncertain"
+    ],
+    "orderOfOperations": [
+      "a fresh quote is obtained outside any transaction",
+      "the assignment allowance and the platform headroom are checked",
+      "the authorized ceiling is reserved and the purchase recorded durably, in one transaction, before anything is sent",
+      "the provider call runs outside any transaction",
+      "the answer is applied under the purchase's row lock"
+    ],
+    "limitIsTheCallers": true,
+    "refusals": [
+      "RESOURCE_CEILING_EXCEEDED",
+      "ALLOWANCE_EXCEEDED",
+      "QUOTE_ABOVE_LIMIT",
+      "QUOTE_EXPIRED",
+      "QUOTE_TOKEN_UNEXPECTED",
+      "RESOURCE_UNAVAILABLE",
+      "RESOURCE_LIMIT_REACHED",
+      "SCOPE_REQUIRED",
+      "STALE_ATTEMPT",
+      "RUN_CLOSED"
+    ],
+    "tableChecks": [
+      "quoted_units <= ceiling_units",
+      "cost_units <= ceiling_units"
+    ],
+    "identityImmutable": true,
+    "retriedRequest": "returns the purchase it already started, enforced by UNIQUE (assignment_id, idempotency_key)",
+    "maxPurchasesPerAssignment": 8
+  },
+  "reimbursement": {
+    "payer": "the restricted platform resource wallet pays the provider",
+    "reimbursedAmount": "the eligible actual cost, never the quote or the ceiling",
+    "recipient": "the platform resource wallet, never an operator",
+    "itemizedSeparately": true,
+    "oncePerPurchase": "UNIQUE (resource_purchase_id) on payables",
+    "answersTo": "a purchase rather than a decision",
+    "blockedReasonHere": "resource_recipient_unconfigured",
+    "operatorOwnedResourcesReimbursable": false,
+    "feeOnReimbursement": 0
+  },
+  "whoBearsTheCost": {
+    "usable": "the builder owes the actual cost; the platform records it as spent",
+    "refusedBeforeSettlement": "nobody; nothing was paid",
+    "provisionFailed": "the platform absorbs it and the builder owes nothing, because a provisioning failure is not completed testing",
+    "neverSettled": "nobody; both reservations go back",
+    "settledAboveTheLimit": "nobody yet; the reservation is held for a person"
+  },
+  "uncertainty": {
+    "retriesPurchase": false,
+    "resolvedBy": "asking whether the transfer settled, not asking the provider again",
+    "commitmentRetainedUntilReconciled": true,
+    "everyReleasePathGuarded": "heldForResources is consulted by releaseCommitment",
+    "pendingChargeHolds": "the whole authorized ceiling",
+    "builderChargeHolds": "the known cost until reconciliation accepts it",
+    "reserveBecomesSpendOnlyAtReconciliation": true
+  },
+  "spendingAuthority": {
+    "newScope": "resources:purchase",
+    "runGrantCanReachTheRoute": false,
+    "grantRoutesAreAnAllowlist": true,
+    "scopeCheckedAtRouteAndInModule": true,
+    "defaultCheckedInConsole": false,
+    "payeeChosenByOperator": false,
+    "payeeSource": "a quote validated against the settlement token"
+  },
+  "releaseScenarios": {
+    "R07": "Passed locally at the application level: an uncertain purchase is never bought again, its reservation survives releasing the assignment, and only reconciliation turns it into an accepted liability or gives it back. The resolution is an adapter promise; no chain is read",
+    "R09": "Completed for resources: a reconciled cost is already an accepted liability, so resources consumed before a cancellation stay chargeable, while an unreconciled purchase keeps its reservation"
+  },
+  "checks": {
+    "lint": "biome check, 89 files",
+    "types": "tsc --noEmit, strict",
+    "capability": "28 spike checks",
+    "database": 139,
+    "browser": 48,
+    "build": "next build succeeded",
+    "covered": [
+      "with no funded resource wallet a purchase is refused and nothing is owed",
+      "a quote above the authorized limit, or about to expire, is refused before anything is signed",
+      "a purchase cannot exceed the assignment resource allowance, and an undecided charge holds its whole ceiling while a priced one holds only its cost",
+      "a paid usable resource is reconciled into one itemized reimbursement, and the ledger still replays",
+      "a reconciled cost cannot be reimbursed a second time, in the code or in the database",
+      "a purchase the platform could not deliver is absorbed and charged to nobody",
+      "an uncertain purchase keeps its commitment through a release and until it is reconciled",
+      "an authorization that never settled charges and spends nothing",
+      "a settled cost above the authorized limit is held, not charged",
+      "a retried purchase returns the one it already started and never reaches the provider twice",
+      "a purchase needs its own scope, its own run, and a live attempt",
+      "over real HTTP: a builder reads a reconciled purchase at its eligible cost and an unresolved one holding its reservation, the reimbursement is owed to an unconfigured platform wallet, and a run grant cannot reach the purchase route",
+      "no axe violations or document overflow on the resource screen at two viewports"
+    ]
+  },
+  "visualReview": "Resource view checked from the rendered desktop and mobile screenshots; no axe violations or document overflow",
+  "ci": "configured; not run on GitHub",
+  "limits": [
+    "no resource has been bought from a real provider: no wallet is configured, the live buy adapter is not written, and the default adapter refuses everything",
+    "the VAL-04 browser-session SKU is no longer in buy's documented resource list, so the recorded SKUs are fixtures and a fresh quote is required before any purchase",
+    "reconciliation is an adapter promise: nothing here reads a chain, verifies a receipt, or handles a reorg",
+    "an unresolvable purchase holds its reservation indefinitely with no incident queue, notification, or write-off path",
+    "a settled cost above the authorized limit is recorded as uncertain and cannot be resolved in the product",
+    "operator-owned resources are never recorded and never reimbursable, by having no path rather than a check",
+    "the platform cap is global and raised only in the database; there is no per-campaign resource limit, no real balance or allowance check, and no fee on a reimbursement",
+    "VAL-04's remaining gate is unchanged: one capped provisioned session, a connected runner, an exported trace, and a real receipt"
+  ],
+  "sourceFiles": [
+    {
+      "path": ".env.example",
+      "sha256": "e30c8f35a693c56b331c1f889f99baba7a44152116ee1c3432c6fd246ae66cfd"
+    },
+    {
+      "path": ".gitattributes",
+      "sha256": "952c9f6ae0360dd2e1a02f2dd2668789de128e91702daab304e0653e8f8e7e2b"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "1e12035ba2ca5ed43097a17b7498f2afcd4a313928bfeb43a9b645cecf6792f0"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "3d6a1df5293ccafeff0aafd9ce6157e302f6ccc84a9584ff6dd62b76adb6fe6c"
+    },
+    {
+      "path": ".impeccable.md",
+      "sha256": "02f6e9bd1ddfd7c7b512085e0d8b2bd42dd03d96436a535332418038431c6dc4"
+    },
+    {
+      "path": ".nvmrc",
+      "sha256": "d3fbdabc6e79cd4db661944014629a9d677d22d5e7656eadeea8ef55ddf9c9e3"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "bbe4ecd2b3e6abddb7f9edf9e245e3b48fde8dc2cbe87c9ae8cd3163f3963165"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "3bbb0c64d0aa55b18212efc03131ae4b5c8f6770e21cb3b8a1d325c2f8bd0ccd"
+    },
+    {
+      "path": "README.md",
+      "sha256": "ddcd409e9d1f1cfd93870abbe8ae4f1d041d86d599b229def5944a15f305a171"
+    },
+    {
+      "path": "biome.json",
+      "sha256": "267adc89fa68280dd86722430c19a2a5b5074045550ee7df7c5e796e5c59162f"
+    },
+    {
+      "path": "compose.yaml",
+      "sha256": "118e8892fb1ffc7f742acce35e816148baee1dd4e3facbba1de57d83342e85ce"
+    },
+    {
+      "path": "db/migrations/0001_runtime.sql",
+      "sha256": "80682b750d72933ee94a919d504d8feed2d5ce86d4e3c46245995d9c357b9e32"
+    },
+    {
+      "path": "db/migrations/0002_accounts.sql",
+      "sha256": "eba218e54aa6ede6ded1e87b6e7e5199703c46098a4e132b7fd1430e3772ad2f"
+    },
+    {
+      "path": "db/migrations/0003_projects_terms.sql",
+      "sha256": "a4f8bc15978ee0273629eb44eb1a50f40519f112863e39545c45ba742f31617c"
+    },
+    {
+      "path": "db/migrations/0004_operators.sql",
+      "sha256": "80dbda6a95f478c5806fbfaf05e361fdac1c684af13a1ed8d752754fa7dfa1f3"
+    },
+    {
+      "path": "db/migrations/0005_ledger_claims.sql",
+      "sha256": "add12ca135cd329dcf968d29e64e22f7f9d6d3e44402e834deecb02b17560688"
+    },
+    {
+      "path": "db/migrations/0006_runs_evidence.sql",
+      "sha256": "465f2780e684b4da15515ad763ce937b6c57d8caa13beddce1ff4ab984630844"
+    },
+    {
+      "path": "db/migrations/0007_findings_decisions.sql",
+      "sha256": "70fc529d5b3ee6337f4e204bc4136ebbda2715c73e27cc8603c4968cab10ebd9"
+    },
+    {
+      "path": "db/migrations/0008_payables_settlement.sql",
+      "sha256": "36a9b8e6c1084354ac49cb0e5048d8c6bd18237993a04ec4f30f2f117a359405"
+    },
+    {
+      "path": "db/migrations/0009_repairs.sql",
+      "sha256": "e00e6f352ccc4b654d3af872ef25f0c4b0870dbbf30ff79fd25c224e8adc63b5"
+    },
+    {
+      "path": "db/migrations/0010_resources.sql",
+      "sha256": "caad334e25e989298b820646388e9ec50608068407a1d7b94cdcb245914056a5"
+    },
+    {
+      "path": "docs/ALPHA-02.md",
+      "sha256": "0bc89f1575bf80e4ba1eab387d4cc518b5b271d88d32693f6a8a720fee4247af"
+    },
+    {
+      "path": "docs/ALPHA-03.md",
+      "sha256": "2b712d8b0029d979aa65d67a48b32db8734cd35f1c3b9c2fcb94023c08ed27f1"
+    },
+    {
+      "path": "docs/ALPHA-04.md",
+      "sha256": "ae44dbb6e1259abf0f8e309c1ab3dec78409b9dc7fbdf28f74511b0fb6d70677"
+    },
+    {
+      "path": "docs/ALPHA-05.md",
+      "sha256": "301ac3a6d4b9e7417cdf5d38a7442a3955e65c05184daebd509fa29607fda110"
+    },
+    {
+      "path": "docs/ALPHA-06.md",
+      "sha256": "cae2374b4cf4addb3ad64d860fe32d25ae9c10952dcff067c59abaff5fbd9a47"
+    },
+    {
+      "path": "docs/ALPHA-07.md",
+      "sha256": "52476fa092cb21588383daa9e473b30a1ebde71eb90ee1952af45e6cf38b816c"
+    },
+    {
+      "path": "docs/ALPHA-08.md",
+      "sha256": "d6550404bd1ae9aabaa0957261cd0c23ab92354fa118a74bc75378c16693a36e"
+    },
+    {
+      "path": "docs/ALPHA-09.md",
+      "sha256": "c89da9b08d22cf1e41d01c31bcdda37515f356a6c87e5d17a1fa4349d70a37ff"
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "sha256": "f0323d90c46cccf574df7cccca36f9c54e8070a219ceda2ac36cf50e47327084"
+    },
+    {
+      "path": "docs/BACKLOG.md",
+      "sha256": "0ad8d1ff86e2b5c5442ec6a494fd99be94e384511870ba97ac3d17aa64f10d3f"
+    },
+    {
+      "path": "docs/DEVELOPMENT.md",
+      "sha256": "d2375ef64413758e62b76d277c7edd7ca57f8a7ae81b093099bc745bb2c6530c"
+    },
+    {
+      "path": "docs/HACKATHON.md",
+      "sha256": "38acc0208268cc8bc776ab7f909a9c876010ec2756d3e64c1517a27ecd8472a5"
+    },
+    {
+      "path": "docs/PRD.md",
+      "sha256": "c8f2ee691f7c0b111836999c96e33b8effe13b649a9e0cbbbf8e7a7566e1590d"
+    },
+    {
+      "path": "docs/ROADMAP.md",
+      "sha256": "dc7aceaf4a590369460ac048857287bee7ffc437db239cb5abda50f51927d678"
+    },
+    {
+      "path": "docs/VALIDATION.md",
+      "sha256": "9dbeb0a53d20302daa4b3370a9ce406d977d41a24fa8ba3aa196195d2c7d28ac"
+    },
+    {
+      "path": "memory/BUILD_LOG.md",
+      "sha256": "785f2326e7b18f2015eaf932a6593d299844e117c80ffe6d16c89a1fc1ac2282"
+    },
+    {
+      "path": "memory/DECISIONS.md",
+      "sha256": "b8924ccb8d43ea09056649c9852f22c0f7dcfb47fdfddb592f653a42013aac8d"
+    },
+    {
+      "path": "memory/PROJECT.md",
+      "sha256": "b599fbad44fcf37f3575f36d5bed7dcb70e8024ecab15805290f25150d8d2448"
+    },
+    {
+      "path": "memory/STATUS.md",
+      "sha256": "4c583b2a7ac299b67d8ce07f1a9fbec0bc90e7a3cacbbd3af3f9842a1fdc5aff"
+    },
+    {
+      "path": "next-env.d.ts",
+      "sha256": "1862ac4bbbc5192d4bf562161df66ea547ed3e67173100656ab606ae9797db2b"
+    },
+    {
+      "path": "next.config.ts",
+      "sha256": "7e4df4dfba315d7163b67310d2db5c3d7f2ff17c435880428c969b1e1d5796ba"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "30435edbe7459637cea07aad280e427e21f39bd99d4cf4024bcd01fb7748f1a9"
+    },
+    {
+      "path": "package.json",
+      "sha256": "747fd24e83aff0f56e5a2dc5d6a4151304eeffcb9ad55118a49356e2afd0bd45"
+    },
+    {
+      "path": "playwright.config.ts",
+      "sha256": "5f860d457addca74a70ab7b63edb449ba6fc59f55596f97990375b8eb221015c"
+    },
+    {
+      "path": "scripts/enqueue.ts",
+      "sha256": "434d6e2b2113e79be90e024316486f97aaff3ced8deb7c20618a3603c72637e0"
+    },
+    {
+      "path": "scripts/invite.ts",
+      "sha256": "43105d726baa94f885959e63d0e89444585665e03ca9994e05b17b27dda0352b"
+    },
+    {
+      "path": "scripts/migrate.ts",
+      "sha256": "feab793bd67138c66a65f1909c27b79d05bf603c081e5b27a259ff4f145ce4f8"
+    },
+    {
+      "path": "scripts/setup-auth.mjs",
+      "sha256": "6a350df10687f69820f55d9ab87dd37fcefd97a5b7afa41949cc0f5e2d1477a7"
+    },
+    {
+      "path": "scripts/setup-local.mjs",
+      "sha256": "0b2efad9cb1a05a8386a25112c1b766dd59f855fb2b333df4a4d2e0185cf4286"
+    },
+    {
+      "path": "scripts/test-browser.ts",
+      "sha256": "e2617a7708b720042416d4ca5556b985cad06e73071ddb996155571681b7d1b0"
+    },
+    {
+      "path": "src/app/account.css",
+      "sha256": "384897e65e92fab44a343abb18c8e287d8fc6b20f3d34740e62fef1a29acf2b5"
+    },
+    {
+      "path": "src/app/api/agent/v1/[...path]/route.ts",
+      "sha256": "04156b17f8357016b8d53d64608a99e33c9618f7324a837f66761aa3c80493c5"
+    },
+    {
+      "path": "src/app/api/auth/[...all]/route.ts",
+      "sha256": "74441d8384cf5b676e2f9e5bcf0e5c904a6daab12ad11aa81df1177f48031d3a"
+    },
+    {
+      "path": "src/app/api/demo/report/route.ts",
+      "sha256": "ed1e229c9f964ba781298a1fae937fadfd563cba75c2e3ef855d452a9d0b579b"
+    },
+    {
+      "path": "src/app/api/health/route.ts",
+      "sha256": "fbbbcaf7ef028415b950ffe656ebb8959a92e6fb37f333a069b3482c811791a1"
+    },
+    {
+      "path": "src/app/api/ready/route.ts",
+      "sha256": "e996e06361ce6aff91d362a3f6ae4b2a1fb78a58d8de5765c0b20b6be25f3c79"
+    },
+    {
+      "path": "src/app/api/v1/[...path]/route.ts",
+      "sha256": "9b78871f55a1d89056a9334c33c12913a00ea56fc314ddf8150c2e104527c8c1"
+    },
+    {
+      "path": "src/app/demo/evidence/page.tsx",
+      "sha256": "b84d1a270ec182ed853e6a419aeb21a3b814519ce8880cca590c67ea4829b5f0"
+    },
+    {
+      "path": "src/app/demo/guide/page.tsx",
+      "sha256": "f21c861861ecc41ee1be030dcbf23e2b1ca85492caecd4252525803cb81de53c"
+    },
+    {
+      "path": "src/app/demo/page.tsx",
+      "sha256": "f30590dbdde42e1fc2692ac28ca5f4e8c269e617f900d1748c5db36def82d0af"
+    },
+    {
+      "path": "src/app/demo/payments/page.tsx",
+      "sha256": "5cf87be0bdc4297cdd85537280364e1b66ef29506306a3d93bd81e807c065379"
+    },
+    {
+      "path": "src/app/globals.css",
+      "sha256": "5a5eb1d23e32c0d1619cb8700994cd785218f269cbb3af1ab9911aac8b2205b2"
+    },
+    {
+      "path": "src/app/icon.svg",
+      "sha256": "96318a4e9c08f97ab765beb2c22bda0ddf0d86492b3bffd2c55ee423200ca21a"
+    },
+    {
+      "path": "src/app/join/page.tsx",
+      "sha256": "62ffbcfc904f1ff84b99c9fd47adc77bd3aa8f546d4d50e01c36c63f7e9045f7"
+    },
+    {
+      "path": "src/app/layout.tsx",
+      "sha256": "0bc5c45f2c73eafe8629e65c53bc68ca8d340aa34040b3316b78a524d834a2bb"
+    },
+    {
+      "path": "src/app/operator/page.tsx",
+      "sha256": "167d2beb1288dd3ffd9f36a0871b04a1cdf1b65decab0128cd5e3f7119027d59"
+    },
+    {
+      "path": "src/app/page.tsx",
+      "sha256": "17332aff66ebd92d84312852c8b2f61ab248f135b66b2abc36a394fc9c174447"
+    },
+    {
+      "path": "src/app/sign-in/page.tsx",
+      "sha256": "0f7b49e679d4ad6b89701d857bb6c6d1c52f7f49af816048ebbc5e4fdab8c635"
+    },
+    {
+      "path": "src/app/workspace/page.tsx",
+      "sha256": "fb93df4fe081cdac19f2f0ce336b3ac77be64823b9995656146612518d80345d"
+    },
+    {
+      "path": "src/components/access-panel.tsx",
+      "sha256": "0a1bf5ee4efe3b116c9b117f04726ab513eed888d21ee97e22fe6fe1d10aeb3c"
+    },
+    {
+      "path": "src/components/auth-form.tsx",
+      "sha256": "eeb388f850e3662d378dabd0136e53e0f77d98bd18bcacd3dea4279ac73ba7db"
+    },
+    {
+      "path": "src/components/campaign-panel.tsx",
+      "sha256": "4d77ece8158675a9cf46d4d42b7a7c8b272d6543da2a7e27d56807a836d57c6b"
+    },
+    {
+      "path": "src/components/icons.tsx",
+      "sha256": "ded3090157954b69598f1e28afec5a48ab8d30159ce83563129c26a604c2d665"
+    },
+    {
+      "path": "src/components/live-types.ts",
+      "sha256": "c70f379c6addc53277052349b66d3edbe2708f408b5f6c1797708fd97e492d6c"
+    },
+    {
+      "path": "src/components/live-workspace.tsx",
+      "sha256": "bb7ad5f9249e1a6eb7b35973f8e694406e4bf6861dee25f81ee13b0564e4ab58"
+    },
+    {
+      "path": "src/components/operator-console.tsx",
+      "sha256": "715ae66b7b199ab59f9095f588bbbb48e442ffa8dcbfa82270c3af53aca7a092"
+    },
+    {
+      "path": "src/components/project-panel.tsx",
+      "sha256": "8904b5d93dec15ebbef06de2dfdaeef672d162edb8887cc003cafbde15cb1973"
+    },
+    {
+      "path": "src/components/repair-panel.tsx",
+      "sha256": "1e8ad0b18411ef4ee0f0f16fdab9b13a5958c56e2858a3ee384079e2a18937e8"
+    },
+    {
+      "path": "src/components/resource-panel.tsx",
+      "sha256": "74d664d9d4c17211bf4dc06cd8fa0129bee266db93f63102210f423413ff7526"
+    },
+    {
+      "path": "src/components/review-panel.tsx",
+      "sha256": "1411cb1ddb16e4b140af038cac84554064e2ef0a3d03f8ae635ad40128eaa036"
+    },
+    {
+      "path": "src/components/terms-form.tsx",
+      "sha256": "2c2896a0f3da53a99444b410a411c6ec26102f3d77fd695503a01c39040053d2"
+    },
+    {
+      "path": "src/components/workspace.tsx",
+      "sha256": "e35e9285e5f14e72cfc6d2200ca702c08eba45cee8c8e9c4aa3e0f789b46924a"
+    },
+    {
+      "path": "src/demo/data.ts",
+      "sha256": "fb256a436264ba86875e18ca6a51854f6c868d25fe179b5b8b94997839cedbae"
+    },
+    {
+      "path": "src/domain/errors.ts",
+      "sha256": "dba69283676705bbcb3a62f21d9b9840ac2b50c332a8dbb95e0f26f7f23662f8"
+    },
+    {
+      "path": "src/domain/schemas.ts",
+      "sha256": "4061bbc0c99bcc2082ad0fbb7bfde476b6f58081595386c1320c669deabeda84"
+    },
+    {
+      "path": "src/domain/values.ts",
+      "sha256": "8738eb2dc36fb32649f206e860044c4c3a6debbf9be9fe5e47d7ec036b026ade"
+    },
+    {
+      "path": "src/server/access.ts",
+      "sha256": "4e32fc440ab04d7881676f7d6d9f7cad559a2ce1f99b1b5e09ff4b72abcbd92e"
+    },
+    {
+      "path": "src/server/agents.ts",
+      "sha256": "7cc3c3b02ad3cf9b7fe76d017e31e2bd27dd7f6d16a4084df59d2e246c03fc3a"
+    },
+    {
+      "path": "src/server/assignments.ts",
+      "sha256": "0e045ff08a22507d47b77908d01ba19ac6ef15e1525223f3f72161a7fdb9064a"
+    },
+    {
+      "path": "src/server/auth/config.ts",
+      "sha256": "bc43879307ee90e7f0523314d284ed17e740a65f0f2f2c49c994a3db93fce7a9"
+    },
+    {
+      "path": "src/server/database.ts",
+      "sha256": "d91d0257ea53122c1b810b0d8fce31927ded245bb09db1f2fee96675e0620f64"
+    },
+    {
+      "path": "src/server/decisions.ts",
+      "sha256": "4eac4ddf61cfc6fa3bf5b16b7e4211e34552edfb90d77d72ffbb82976479a284"
+    },
+    {
+      "path": "src/server/evidence.ts",
+      "sha256": "aab1c2d89ae3e673b805a9c95dc4e495c0b5c51399208628b69000ecebe39b73"
+    },
+    {
+      "path": "src/server/findings.ts",
+      "sha256": "314b2a4ac097b24bb1ecbc471585a6243508f1c383623e28f81ddea9c1a7a7d1"
+    },
+    {
+      "path": "src/server/http.ts",
+      "sha256": "29591bab594a13d1754230a4fe60e3ff0379b26412d9cb42c32a5fb42c38c276"
+    },
+    {
+      "path": "src/server/invitations.ts",
+      "sha256": "6e007692535991c6d1aead98ee77e37923287f1c50fb27aefbc1e1ca30dbbd7f"
+    },
+    {
+      "path": "src/server/jobs.ts",
+      "sha256": "ecafa85acc758519452a3630f41c3451dc40ec40de30f7bf001d74a09da673ed"
+    },
+    {
+      "path": "src/server/ledger.ts",
+      "sha256": "5e730cd9fe558ceed9a94b70d3b05e4ba353bd4da57a539644bc5892376cac8a"
+    },
+    {
+      "path": "src/server/migrations.ts",
+      "sha256": "181c139e174afb7bf25ecb3ec8120423084fa31ab36b064b78d23361f5507513"
+    },
+    {
+      "path": "src/server/operators.ts",
+      "sha256": "b6d201523ccc6218df1bbadd3f61b87681614fe1effa519ea584a9de381b595d"
+    },
+    {
+      "path": "src/server/payables.ts",
+      "sha256": "389e15d51e0ea1a2c2280e6e794224728700a3e0882c7505506caaebb8ac2745"
+    },
+    {
+      "path": "src/server/projects.ts",
+      "sha256": "dbe3c3d3b15d8ef90c3c0a5de9ecb7a68596ae270addaff72e4184114da12fac"
+    },
+    {
+      "path": "src/server/qualification.ts",
+      "sha256": "d6e594fbb9f08dbc45862a74518f3ac89f066a3845a8425c345b8a5881310b5e"
+    },
+    {
+      "path": "src/server/redaction.ts",
+      "sha256": "24ee249347823535e291c1f6c82274cad5135991635ecffdd9be340b7134a90d"
+    },
+    {
+      "path": "src/server/repairs.ts",
+      "sha256": "76998783d500f52ddbc14eb2b9266ef556164d2b3c792cba9567884d31a72e97"
+    },
+    {
+      "path": "src/server/resources.ts",
+      "sha256": "89d3982eca4637e8c793427b77687dc71f126cfa8b334f09bc4ee8888aba9e1f"
+    },
+    {
+      "path": "src/server/runner.ts",
+      "sha256": "24f509ae68ab8f7b29bdd9f96ef3bd18f43c9fda326376e2bb6f236a78639882"
+    },
+    {
+      "path": "src/server/settlement.ts",
+      "sha256": "ee84c45cb5f3e7b81146678d3b9387057e976cc43d6de88630dd8d1e3a104c9a"
+    },
+    {
+      "path": "src/server/storage.ts",
+      "sha256": "0138059c26cfaa79b51ccba7456659eef5050ed54e7740c9049a0ad1c72c688c"
+    },
+    {
+      "path": "src/server/targets.ts",
+      "sha256": "d3afc9112b2382abef906177d061c9f40c62f2e470fe8c927ed8747c76565651"
+    },
+    {
+      "path": "src/server/workspaces.ts",
+      "sha256": "aba42d65ef43ed5432dcfbdc2120d2d69cf3802d9e37f38b169bd540ff2ff83f"
+    },
+    {
+      "path": "tests/accounts.test.ts",
+      "sha256": "c49889098b52be1e2293200bda2701b9def4602dd538f89dc51844c114b92db3"
+    },
+    {
+      "path": "tests/agents.test.ts",
+      "sha256": "4337c41441c069955c453c0c94e4f6c5544917bd4b6c96fd07d21c3c0d18963c"
+    },
+    {
+      "path": "tests/backend.test.ts",
+      "sha256": "8a0a0274468e7acb7f0924e054241a0e17e3126add79c7314d7c1d917d751bbe"
+    },
+    {
+      "path": "tests/browser/accounts.spec.ts",
+      "sha256": "252daec4e02fccfc393f19623fb0bbf1b99fa9ddf86a7a02e154cefd6284f8e9"
+    },
+    {
+      "path": "tests/browser/evidence.spec.ts",
+      "sha256": "3f1f22950df5e9c7213345ff6e753d71f9b4c9e76d9c6af1e09307aed78aa1f7"
+    },
+    {
+      "path": "tests/browser/operator.spec.ts",
+      "sha256": "0361e161ca2c9f4075386f1cf9b643aa168aa1de804377207e703b4df7386f60"
+    },
+    {
+      "path": "tests/browser/workspace.spec.ts",
+      "sha256": "e91fe3495d91e8c23a9a4228d77a0e8b6bd45cd0c6d128f3f3551fbc9cfe156a"
+    },
+    {
+      "path": "tests/decisions.test.ts",
+      "sha256": "c3b7c2c623fa881a37cdac1398e378d33a2f87be450a1be68cebf5ea9305ea90"
+    },
+    {
+      "path": "tests/helpers/database.ts",
+      "sha256": "8832e5c948db1c72a2d308f8e639f07e93c436055b8e1943fd322801101eb439"
+    },
+    {
+      "path": "tests/ledger.test.ts",
+      "sha256": "4d54f179effc29a14d20a86c0a4a0e16f7fabd71be3821bb916a4ad518933798"
+    },
+    {
+      "path": "tests/operators.test.ts",
+      "sha256": "2910fcbc412021166d7e333520d0d663727ae60a4823db31ffee1dc1f0e72e71"
+    },
+    {
+      "path": "tests/projects.test.ts",
+      "sha256": "c96113c2287df185ac923a9ca02b3563ab0a0fd940b107bfbd560d14a773895e"
+    },
+    {
+      "path": "tests/repairs.test.ts",
+      "sha256": "186b34e456bf08cee111498824d4e5de5539626aad1d2f294915890f63fe8dbc"
+    },
+    {
+      "path": "tests/resources.test.ts",
+      "sha256": "59ae1313fd38820f289253f58b492eb9a44ab7b025f2a564f4724dd1927c6081"
+    },
+    {
+      "path": "tests/runner.test.ts",
+      "sha256": "5c090caf602ef56e1af3d3eec2bc868c8bc4c635038cbb28e0a9b45128782abc"
+    },
+    {
+      "path": "tests/settlement.test.ts",
+      "sha256": "f079a4aeeedab0ee43636dc4ad712565e999e53f22eb99e19edda0e70417a302"
+    },
+    {
+      "path": "tsconfig.json",
+      "sha256": "07ea5aae2e78809233b49771e534578ec5b249083dd45394614fcda8a24994a6"
+    },
+    {
+      "path": "workers/main.ts",
+      "sha256": "e06192fa045d0625d7493bcf5497e1c8cd6107a5be1b2e4c0af7b8c220ffb433"
+    }
+  ]
+}

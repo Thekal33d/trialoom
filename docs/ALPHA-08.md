@@ -47,5 +47,5 @@ Checked live on 2026-10-27: the [Remesso production SDK guide](https://docs.reme
 - No cross-campaign coordination of a shared wallet approval, no balance, allowance or policy validity check before publication or claim, and no on-chain verification of the declared authorization.
 - No reorg handling: finality is whatever the adapter reports.
 - A `needs_reconciliation` payable with an unknown outcome waits for a person. There is no incident queue, no notification, and no refund path — a refund would be a separate authorized transfer, not a reversal.
-- Resource purchases (ALPHA-09) are not in the ledger, so FR14's resource column is still empty.
+- Resource purchases were not in the ledger at this step, leaving FR14's resource column empty. [ALPHA-09](ALPHA-09.md) fills it: a reconciled purchase reclassifies its eligible cost and pays it as a `resource` payable through this same outbox.
 - Workers run one at a time here. Several workers sharing one signing key need the SDK's shared journal and lock, which is not set up.

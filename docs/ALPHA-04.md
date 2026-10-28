@@ -70,7 +70,7 @@ The builder's accounting view never contains an operator's attempt token.
 
 ## What this step deliberately does not do
 
-Acceptance and rejection were implemented here as **ledger primitives only**, reachable from no HTTP route, because accepting work needs the evidence ingestion of ALPHA-05 and the recorded decision of ALPHA-06. [ALPHA-06](ALPHA-06.md) wired them to decisions that carry the criteria, reason, evidence references and actor FR12 requires; payouts (ALPHA-08) and resource reimbursement (ALPHA-09) remain unimplemented. In this step an assignment ended only by release, expiry, or campaign cancellation.
+Acceptance and rejection were implemented here as **ledger primitives only**, reachable from no HTTP route, because accepting work needs the evidence ingestion of ALPHA-05 and the recorded decision of ALPHA-06. [ALPHA-06](ALPHA-06.md) wired them to decisions that carry the criteria, reason, evidence references and actor FR12 requires; payouts ([ALPHA-08](ALPHA-08.md)) and resource reimbursement ([ALPHA-09](ALPHA-09.md)) have since been built on the same primitives. In this step an assignment ended only by release, expiry, or campaign cancellation.
 
 Also still open: campaign completion when obligations resolve, automatic pausing when payment authority disappears (R08), appeals, cleanup of expired rows, and any on-chain verification of the declared spending authorization.
 

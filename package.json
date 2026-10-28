@@ -30,7 +30,8 @@
     "test:e2e": "node --env-file-if-exists=.env scripts/test-browser.ts",
     "check": "npm run lint && npm run typecheck && npm test",
     "setup:auth": "node scripts/setup-auth.mjs",
-    "workspace:invite": "node --env-file-if-exists=.env scripts/invite.ts"
+    "workspace:invite": "node --env-file-if-exists=.env scripts/invite.ts",
+    "loop": "node --env-file-if-exists=.env scripts/run-loop.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",

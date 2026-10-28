@@ -563,6 +563,36 @@ button:disabled {
     grid-template-columns: 1fr 1fr;
   }
 }
+/* What is waiting, and on whom. The list is text, so it stays legible at any
+   width and reads the same to a screen reader as it does on screen. */
+.attention-panel {
+  display: grid;
+  gap: 18px;
+}
+.attention-panel .record-list {
+  margin-top: 0;
+}
+.waiting-list {
+  list-style: none;
+  padding: 0;
+  margin: 7px 0 0;
+  display: grid;
+  gap: 5px;
+}
+.waiting-list li {
+  font: 12px var(--body);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.waiting-list li::before {
+  content: "— ";
+}
+.campaign-waiting {
+  font: 12px var(--body);
+  color: var(--muted);
+  margin-top: 10px;
+}
+
 @media (max-width: 760px) {
   .live-workspace-select {
     margin: 20px 0 5px;

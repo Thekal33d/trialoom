@@ -105,6 +105,7 @@ export function CampaignPanel({
   campaign,
   versions,
   isOwner,
+  canWrite,
   canDecide,
   reload,
 }: {
@@ -112,6 +113,9 @@ export function CampaignPanel({
   campaign: CampaignRecord;
   versions: TermsRecord[];
   isOwner: boolean;
+  // Exporting is a builder capability: an owner or a project member, not a
+  // reviewer, who reads these screens instead of taking a copy of them.
+  canWrite: boolean;
   // Owners and reviewers record decisions; a member can read but not decide.
   canDecide: boolean;
   reload: () => Promise<void>;
@@ -120,6 +124,18 @@ export function CampaignPanel({
   const [ledger, setLedger] = useState<Ledger>();
   const [evidence, setEvidence] = useState<Submissions>();
   const [payouts, setPayouts] = useState<{ payouts: Payout[]; note: string }>();
+  const [waiting, setWaiting] = useState<{
+    attention: {
+      awaiting_decision: number;
+      waitingHours: number | null;
+      pastReviewTarget: boolean;
+      pastEscalation: boolean;
+      blocked_payouts: number;
+      resources_unreconciled: number;
+      open_appeals: number;
+    } | null;
+    policy: { reviewTargetHours: number; escalationHours: number };
+  }>();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -127,6 +143,7 @@ export function CampaignPanel({
     setLedger(await api<Ledger>(`${campaignBase}/ledger`));
     setEvidence(await api<Submissions>(`${campaignBase}/submissions`));
     setPayouts(await api<{ payouts: Payout[]; note: string }>(`${campaignBase}/payouts`));
+    setWaiting(await api(`${campaignBase}/attention`));
   }, [campaignBase]);
   useEffect(() => {
     load().catch((e) => setError(e instanceof Error ? e.message : 'Ledger unavailable.'));
@@ -159,6 +176,13 @@ export function CampaignPanel({
       )}
       <div className="section-heading">
         <h4>Budget and assignments</h4>
+        {published && canWrite && (
+          /* FR16: everything bought under this brief, in one file to keep.
+             Raw artifacts never leave; what cannot be cleaned is named. */
+          <a className="button secondary" href={`${campaignBase}/export`} download>
+            Export this brief
+          </a>
+        )}
         {isOwner && (
           <button
             type="button"
@@ -291,6 +315,32 @@ export function CampaignPanel({
               </strong>
             </span>
           </div>
+          {waiting?.attention && (
+            <p className="campaign-waiting" role="status">
+              {waiting.attention.awaiting_decision
+                ? `${waiting.attention.awaiting_decision} submission${waiting.attention.awaiting_decision === 1 ? '' : 's'} awaiting a decision${
+                    waiting.attention.waitingHours === null
+                      ? ''
+                      : `, the oldest for ${waiting.attention.waitingHours}h`
+                  }${
+                    waiting.attention.pastEscalation
+                      ? ` — past ${waiting.policy.escalationHours}h, so a platform reviewer takes it up`
+                      : waiting.attention.pastReviewTarget
+                        ? ` — past the ${waiting.policy.reviewTargetHours}h review target`
+                        : ''
+                  }. `
+                : 'No submission is awaiting a decision. '}
+              {waiting.attention.open_appeals
+                ? `${waiting.attention.open_appeals} open appeal${waiting.attention.open_appeals === 1 ? '' : 's'}. `
+                : ''}
+              {waiting.attention.blocked_payouts
+                ? `${waiting.attention.blocked_payouts} payout${waiting.attention.blocked_payouts === 1 ? '' : 's'} blocked and still owed. `
+                : ''}
+              {waiting.attention.resources_unreconciled
+                ? `${waiting.attention.resources_unreconciled} resource purchase${waiting.attention.resources_unreconciled === 1 ? '' : 's'} holding a reservation.`
+                : ''}
+            </p>
+          )}
           <p className="section-description">
             {accounting.reconciled
               ? 'Every entry in the ledger replays to these balances.'

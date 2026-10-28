@@ -234,6 +234,7 @@ export function ProjectPanel({
                       campaign={campaign}
                       versions={versions}
                       isOwner={isOwner}
+                      canWrite={canWrite}
                       canDecide={canDecide}
                       reload={reload}
                     />

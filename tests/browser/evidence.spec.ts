@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, test } from '@playwright/test';
+import { strFromU8, unzipSync } from 'fflate';
 
 type Fixture = {
   password: string;
@@ -530,4 +531,75 @@ test('a resource is shown at its eligible cost, and a run grant cannot buy one',
   const own = await asAgent.json();
   expect(own.purchases).toHaveLength(2);
   expect(own.currency.address).toBe('0xcebA9300f2b948710d2653dD7B07f33A8B32118C');
+});
+
+test('a builder exports the brief as a file and the queue names what is waiting', async ({
+  page,
+}, info) => {
+  const fixture = fixtures[info.project.name];
+  await signIn(page, fixture.evidenceOwnerEmail, fixture.password);
+
+  // The queue is one place that answers what is waiting and on whom.
+  await page.getByRole('button', { name: /What's waiting/ }).click();
+  const queue = page.locator('.attention-panel');
+  await expect(queue).toContainText('Work state and money state are separate');
+  await expect(queue).toContainText('Evidence fixture campaign');
+  await expect(queue).toContainText('awaiting your decision');
+  await expect(queue).toContainText('blocked and still owed');
+  await expect(queue).toContainText('holding a reservation');
+  const results = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+    .analyze();
+  expect(
+    results.violations.map(({ id, nodes }) => ({ id, targets: nodes.map((node) => node.target) })),
+  ).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+  await page.screenshot({ path: info.outputPath('queue.png'), fullPage: true, scale: 'css' });
+
+  const served = await page.request.get(`${campaignBase(fixture)}/export`);
+  expect(served.status()).toBe(200);
+  expect(served.headers()['content-type']).toBe('application/zip');
+  expect(served.headers()['content-disposition']).toContain('.zip');
+  expect(served.headers()['x-trialoom-redaction']).toBe('text-secrets-v1');
+  const files = unzipSync(new Uint8Array(await served.body()));
+  const manifest = JSON.parse(strFromU8(files['manifest.json']));
+  expect(manifest.schemaVersion).toBe(1);
+  expect(manifest.redaction.rawBytesIncluded).toBe(false);
+  expect(served.headers()['x-trialoom-export-hash']).toBe(manifest.contentHash);
+  // The replay instructions carry what the claim pinned.
+  const replay = JSON.parse(strFromU8(files['replay.json'])).replays[0];
+  expect(replay.build.revision).toBe('baseline-1');
+  expect(replay.isolation).toEqual({
+    freshBrowserContext: true,
+    ephemeralProfile: true,
+    clearedStorage: true,
+  });
+  // Nothing in the whole export carries the secret the seeded report leaked,
+  // and the archive it could not clean is named instead of included.
+  const everything = Object.values(files)
+    .map((bytes) => strFromU8(bytes))
+    .join('\n');
+  expect(everything).not.toContain('abcdefghijklmnopqrstuvwxyz012345');
+  const withheld = JSON.parse(strFromU8(files['withheld.json']));
+  expect(withheld.artifacts.map((artifact: { name: string }) => artifact.name)).toContain(
+    'replay.trace.zip',
+  );
+  expect(Object.keys(files)).not.toContain('artifacts/replay.trace.zip');
+  expect(Object.keys(files)).toContain('artifacts/report.json');
+
+  // A reviewer reads the same queue, and cannot take a copy of the record.
+  const reviewerContext = await page.context().browser()?.newContext({
+    baseURL: 'http://127.0.0.1:3100',
+  });
+  if (!reviewerContext) throw new Error('No browser context for the reviewer.');
+  const reviewerPage = await reviewerContext.newPage();
+  await signIn(reviewerPage, fixture.evidenceReviewerEmail, fixture.password);
+  await reviewerPage.getByRole('button', { name: /Review queue/ }).click();
+  await expect(reviewerPage.locator('.attention-panel')).toContainText('Review queue');
+  const refused = await reviewerPage.request.get(`${campaignBase(fixture)}/export`);
+  expect(refused.status()).toBe(403);
+  expect((await refused.json()).error.code).toBe('ACCESS_DENIED');
+  await reviewerContext.close();
 });

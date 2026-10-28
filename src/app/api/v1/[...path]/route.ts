@@ -8,6 +8,7 @@ import {
   publishCampaign,
   setCampaignStatus,
 } from '@/server/assignments';
+import { campaignAttentionRecord, workspaceAttention } from '@/server/attention';
 import { getPool, transaction } from '@/server/database';
 import {
   decideDiscovery,
@@ -25,6 +26,7 @@ import {
   campaignSubmissions,
   readArtifact,
 } from '@/server/evidence';
+import { campaignExport } from '@/server/exports';
 import {
   handleApi,
   json,
@@ -234,6 +236,24 @@ async function handler(request: Request) {
               return json(
                 await campaignResourceRecord(pool, actor, workspaceId, projectId, campaignId),
               );
+            if (parts[6] === 'attention' && method === 'GET')
+              return json(
+                await campaignAttentionRecord(pool, actor, workspaceId, projectId, campaignId),
+              );
+            if (parts[6] === 'export' && method === 'GET') {
+              const archive = await campaignExport(pool, actor, workspaceId, projectId, campaignId);
+              // The export is a file to keep, never rendered on this origin.
+              return new Response(new Uint8Array(archive.bytes), {
+                headers: {
+                  ...privateHeaders,
+                  'Content-Type': 'application/zip',
+                  'Content-Disposition': `attachment; filename="${archive.filename}"`,
+                  'X-Content-Type-Options': 'nosniff',
+                  'X-Trialoom-Redaction': redactionPolicy,
+                  'X-Trialoom-Export-Hash': archive.manifest.contentHash,
+                },
+              });
+            }
             if (parts[6] === 'publication' && method === 'POST')
               return json(
                 await publishCampaign(
@@ -291,6 +311,8 @@ async function handler(request: Request) {
       }
       if (parts.length === 3 && parts[2] === 'access' && method === 'GET')
         return json(await workspaceAccess(pool, actor, workspaceId));
+      if (parts.length === 3 && parts[2] === 'attention' && method === 'GET')
+        return json(await workspaceAttention(pool, actor, workspaceId));
       if (parts.length === 3 && parts[2] === 'invitations' && method === 'POST') {
         const invite = await createInvitation(pool, actor, workspaceId, await readJson(request));
         return json(

@@ -15,6 +15,12 @@ import { createCredential, registerOperator } from '../src/server/operators.ts';
 import { addBuild, createCampaign, createProject } from '../src/server/projects.ts';
 import { submitAttempt } from '../src/server/qualification.ts';
 import { decideQuote, proposeQuote } from '../src/server/repairs.ts';
+import {
+  authorizeResourceCeiling,
+  purchaseResource,
+  type ResourceAdapter,
+  reconcilePurchase,
+} from '../src/server/resources.ts';
 import { authenticateRun, isolationProfile, startRun } from '../src/server/runner.ts';
 import { digestOf } from '../src/server/storage.ts';
 import { disposableDatabase } from '../tests/helpers/database.ts';
@@ -62,6 +68,45 @@ const replays = (assertion: string) => ({
     { assertion, passed: true, cleanSession: true as const },
   ],
 });
+/**
+ * Stands in for buy so the resource views have a record to show. No resource
+ * wallet is configured in this build, so the real adapter refuses everything
+ * and these checks would otherwise see nothing.
+ */
+function seededProvider(outcome: 'usable' | 'uncertain'): ResourceAdapter {
+  return {
+    name: 'seeded',
+    async quote() {
+      return {
+        status: 'quoted',
+        amountUnits: '3606',
+        chainId: 42220,
+        tokenAddress: '0xcebA9300f2b948710d2653dD7B07f33A8B32118C',
+        tokenDecimals: 6,
+        payee: '0x2222222222222222222222222222222222222222',
+        expiresAt: new Date(Date.now() + 300_000).toISOString(),
+      };
+    },
+    async purchase() {
+      return outcome === 'usable'
+        ? {
+            status: 'usable',
+            costUnits: '3606',
+            transactionHash: `0x${'cd'.repeat(32)}`,
+            receipt: { session: 'browser-1' },
+            detail: 'Session provisioned.',
+          }
+        : {
+            status: 'uncertain',
+            reason: 'settlement_uncertain',
+            detail: 'The provider answered 500 settle_uncertain.',
+          };
+    },
+    async resolve() {
+      return { status: 'unknown', detail: 'The token has recorded no transfer yet.' };
+    },
+  };
+}
 const archiveBytes = () =>
   Buffer.concat([Buffer.from([0x50, 0x4b, 0x03, 0x04, 0xff, 0xfe, 0xff, 0xfe]), randomBytes(32)]);
 try {
@@ -255,6 +300,7 @@ try {
           'decisions:read',
           'appeals:submit',
           'payouts:read',
+          'resources:purchase',
         ],
         expiresInDays: 7,
       });
@@ -669,6 +715,74 @@ try {
 
     // One live run grant for the agent API checks.
     const live = await runningOperator('runner');
+    // Two capped resource purchases, in their own brief so the evidence fixture
+    // above keeps the balances its checks assert.
+    await authorizeResourceCeiling(db.pool, 1_000_000n, 'browser-check-funding');
+    const resourceCampaign = await createCampaign(
+      db.pool,
+      evidenceOwner,
+      second.workspaceId,
+      evidenceProject.id,
+      { name: 'Resource fixture campaign', terms: evidenceTerms },
+    );
+    await publishCampaign(
+      db.pool,
+      evidenceOwner,
+      second.workspaceId,
+      evidenceProject.id,
+      resourceCampaign.campaignId,
+      {
+        termsVersionId: resourceCampaign.id,
+        slots: 1,
+        maxConcurrent: 1,
+        authorizeUnits: '20000000',
+        spendingAuthorization: 'remesso-policy-browser-fixture',
+        authorizationConfirmed: true,
+      },
+    );
+    const buyer = await runningOperator('resource-buyer', {
+      campaignId: resourceCampaign.campaignId,
+    });
+    const usable = seededProvider('usable');
+    const bought = await purchaseResource(
+      db.pool,
+      buyer.session,
+      buyer.run.runId,
+      `${viewport}-resource-usable`,
+      {
+        attemptToken: buyer.assignment.attemptToken,
+        provider: 'buy',
+        sku: 'browser.session',
+        request: { durationMinutes: 1 },
+        maxAmountUnits: '10000',
+      },
+      usable,
+    );
+    const reconcileLease = (
+      await db.pool.query(
+        `UPDATE outbox_jobs SET state='leased',attempts=attempts+1,lease_token=gen_random_uuid(),
+        lease_until=clock_timestamp()+interval '30 seconds'
+        WHERE dedupe_key=$1 AND state='pending'
+        RETURNING id,topic,lease_token,attempts,payload`,
+        [bought.purchase.intent_key],
+      )
+    ).rows[0];
+    await reconcilePurchase(db.pool, reconcileLease, usable);
+    const unresolved = await purchaseResource(
+      db.pool,
+      buyer.session,
+      buyer.run.runId,
+      `${viewport}-resource-uncertain`,
+      {
+        attemptToken: buyer.assignment.attemptToken,
+        provider: 'buy',
+        sku: 'vm.micro',
+        request: { machine: 'e2-micro' },
+        maxAmountUnits: '20000',
+      },
+      seededProvider('uncertain'),
+    );
+
     const join = await bootstrapWorkspace(db.pool, {
       email: `${viewport}-join@example.test`,
       name: 'Invited browser workspace',
@@ -706,6 +820,11 @@ try {
       repairVerifierHandle: `${viewport}-repair-verifier`,
       repairAuthorAssignmentId: authorAssignment.assignmentId,
       repairVerifierAssignmentId: verifier.assignment.assignmentId,
+      resourceCampaignId: resourceCampaign.campaignId,
+      resourceRunId: buyer.run.runId,
+      resourceCredential: buyer.credential.secret,
+      reconciledPurchaseId: bought.purchase.id,
+      uncertainPurchaseId: unresolved.purchase.id,
     };
   }
   const fixtureFile = resolve(directory, 'fixtures.json');

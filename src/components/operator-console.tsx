@@ -460,8 +460,16 @@ export function OperatorConsole({ user }: { user: { name: string; email: string 
                     <legend>Scopes</legend>
                     {agentScopes.map((scope) => (
                       <label className="check-field" key={scope}>
-                        <input name={scope} type="checkbox" defaultChecked />
+                        {/* Buying a resource spends against a builder's
+                            allowance, so it is the one scope a credential does
+                            not get by default: it is chosen deliberately. */}
+                        <input
+                          name={scope}
+                          type="checkbox"
+                          defaultChecked={scope !== 'resources:purchase'}
+                        />
                         {scope}
+                        {scope === 'resources:purchase' ? ' — spends a capped allowance' : ''}
                       </label>
                     ))}
                   </fieldset>

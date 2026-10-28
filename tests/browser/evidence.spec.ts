@@ -26,6 +26,12 @@ type Fixture = {
   repairVerifierHandle: string;
   repairAuthorAssignmentId: string;
   repairVerifierAssignmentId: string;
+  liveAttemptToken: string;
+  resourceCampaignId: string;
+  resourceRunId: string;
+  resourceCredential: string;
+  reconciledPurchaseId: string;
+  uncertainPurchaseId: string;
 };
 const fixtures = JSON.parse(readFileSync(process.env.TRIALOOM_E2E_FIXTURE ?? '', 'utf8')) as Record<
   string,
@@ -440,4 +446,88 @@ test('a repair is shown as delivered for review and is payable only once confirm
   await expect(
     page.locator('.brief-record', { hasText: 'Repair the invitation validator' }),
   ).toContainText('Accepted and owed');
+});
+
+test('a resource is shown at its eligible cost, and a run grant cannot buy one', async ({
+  page,
+  request,
+}, info) => {
+  const fixture = fixtures[info.project.name];
+  await signIn(page, fixture.evidenceOwnerEmail, fixture.password);
+  await page.getByRole('button', { name: /Evidence fixture project/ }).click();
+  const brief = page.locator('.brief-record', { hasText: 'Resource fixture campaign' });
+  // The outer evidence block also carries this class, so the panel's own
+  // section is named rather than filtered out of the pair.
+  const resources = brief.locator('section.evidence-block', { hasText: 'Resources' });
+  await expect(resources).toContainText('reimburses the eligible actual cost');
+  // One reconciled purchase: authorized well above what it actually cost.
+  await expect(resources).toContainText('browser.session');
+  await expect(resources).toContainText('Authorized up to 0.01 USDC');
+  await expect(resources).toContainText('cost 0.003606 USDC');
+  await expect(resources).toContainText('reimbursable by you');
+  await expect(resources).toContainText('Reconciled');
+  // One whose settlement is unresolved: nothing recorded, reservation held.
+  await expect(resources).toContainText('vm.micro');
+  await expect(resources).toContainText('no cost recorded');
+  await expect(resources).toContainText('charge undecided, reservation held');
+  await expect(resources).toContainText('Settlement uncertain');
+
+  const resourceBase = `/api/v1/workspaces/${fixture.evidenceWorkspaceId}/projects/${fixture.evidenceProjectId}/campaigns/${fixture.resourceCampaignId}`;
+  const listed = await (await page.request.get(`${resourceBase}/resources`)).json();
+  const reconciled = listed.purchases.find(
+    (purchase: { id: string }) => purchase.id === fixture.reconciledPurchaseId,
+  );
+  expect(reconciled.charge).toBe('builder');
+  expect(reconciled.cost_units).toBe('3606');
+  expect(reconciled.intent_key).toMatch(/^trr_[a-f0-9]{48}$/);
+  const uncertain = listed.purchases.find(
+    (purchase: { id: string }) => purchase.id === fixture.uncertainPurchaseId,
+  );
+  expect(uncertain.charge).toBe('pending');
+  expect(uncertain.cost_units).toBe(null);
+
+  // The reimbursement is owed to the platform resource wallet, which is not
+  // configured, and it answers to a purchase rather than to a decision.
+  const payouts = await (await page.request.get(`${resourceBase}/payouts`)).json();
+  const reimbursement = payouts.payouts.find(
+    (payout: { kind: string }) => payout.kind === 'resource',
+  );
+  expect(reimbursement.amount_units).toBe('3606');
+  expect(reimbursement.state).toBe('blocked');
+  expect(reimbursement.blocked_reason).toBe('resource_recipient_unconfigured');
+
+  const results = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+    .analyze();
+  expect(
+    results.violations.map(({ id, nodes }) => ({ id, targets: nodes.map((node) => node.target) })),
+  ).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+
+  // A run grant travels with the runner, so it must not be able to spend. The
+  // route is not on its allowlist at all.
+  const purchase = await request.post(`/api/agent/v1/runs/${fixture.resourceRunId}/resources`, {
+    headers: { Authorization: `Bearer ${fixture.liveRunToken}` },
+    data: {
+      attemptToken: fixture.liveAttemptToken,
+      provider: 'buy',
+      sku: 'browser.session',
+      request: {},
+      maxAmountUnits: '1000',
+    },
+  });
+  // The route is not on the grant's allowlist, so the grant is not even read as
+  // a grant there: it is rejected as an agent credential, which it is not.
+  expect(purchase.status()).toBe(401);
+  expect((await purchase.json()).error.code).toBe('CREDENTIAL_INVALID');
+  // The operator's own credential does reach it.
+  const asAgent = await request.get(`/api/agent/v1/runs/${fixture.resourceRunId}/resources`, {
+    headers: { Authorization: `Bearer ${fixture.resourceCredential}` },
+  });
+  expect(asAgent.status()).toBe(200);
+  const own = await asAgent.json();
+  expect(own.purchases).toHaveLength(2);
+  expect(own.currency.address).toBe('0xcebA9300f2b948710d2653dD7B07f33A8B32118C');
 });

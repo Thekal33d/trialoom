@@ -19,6 +19,7 @@ import { storeArtifact, submitEvidence } from '@/server/evidence';
 import { handleApi, json, limitRequest, readBytes, readJson } from '@/server/http';
 import { operatorPayouts } from '@/server/payables';
 import { qualificationStatus, recordAttempt } from '@/server/qualification';
+import { purchaseResource, runResources } from '@/server/resources';
 import {
   abandonRun,
   authenticateRun,
@@ -41,8 +42,13 @@ async function handler(request: Request) {
       const pool = getPool();
       await limitRequest('agent', 'global', 1200);
       // A run grant is a separate, narrower credential: it reaches these routes
-      // and nothing else, and no agent credential can use them.
-      if (parts[0] === 'runs' && parts.length >= 2 && parts[2] !== 'abandon') {
+      // and nothing else, and no agent credential can use them. The list is an
+      // allowlist, so a route added later is not reachable by a leaked grant
+      // until it is named here. Spending is deliberately not on it.
+      if (
+        parts[0] === 'runs' &&
+        (parts.length === 2 || ['artifacts', 'evidence'].includes(parts[2] ?? ''))
+      ) {
         const run = await authenticateRun(pool, bearerToken(request));
         if (uuid.parse(parts[1]) !== run.run.id)
           throw new AppError('RUN_MISMATCH', 'This grant belongs to a different run.', 403);
@@ -126,6 +132,23 @@ async function handler(request: Request) {
       ) {
         requireScope(session, 'runs:execute');
         return json(await abandonRun(pool, session, uuid.parse(parts[1]), await readJson(request)));
+      }
+      if (parts[0] === 'runs' && parts.length === 3 && parts[2] === 'resources') {
+        // Buying a resource spends money, so it needs the long-lived credential
+        // and its own scope. A run grant, which travels with the runner, cannot
+        // reach this route at all.
+        requireScope(session, 'resources:purchase');
+        if (method === 'GET') return json(await runResources(pool, session, parts[1]));
+        if (method === 'POST') {
+          const result = await purchaseResource(
+            pool,
+            session,
+            parts[1],
+            request.headers.get('idempotency-key') ?? '',
+            await readJson(request),
+          );
+          return json(result, result.replayed ? 200 : 201);
+        }
       }
       if (parts[0] === 'assignments') {
         if (parts.length === 1 && method === 'GET') {

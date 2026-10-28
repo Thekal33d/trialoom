@@ -16,6 +16,7 @@ import { campaignFindings, noteConsistentPass, recordFinding } from './findings.
 import { campaignPayouts } from './payables.ts';
 import { decodeUtf8, redactionPolicy, redactText, scanText } from './redaction.ts';
 import { campaignRepairs, recordRepair, recordVerification, repairRole } from './repairs.ts';
+import { campaignResources } from './resources.ts';
 import { isolationProfile, type RunSession, runLimits } from './runner.ts';
 import { digestOf, getObject, putObject } from './storage.ts';
 
@@ -619,6 +620,28 @@ export async function campaignRepairRecord(
       ...record,
       candidates,
       note: 'A repair is delivered for builder review. Trialoom never merges or deploys it, and it is payable only after an independent verifier confirms the regression on both revisions.',
+    };
+  });
+}
+
+/**
+ * Every resource bought against this campaign, what it was authorized to cost,
+ * what it actually cost, and who bears it.
+ */
+export async function campaignResourceRecord(
+  pool: Pool,
+  actor: Actor,
+  workspaceId: string,
+  projectId: string,
+  campaignId: string,
+) {
+  return transaction(pool, async (db) => {
+    const role = await campaignForReader(db, actor, workspaceId, projectId, campaignId);
+    if (role === 'reviewer')
+      await audit(db, workspaceId, actor.id, 'reviewer.resources_read', campaignId);
+    return {
+      purchases: await campaignResources(db, campaignId),
+      note: 'The platform resource wallet pays the provider and the builder reimburses the eligible actual cost, itemized separately. A purchase the platform could not deliver is absorbed and charged to nobody, and an unreconciled purchase keeps its reservation.',
     };
   });
 }

@@ -20,6 +20,7 @@ import {
 import {
   campaignPayoutRecord,
   campaignRepairRecord,
+  campaignResourceRecord,
   campaignReview,
   campaignSubmissions,
   readArtifact,
@@ -228,6 +229,10 @@ async function handler(request: Request) {
             if (parts[6] === 'repairs' && method === 'GET')
               return json(
                 await campaignRepairRecord(pool, actor, workspaceId, projectId, campaignId),
+              );
+            if (parts[6] === 'resources' && method === 'GET')
+              return json(
+                await campaignResourceRecord(pool, actor, workspaceId, projectId, campaignId),
               );
             if (parts[6] === 'publication' && method === 'POST')
               return json(

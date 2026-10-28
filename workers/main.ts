@@ -3,6 +3,7 @@ import { sweepExpiredAssignments } from '../src/server/assignments.ts';
 import { createPool, databaseUrl } from '../src/server/database.ts';
 import { releaseSettledAssignments } from '../src/server/decisions.ts';
 import { processOne } from '../src/server/jobs.ts';
+import { reconcilePurchase } from '../src/server/resources.ts';
 import { dispatchPayout } from '../src/server/settlement.ts';
 
 const pool = createPool(databaseUrl());
@@ -28,6 +29,9 @@ try {
     // every payout with a visible reason instead of pretending to pay it.
     const worked = await processOne(pool, {
       'payout.dispatch': (client, lease) => dispatchPayout(client, lease),
+      // A purchase holds its reservation until this answers. No resource wallet
+      // is configured either, so nothing has been bought to reconcile.
+      'resource.reconcile': (client, lease) => reconcilePurchase(client, lease),
     });
     if (once) break;
     if (!worked) await setTimeout(1000, undefined, { signal: controller.signal });

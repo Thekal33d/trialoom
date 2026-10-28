@@ -183,6 +183,32 @@ export async function outstandingCommitment(
   return parts;
 }
 
+/**
+ * What an assignment's resource allowance is holding for purchases that have
+ * not been reconciled. A purchase whose charge is still undecided holds the
+ * whole ceiling it was authorized under, because an uncertain settlement may
+ * still land on the builder; one already charged to the builder holds its known
+ * cost until reconciliation turns that into an accepted liability. Neither may
+ * be released or spent again in the meantime (R07).
+ *
+ * Asked here as a query rather than through the resource module, so every
+ * release path is covered by the same rule and nothing imports in a circle.
+ */
+export async function heldForResources(
+  db: PoolClient | Pool,
+  assignmentId: string,
+): Promise<bigint> {
+  const { rows } = await db.query<{ amount: string }>(
+    `SELECT COALESCE(SUM(CASE
+      WHEN charge='pending' THEN ceiling_units
+      WHEN charge='builder' THEN COALESCE(cost_units,ceiling_units)
+      ELSE 0 END),0)::text AS amount
+    FROM resource_purchases WHERE assignment_id=$1 AND reconciled_at IS NULL`,
+    [assignmentId],
+  );
+  return BigInt(rows[0].amount);
+}
+
 export async function releaseCommitment(
   db: PoolClient,
   campaignId: string,
@@ -191,6 +217,8 @@ export async function releaseCommitment(
   actorId: string | null,
 ) {
   const parts = await outstandingCommitment(db, assignmentId);
+  const withheld = await heldForResources(db, assignmentId);
+  if (withheld > 0n) parts.resource = parts.resource > withheld ? parts.resource - withheld : 0n;
   const amount = total(parts);
   if (amount <= 0n) return 0n;
   await moveAccount(db, campaignId, { committed: -amount });

@@ -86,6 +86,7 @@ export const agentScopes = [
   'decisions:read',
   'appeals:submit',
   'payouts:read',
+  'resources:purchase',
 ] as const;
 export type AgentScope = (typeof agentScopes)[number];
 export const credentialSchema = z
@@ -375,6 +376,23 @@ export const repairQuoteSchema = z
     amountUnits: units,
     // The paths this repair may change. Anything else needs a revised quote.
     scopePaths: z.array(scopePath).min(1).max(50),
+  })
+  .strict();
+/**
+ * One capped resource purchase for a live run. The limit is the caller's, not
+ * the provider's: a fresh quote above it is refused before anything is signed.
+ */
+export const resourcePurchaseSchema = z
+  .object({
+    attemptToken: attemptTokenSchema.shape.attemptToken,
+    provider: z.literal('buy'),
+    sku: z.string().trim().min(1).max(80),
+    // What the resource is for, passed to the provider unchanged.
+    request: z.record(
+      z.string().min(1).max(60),
+      z.union([z.string().max(300), z.number(), z.boolean()]),
+    ),
+    maxAmountUnits: units,
   })
   .strict();
 export const quoteDecisionSchema = z

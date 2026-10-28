@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { formatUnits, toUnits } from '@/domain/values';
 import { api, type CampaignRecord, field, type TermsRecord } from './live-types';
 import { RepairPanel } from './repair-panel';
+import { ResourcePanel } from './resource-panel';
 import { ReviewPanel } from './review-panel';
 
 type Accounting = {
@@ -434,6 +435,7 @@ export function CampaignPanel({
                   </div>
                 </div>
               )}
+              <ResourcePanel campaignBase={campaignBase} />
               <ReviewPanel
                 campaignBase={campaignBase}
                 submissions={evidence.submissions.map((submission) => ({

@@ -9,7 +9,7 @@ import type { Actor } from '../src/server/access.ts';
 import { type AgentSession, authenticateAgent } from '../src/server/agents.ts';
 import { claim, publishCampaign } from '../src/server/assignments.ts';
 import { transaction } from '../src/server/database.ts';
-import { decideExecution } from '../src/server/decisions.ts';
+import { decideDiscovery, decideExecution } from '../src/server/decisions.ts';
 import { eventTopics, noteReviewOpened, sanitize } from '../src/server/events.ts';
 import { storeArtifact, submitEvidence } from '../src/server/evidence.ts';
 import {
@@ -351,6 +351,33 @@ test('events carry no credentials, by policy and by table check', async () => {
   assert.equal(eventTopics.length, 14);
 });
 
+test('the payload guard refuses a forbidden key at any depth', async () => {
+  // The first version of this guard read only the top-level keys, so a secret
+  // one level down passed a check that was described as refusing it.
+  for (const [label, payload] of [
+    ['at the top level', '{"secret":"x"}'],
+    ['one level down', '{"outer":{"secret":"x"}}'],
+    ['inside an array', '{"items":[{"token":"trh_abc"}]}'],
+    ['three levels down', '{"a":{"b":{"password":"x"}}}'],
+    ['beside clean keys', '{"ok":1,"meta":{"note":"fine","cookie":"c"}}'],
+  ] as const)
+    await assert.rejects(
+      db.pool.query('INSERT INTO events (topic,payload) VALUES ($1,$2::jsonb)', [
+        'run.started',
+        payload,
+      ]),
+      /violates check/i,
+      `a forbidden key ${label} must be refused`,
+    );
+  // A nested payload with no forbidden key is still allowed: the guard is
+  // about the keys, not about shape.
+  const clean = await db.pool.query(
+    `INSERT INTO events (topic,payload) VALUES ('run.started','{"ok":1,"nested":{"fine":2}}'::jsonb)
+    RETURNING id`,
+  );
+  assert.ok(clean.rows[0].id);
+});
+
 test('useful delivery counts decided submissions and names each rejection class', async () => {
   const campaign = await newCampaign('Delivery');
   const first = await qualifiedOperator('metric-accept');
@@ -374,6 +401,40 @@ test('useful delivery counts decided submissions and names each rejection class'
   // The PRD asks for each rejection class to be inspected, not just a rate.
   const classes = (delivery.detail?.rejectionClasses ?? []) as { outcome: string; n: number }[];
   assert.ok(classes.some((entry) => entry.outcome === 'product_failed'));
+});
+
+test('discovery precision measures the submissions that were adjudicated', async () => {
+  const campaign = await newCampaign('Precision');
+  const first = await qualifiedOperator('metric-precise-one');
+  const second = await qualifiedOperator('metric-precise-two');
+  // Two independent reports of the same failure confirm one defect.
+  const a = await reportFrom(first.session, campaign, 'invitation.precision');
+  const b = await reportFrom(second.session, campaign, 'invitation.precision');
+  assert.equal(a.result.finding?.defectId, b.result.finding?.defectId);
+  const before = await metric('discovery-precision');
+  const adjudicatedBefore = before.denominator ?? 0;
+  await decideDiscovery(
+    db.pool,
+    owner,
+    workspaceId,
+    projectId,
+    a.result.finding?.findingId as string,
+    {
+      outcome: 'awarded',
+      amountUnits: '1000000',
+      reason: 'First complete report of a confirmed in-scope defect.',
+      evidenceRefs: [],
+    },
+  );
+  const after = await metric('discovery-precision');
+  // The denominator counts the adjudicated discovery submission, and the
+  // numerator the confirmed defect it was about. An earlier version of this
+  // query joined on the wrong column and could only ever answer zero.
+  assert.equal(after.denominator, adjudicatedBefore + 1);
+  assert.ok((after.numerator ?? 0) >= 1);
+  assert.equal(after.complete, true);
+  assert.equal(after.value, (after.numerator ?? 0) / (after.denominator ?? 1));
+  assert.equal(after.meetsTarget, (after.value ?? 0) >= 0.7);
 });
 
 test('review burden is measured only where a reviewer opened the screen', async () => {

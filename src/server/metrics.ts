@@ -68,16 +68,25 @@ export async function pilotMetrics(db: Pool | PoolClient, workspaceId: string): 
   ).rows;
 
   // Discovery precision: independently confirmed unique defects over the
-  // discovery submissions that were adjudicated either way.
+  // discovery submissions that were adjudicated either way. A defect only
+  // reaches 'confirmed' on two independent reports, so that state is what
+  // "independently confirmed" means here.
+  //
+  // The numerator is scoped to the defects those adjudicated submissions were
+  // about. Counting every confirmed defect in the workspace would measure the
+  // project rather than the decisions, and an earlier version of this query
+  // joined on the wrong column and could only ever answer zero.
   const discovery = await one<{ adjudicated: number; confirmed: number }>(
-    `SELECT
-      (SELECT count(*)::int FROM decisions d JOIN projects p ON p.id=$1::uuid
-        WHERE d.matter='discovery'
-          AND d.campaign_id IN (SELECT c.id FROM campaigns c JOIN projects q ON q.id=c.project_id
-            WHERE q.workspace_id=$1)) AS adjudicated,
-      (SELECT count(DISTINCT x.id)::int FROM defects x
-        WHERE x.state='confirmed' AND x.project_id IN
-          (SELECT id FROM projects WHERE workspace_id=$1)) AS confirmed`,
+    `WITH adjudicated AS (
+      SELECT d.id,f.defect_id FROM decisions d
+      LEFT JOIN findings f ON f.id=d.subject_id AND d.subject_type='finding'
+      WHERE d.matter='discovery' AND d.campaign_id IN
+        (SELECT c.id FROM campaigns c JOIN projects q ON q.id=c.project_id
+          WHERE q.workspace_id=$1)
+    )
+    SELECT (SELECT count(*)::int FROM adjudicated) AS adjudicated,
+      (SELECT count(DISTINCT a.defect_id)::int FROM adjudicated a
+        JOIN defects x ON x.id=a.defect_id WHERE x.state='confirmed') AS confirmed`,
   );
 
   // Review burden: the attended span from a reviewer opening a submission to

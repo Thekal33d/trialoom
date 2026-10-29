@@ -34,7 +34,9 @@ A fourteenth, `review.opened`, exists because review burden is the one target no
 
 The exception is a **refusal**. A funding failure rolls its own transaction back, so that one is emitted afterwards on the pool. Without that, the stream would record only the publications that succeeded, and funding failure — a thing the PRD explicitly wants instrumented — would be structurally invisible.
 
-**No credentials reach analytics.** The emitter drops forbidden keys, redacts every string value through the same `text-secrets-v1` policy that cleans evidence, and caps lengths. A table check then refuses those keys outright, so a careless caller cannot name a secret into a stream that is read in bulk. Events are immutable: a metric computed from a record somebody could edit afterwards is not a measurement.
+**No credentials reach analytics.** The emitter drops forbidden keys, redacts every string value through the same `text-secrets-v1` policy that cleans evidence, and caps lengths. A table check then refuses those keys **at any depth**, including inside arrays, so a careless caller cannot name a secret into a stream that is read in bulk. Events are immutable: a metric computed from a record somebody could edit afterwards is not a measurement.
+
+> The first version of that check read only the top-level keys, so a secret one level down passed a guard this document described as refusing it. `0013_event_payload_guard.sql` replaced it with a recursive key scan, and a check now asserts a forbidden key is refused at four different depths.
 
 ## The eight targets
 
@@ -45,7 +47,7 @@ Each one reports its definition, threshold, value, numerator, denominator, wheth
 | Repeat purchase | ≥3 of first 5 builders | **No** — completion needs a finalized payout |
 | Additional value | ≥3 of 5 builders | **No** — nobody records the judgement |
 | Useful delivery | ≥70% | Yes, with each rejection class listed |
-| Discovery precision | ≥70% | Yes |
+| Discovery precision | ≥70% | Yes, once a discovery decision is recorded |
 | Review burden | ≤10 minutes median | Partly — only reviews done through the screen |
 | Payment correctness | Zero | Yes, and complete whatever has happened |
 | Payment timeliness | ≥95% within 60 minutes | **No** — no payout has reached finality |
@@ -54,6 +56,8 @@ Each one reports its definition, threshold, value, numerator, denominator, wheth
 **A target whose inputs do not exist reports what is missing instead of a number.** This is the central decision of the step. Economics could easily print a positive figure by treating unrecorded compute, gas, verification and review cost as zero — and that figure would be worse than useless, because the exit gate would be read off it. Instead it names each missing input and reports what *is* known — finalized fee revenue, unrecovered resource cost — as parts, never summed into a margin.
 
 Payment correctness is the one target that is complete regardless: a duplicate finalized payout either exists or does not, and the ceiling invariant is a table check rather than a sample.
+
+Discovery precision was briefly in the "not measurable" column for the wrong reason: its query joined projects on a workspace id, so the denominator was structurally zero and the target reported "no input" however many findings were adjudicated. No check awarded a discovery decision and then read the metric, so nothing caught it. Both are fixed: the query counts the adjudicated submissions and the confirmed defects they were about, and a check awards a decision and asserts the numerator and denominator move.
 
 The readiness view also shows the **stream's own coverage**, because a target resting on an event that has never fired is not measuring anything and the reader should see that directly.
 

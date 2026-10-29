@@ -1,0 +1,93 @@
+# The funded payment authority and the shared approval
+
+Verified locally on 2026-10-29. This is PILOT-05, the last of the three gates outside the alpha, and the last one that is code rather than money, recruitment or a deployment. [Evidence](evidence/PILOT-05.json) records the checks and exact source hashes.
+
+Until now a payout was recorded, queued and then blocked, because no payment authority existed. Two things were missing: an adapter that can actually pay, and an account of what the payment authority can actually deliver — which turns out to be the harder half.
+
+## Why a per-campaign budget proves nothing
+
+Trialoom already reserves a campaign's maximum liability atomically against a ceiling the database enforces. That is a promise to operators, and it was treated as if it were also a statement about solvency. It is not.
+
+On Celo a payment under a Remesso policy is drawn from a token approval the builder granted to the allowance contract. The pinned SDK's own type for creating a policy says the budget is
+
+> "Added to your token approval for the allowance contract: the most this and your other policies for this token can ever spend together"
+
+and the live guide is blunter: "that one approval is shared by all their policies for the token", and "a policy has no total of its own". Quoting a payment "reserves nothing: another payment can still use the balance, the daily budget or the allowance."
+
+So two live briefs can each hold an authorized ceiling, each name their own policy, and be funded by a single approval only one of them can drain. Nothing in the per-campaign ledger notices. **This failure cannot appear in a local test with a recording adapter, because nothing there is shared.** It appears the first time a builder has two briefs open against a funded wallet — which is the pilot.
+
+## The approval is modelled as the contended object
+
+`payment_approvals` is keyed by the tuple that identifies an approval on chain — chain, token, payer — not by the workspace, the policy or the authority that references it. A `payment_authorities` row is a workspace's named, revocable handle on one of them: which policy signs, as which agent, under what label.
+
+Everything that can spend commits against that one row, and one table check does the work:
+
+```sql
+CONSTRAINT payment_approval_ceiling CHECK (committed_units <= declared_units)
+```
+
+Four moves, each an appended entry so the row replays from its own history:
+
+| Move | When | Effect |
+| --- | --- | --- |
+| `declare` | The builder states the approval they granted | Raises the remainder |
+| `commit` | A campaign's budget is authorized | Reserves it against every other brief |
+| `settle` | A payout reaches finality | Spend, not release: the remainder falls with it |
+| `release` | A brief is cancelled or completed | Returns only what no payable still needs |
+
+Three consequences are worth stating because each one was a decision:
+
+**A second authority on the same wallet describes the approval rather than adding to it.** Declaring is setting a number, not adding one; a handle that states ten when ten is already declared states the same ten. Adding would have recreated the exact bug.
+
+**A declaration can only rise.** An approval that has really shrunk is not a record to edit — it is a shortfall, which shows up when the approval is read. Reducing it means revoking on chain and verifying.
+
+**Settlement consumes the approval.** Finality moves the reservation to `settled` and lowers the declared remainder, mirroring an ERC-20 approval being drawn, so the stored remainder stays directly comparable with what the chain reports.
+
+A close returns a brief's unspendable remainder, computed as what it committed less what it settled less **everything still owed on a payable that has not finalized or been cancelled**. Releasing down to that and no further is what keeps an accepted obligation funded after the brief is shut. Because it is derived from the entries, closing twice releases nothing the second time.
+
+## Declaration, then verification
+
+A declaration is the builder's claim. `verifyAuthority` reads the policy through a provider and records what it said as an immutable observation — allowance, balance, whether the policy is active, and what was committed at the moment of reading.
+
+The solvency test is `min(allowance, balance) >= committed`: an allowance nobody can fund pays nothing, so the smaller of the two is what the approval can reach. Falling short marks the approval `short`, and **nothing is cancelled by the bad news**. A spending authorization was never escrow; withdrawing it cannot cancel a debt. The builder is told how far short it is, and those payouts will block as owed.
+
+With no provider configured, verification **refuses** rather than recording a reading nobody took. An unverified declaration stays visibly unverified.
+
+## The adapter
+
+`src/server/remesso.ts` implements the existing `SettlementAdapter` against `remesso-sdk`. Trialoom keeps the payable, the operation key, the states and the approval accounting; the adapter signs and asks the network.
+
+- A payable carries the authority that was committed for it, so the adapter never chooses a funding source. It refuses a payable with no authority rather than defaulting, because the policy and payer decide whose money moves.
+- `maxDebit` is the recipient's amount exactly. A protocol fee appearing later refuses the send instead of spending more of the builder's approval than was reserved.
+- A send the SDK reports as `confirmed` means a receipt was seen, which is **inclusion, not finality**. It is mapped to `included`, so finality is only ever read back, and only finality moves the ledger.
+- `confirm` calls `reconcile`, which continues a started payment and never starts a new one. A key the provider has no record of comes back `unknown`, which is the only state in which sending again under that key is safe.
+- `needs_reconciliation` maps to `uncertain`, which holds the key for the next attempt rather than sending again.
+
+### The journals live in Trialoom's database
+
+The SDK's `remesso-sdk/postgres` storage keeps its payment journals, its signer lock and its nonce floor in PostgreSQL; its `PostgresClient` is declared as a structural subset of postgres.js, so `pg` is bridged to it rather than adding a second driver and a second pool. The SDK is explicit about why this matters: with per-process journals, two workers would each keep their own keys and a retry on the other worker would pay a second time. Trialoom's worker is already multi-process, so this is the correct shape rather than a precaution.
+
+`remesso-sdk` moved from a development dependency to a runtime one. It was only a spike tool before; the API route now imports the adapter at module load, so a production install built with `--omit=dev` would have failed to start. `fflate` needed the same move when exports arrived.
+
+One pg client runs a single statement at a time, while postgres.js allows a reserved connection to be called freely, so queries on one connection are chained. On the connection holding the signer's session advisory lock, overlapping them would be a correctness problem rather than a driver warning.
+
+## What the fork check establishes
+
+`npm run payments:fork` drives the product's own path against deployed contract code on a disposable Anvil fork of Celo that the script starts and stops. Fourteen checks pass:
+
+a real policy is created by the payer's own wallet; the reader reads that live approval and balance and marks the authority verified; a brief publishes against it; an accepted decision owes a payable bound to the authority and to the operator's proven payout wallet; the worker settles it through the live adapter from `included` to `finalized`; **exactly the owed amount reaches the payee**, carried by **one** signed transaction from the agent; the approval records the spend and its remainder falls; a re-read of the chain agrees the live approval fell by exactly what was paid; the same operation key sent again reports the first payment and moves nothing; a key the provider never saw comes back `unknown`; a policy revoked on chain reads as `short` while the commitment stands; and revoking the authority pauses the brief without erasing the record.
+
+That is the first time value has moved through Trialoom's own code path. **It is not mainnet evidence.** Every transaction goes to loopback, the signing keys are the public Anvil fixture accounts, and the script refuses to run with a real key configured in the environment. Anvil reports `finalized` sixty-four blocks behind `latest`, so the check mines past that distance; real finality timing is unmeasured.
+
+## What remains
+
+- **No mainnet transaction, and no funded wallet.** Nothing here establishes production behaviour, gas cost, real finality timing, or event eligibility.
+- **Gas is not accounted anywhere.** The adapter's `maxDebit` covers the token debit; network gas is a separate cost paid by the agent address, and no record of it exists. The economics target still has a hole in exactly that shape.
+- **A declaration is believed until someone reads it.** Verification is a button, not a schedule: nothing re-reads an approval periodically, so an approval drained elsewhere stays `verified` in the record until the next read or the next failed payout. A scheduled re-read belongs with the attention queue.
+- **The agent key comes from the environment.** There is no key management, no rotation, and no hardware signer. A compromised process can spend the whole approval up to the policy's per-payment and per-day caps.
+- **One signer.** The SDK's coordinator serializes signing across workers, which is correct, but it also means payout throughput is one transaction at a time per agent address.
+- **Nothing reconciles on its own.** `recoverPending` exists in the SDK and is not wired to a schedule; recovery happens when the outbox retries a payable, which is adequate but not the provider's own recommendation.
+- **No webhook or indexer.** Payment state is pulled when a job runs. Remesso's signed webhooks and payment-events feed would report inclusion without waiting for a retry.
+- **The platform's own recipients are still unconfigured**, so platform fees and resource reimbursements block for a missing recipient rather than for a missing authority. That is a funding decision, not code.
+- **An authority is fixed at a brief's first publication.** That is deliberate — commitments would otherwise split across two approvals — but it means moving a live brief to another wallet is not possible without closing it.
+- `0.3.1` of the SDK was published on 2026-10-28 and is not adopted here; the pinned `0.3.0` is what the recorded spike hashes and this check were run against.

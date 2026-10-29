@@ -56,6 +56,27 @@ database and never touches `trialoom_dev`. The payment authority and the
 resource provider are recording fixtures: no value moves and nothing is bought.
 See [the loop and its boundaries](ALPHA-11.md).
 
+## The payment authority against a real chain
+
+```sh
+npm run payments:fork
+```
+
+This drives the same path against deployed contract code: it starts its own
+disposable Anvil fork of Celo, creates a real Remesso policy from the payer's
+wallet, registers a payment authority, publishes a brief against it, earns a
+real payable from a real accepted decision, and settles it through the live
+adapter from inclusion to finality — checking that exactly the owed amount
+reaches the payee, that one signed transaction carried it, that the shared
+approval records the spend, and that re-reading the chain agrees.
+
+It needs `anvil` on PATH, read access to `https://forno.celo.org`, and the
+local database running. Every transaction goes to loopback and the signing
+keys are the public Anvil fixture accounts, so **it refuses to run with
+`TRIALOOM_REMESSO_AGENT_KEY` set**: a configured key would be a real one.
+Nothing here is mainnet evidence. See [the payment authority and its
+limits](PILOT-05.md).
+
 The worker supports the harmless database-local `system.ping` job, payout
 dispatch, and resource reconciliation:
 

@@ -704,8 +704,9 @@ async function recordReimbursement(
   const { rows } = await db.query<{ id: string; operation_key: string }>(
     `INSERT INTO payables (campaign_id,assignment_id,operator_id,kind,category,amount_units,
     currency_chain_id,currency_address,currency_decimals,recipient_address,operation_key,
-    resource_purchase_id,state,blocked_reason)
-    VALUES ($1,$2,$3,'resource','resource',$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id,operation_key`,
+    resource_purchase_id,state,blocked_reason,authority_id)
+    VALUES ($1,$2,$3,'resource','resource',$4,$5,$6,$7,$8,$9,$10,$11,$12,
+    (SELECT authority_id FROM campaigns WHERE id=$1)) RETURNING id,operation_key`,
     [
       purchase.campaign_id,
       purchase.assignment_id,

@@ -126,12 +126,17 @@ export async function authorizeBudget(
   amount: bigint,
   authorization: string,
   actorId: string,
+  // Which registered authority this ceiling is committed against, when the
+  // workspace has one. Recorded on the authorization itself so a later audit
+  // can see which approval was asked to carry it.
+  authorityId: string | null = null,
 ) {
   if (amount <= 0n) throw new AppError('AMOUNT_INVALID', 'Authorize a positive amount.');
   await db.query(
-    `INSERT INTO budget_authorizations (campaign_id,amount_units,spending_authorization,authorized_by)
-    VALUES ($1,$2,$3,$4)`,
-    [campaignId, amount.toString(), authorization, actorId],
+    `INSERT INTO budget_authorizations
+    (campaign_id,amount_units,spending_authorization,authorized_by,authority_id)
+    VALUES ($1,$2,$3,$4,$5)`,
+    [campaignId, amount.toString(), authorization, actorId, authorityId],
   );
   await moveAccount(db, campaignId, { ceiling: amount });
   await postEntry(

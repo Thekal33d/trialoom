@@ -1,0 +1,729 @@
+{
+  "schemaVersion": 1,
+  "task": "PILOT-05",
+  "verifiedAt": "2026-10-29T14:30:00.000Z",
+  "sourceRevision": "7ca64a1",
+  "sourceTreeDirty": true,
+  "scope": "A payout was recorded, queued and then blocked because no payment authority existed. Adds the live Remesso adapter and, more importantly, an account of what a payment authority can actually deliver: one token approval is shared by every policy the same wallet grants, so per-campaign budgets say nothing about solvency and two live briefs could each believe they were funded",
+  "runtime": {
+    "node": "v24.11.1",
+    "postgres": "18.6",
+    "next": "16.4.3",
+    "pg": "8.23.1",
+    "zod": "4.6.7",
+    "playwright": "1.64.1",
+    "remesso-sdk": "0.3.0",
+    "viem": "2.57.7"
+  },
+  "sources": {
+    "checkedOn": "2026-10-29",
+    "sdkPolicyBudget": "remesso-sdk 0.3.0 dist/policies.d.ts, CreatePolicyInput.budget: 'Added to your token approval for the allowance contract: the most this and your other policies for this token can ever spend together'",
+    "agentPaymentsGuide": "https://docs.remesso.xyz/docs/guides/agent-payments \u2014 one approval is shared by all a wallet\u2019s policies for the token, and a policy has no total of its own",
+    "productionGuide": "https://docs.remesso.xyz/docs/guides/production-sdk \u2014 quoting reserves nothing; reconcile continues a started payment and never starts a new one",
+    "clientReference": "https://docs.remesso.xyz/docs/reference/client \u2014 policies.get returns ownerAllowance, ownerBalance, active, remainingToday and spendable; PaymentOperation.status values",
+    "postgresStorage": "remesso-sdk/postgres POSTGRES.md \u2014 shared journals, signer lock and nonce floor are required for multiple workers on one signing address",
+    "latestRelease": "remesso-sdk 0.3.1 published 2026-10-28 and not adopted; 0.3.0 stays pinned because the recorded spike hashes and these checks were run against it",
+    "contractAddressesUnchanged": "USDC 0xcebA9300f2b948710d2653dD7B07f33A8B32118C, RemessoAgentAllowance 0xA6351fAeEb097698289586C4D6188530300DB209, RemessoExecutorV5 0x3C357af3300f383Ea49B6D6ED8e084199a92bEd8, read from the pinned deployment manifest and confirmed as deployed code on the fork"
+  },
+  "accounting": {
+    "approvalIdentity": "chain, token and payer: the tuple that identifies the approval on chain, not the workspace, policy or authority that references it",
+    "ceiling": "CHECK (committed_units <= declared_units), so no application path can let two campaigns promise the same units",
+    "moves": [
+      "declare raises the remainder",
+      "commit reserves against every other brief",
+      "settle spends rather than releases",
+      "release returns only what no payable still needs"
+    ],
+    "replayable": "every move is an appended immutable entry; the row replays from them, so closing a brief twice releases nothing the second time",
+    "secondHandleOnOneWallet": "describes the same approval rather than adding to it",
+    "declarationMonotonic": "a declaration can only rise; a shrunken approval is a shortfall found by reading, not a record to edit",
+    "solvencyTest": "min(allowance, balance) >= committed; an allowance nobody can fund pays nothing",
+    "shortfallCancelsNothing": true
+  },
+  "adapter": {
+    "name": "remesso",
+    "funding": "policy, named by the payable\u2019s own authority; a payable with no authority is refused rather than defaulted",
+    "maxDebit": "the recipient amount exactly, so a protocol fee appearing later refuses the send",
+    "confirmedMeansInclusion": "a send the SDK reports as confirmed is mapped to included, never to finality",
+    "confirmUses": "reconcile, which continues a started payment and never starts a new one",
+    "unknownKey": "a key the provider has no record of returns unknown, the only state in which the key may be sent again",
+    "journals": "remesso-sdk/postgres in Trialoom\u2019s own database through a pg bridge over its structural postgres.js interface; queries on one connection are chained because the signer\u2019s session advisory lock lives on it",
+    "keySource": "TRIALOOM_REMESSO_AGENT_KEY; absent in this build, so the unconfigured adapter still blocks every payout"
+  },
+  "checks": {
+    "lint": "biome check, 107 files",
+    "types": "tsc --noEmit, strict",
+    "capability": "28 spike checks",
+    "database": 174,
+    "browser": 58,
+    "build": "next build succeeded",
+    "loop": "14 phases, 40 steps, exit 0",
+    "fork": "14 checks against deployed contract code on a disposable Anvil fork of Celo, exit 0",
+    "covered": [
+      "two briefs cannot both promise one shared approval; the refusal leaves the first published and the second a draft, and what fits is still publishable to the last base unit",
+      "a second authority on the same wallet resolves to one approval row and states the same amount rather than doubling it, while a different wallet has its own room",
+      "a declaration rises and is never edited downwards; the entries explain the number and the row replays from them",
+      "a forced UPDATE past the declared remainder is refused by the table check",
+      "publication must name an authority once one exists, and the authority is fixed at first publication",
+      "a finalized payout spends the approval instead of freeing it, and the declared remainder falls with it",
+      "closing a brief returns its remainder but keeps everything still owed on a payable reserved",
+      "a revoked authority blocks the payout with a named reason, pauses the brief, keeps the debt exactly as accepted, and funds nothing new",
+      "verification refuses with no provider configured; a reading below the commitments marks the approval short and cancels nothing; an inactive policy is short whatever the numbers say; observations are immutable",
+      "on a Celo fork with a real policy: the reader reads the live approval and balance, the worker settles a real payable from included to finality, exactly the owed amount reaches the payee in one signed transaction, the approval records the spend, a re-read of the chain agrees, the same key again moves nothing, and a policy revoked on chain reads as short",
+      "over real HTTP: an owner registers an authority, sees one shared approval across two handles on the same wallet, is refused a reading with no provider configured, and revokes it with what that does and does not do stated"
+    ]
+  },
+  "ci": "configured; not run on GitHub",
+  "forkBoundaries": [
+    "every transaction goes to loopback on a disposable Anvil fork the script starts and stops; the upstream Celo node is only read",
+    "the signing keys are the public Anvil fixture accounts, and the script refuses to run with TRIALOOM_REMESSO_AGENT_KEY set",
+    "Anvil reports finalized sixty-four blocks behind latest, so the check mines past that distance; real finality timing is unmeasured",
+    "no mainnet transaction, no funded wallet, and no evidence of production behaviour or event eligibility"
+  ],
+  "limits": [
+    "no mainnet transaction and no funded wallet, so nothing here establishes production behaviour, gas cost or real finality timing",
+    "network gas is not accounted anywhere: maxDebit covers the token debit only, and the economics target still has a hole in that shape",
+    "verification is a button, not a schedule: an approval drained elsewhere stays verified in the record until the next read or the next failed payout",
+    "the agent key comes from the environment, with no rotation and no hardware signer; a compromised process can spend up to the policy caps",
+    "one signer, serialized by the SDK coordinator, so payout throughput is one transaction at a time per agent address",
+    "recoverPending is not wired to a schedule; recovery happens when the outbox retries a payable",
+    "no webhook or indexer: payment state is pulled when a job runs rather than pushed on inclusion",
+    "the platform fee recipient and the resource recipient are still unconfigured, so those payables block for a missing recipient rather than a missing authority",
+    "an authority is fixed at a brief\u2019s first publication, so moving a live brief to another wallet needs the brief closed",
+    "remesso-sdk 0.3.1 exists and is not adopted"
+  ],
+  "sourceFiles": [
+    {
+      "path": ".env.example",
+      "sha256": "532779c92f476e5db9b5a5aa678b8a8075ee16e83dbf038f3c0fca246859beca"
+    },
+    {
+      "path": ".gitattributes",
+      "sha256": "952c9f6ae0360dd2e1a02f2dd2668789de128e91702daab304e0653e8f8e7e2b"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "1e12035ba2ca5ed43097a17b7498f2afcd4a313928bfeb43a9b645cecf6792f0"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "3d6a1df5293ccafeff0aafd9ce6157e302f6ccc84a9584ff6dd62b76adb6fe6c"
+    },
+    {
+      "path": ".impeccable.md",
+      "sha256": "02f6e9bd1ddfd7c7b512085e0d8b2bd42dd03d96436a535332418038431c6dc4"
+    },
+    {
+      "path": ".nvmrc",
+      "sha256": "d3fbdabc6e79cd4db661944014629a9d677d22d5e7656eadeea8ef55ddf9c9e3"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "bbe4ecd2b3e6abddb7f9edf9e245e3b48fde8dc2cbe87c9ae8cd3163f3963165"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "3bbb0c64d0aa55b18212efc03131ae4b5c8f6770e21cb3b8a1d325c2f8bd0ccd"
+    },
+    {
+      "path": "README.md",
+      "sha256": "fbbb8c31b40448764412a1a806ffab729de56d9c9a35e78ddffab1ff4da482d3"
+    },
+    {
+      "path": "biome.json",
+      "sha256": "267adc89fa68280dd86722430c19a2a5b5074045550ee7df7c5e796e5c59162f"
+    },
+    {
+      "path": "compose.yaml",
+      "sha256": "118e8892fb1ffc7f742acce35e816148baee1dd4e3facbba1de57d83342e85ce"
+    },
+    {
+      "path": "db/migrations/0001_runtime.sql",
+      "sha256": "80682b750d72933ee94a919d504d8feed2d5ce86d4e3c46245995d9c357b9e32"
+    },
+    {
+      "path": "db/migrations/0002_accounts.sql",
+      "sha256": "eba218e54aa6ede6ded1e87b6e7e5199703c46098a4e132b7fd1430e3772ad2f"
+    },
+    {
+      "path": "db/migrations/0003_projects_terms.sql",
+      "sha256": "a4f8bc15978ee0273629eb44eb1a50f40519f112863e39545c45ba742f31617c"
+    },
+    {
+      "path": "db/migrations/0004_operators.sql",
+      "sha256": "80dbda6a95f478c5806fbfaf05e361fdac1c684af13a1ed8d752754fa7dfa1f3"
+    },
+    {
+      "path": "db/migrations/0005_ledger_claims.sql",
+      "sha256": "add12ca135cd329dcf968d29e64e22f7f9d6d3e44402e834deecb02b17560688"
+    },
+    {
+      "path": "db/migrations/0006_runs_evidence.sql",
+      "sha256": "465f2780e684b4da15515ad763ce937b6c57d8caa13beddce1ff4ab984630844"
+    },
+    {
+      "path": "db/migrations/0007_findings_decisions.sql",
+      "sha256": "70fc529d5b3ee6337f4e204bc4136ebbda2715c73e27cc8603c4968cab10ebd9"
+    },
+    {
+      "path": "db/migrations/0008_payables_settlement.sql",
+      "sha256": "36a9b8e6c1084354ac49cb0e5048d8c6bd18237993a04ec4f30f2f117a359405"
+    },
+    {
+      "path": "db/migrations/0009_repairs.sql",
+      "sha256": "e00e6f352ccc4b654d3af872ef25f0c4b0870dbbf30ff79fd25c224e8adc63b5"
+    },
+    {
+      "path": "db/migrations/0010_resources.sql",
+      "sha256": "caad334e25e989298b820646388e9ec50608068407a1d7b94cdcb245914056a5"
+    },
+    {
+      "path": "db/migrations/0011_runner_isolation.sql",
+      "sha256": "5945a1194b3f1347f2334c05296820b2ddec9fffa8d1c778764ff010d94e117b"
+    },
+    {
+      "path": "db/migrations/0012_instrumentation.sql",
+      "sha256": "7b608bcd95e462ea5949f4f2e6b694c6c88c788a05a9a8716ade636a4aec546a"
+    },
+    {
+      "path": "db/migrations/0013_event_payload_guard.sql",
+      "sha256": "dbacef62ad7b0f1d1de7ca3386e391ce5841cb3a83b18ead0017f8d2998d47e6"
+    },
+    {
+      "path": "db/migrations/0014_payment_authority.sql",
+      "sha256": "9c42cb8f39e39e121f3b32d86215d3ecfc04b35645c9405cc83aec40a12674c6"
+    },
+    {
+      "path": "docs/ALPHA-02.md",
+      "sha256": "0bc89f1575bf80e4ba1eab387d4cc518b5b271d88d32693f6a8a720fee4247af"
+    },
+    {
+      "path": "docs/ALPHA-03.md",
+      "sha256": "2b712d8b0029d979aa65d67a48b32db8734cd35f1c3b9c2fcb94023c08ed27f1"
+    },
+    {
+      "path": "docs/ALPHA-04.md",
+      "sha256": "ae44dbb6e1259abf0f8e309c1ab3dec78409b9dc7fbdf28f74511b0fb6d70677"
+    },
+    {
+      "path": "docs/ALPHA-05.md",
+      "sha256": "a940d5bd83d68753536b362e4722ac19edea04062a382f2984e8f122e6215733"
+    },
+    {
+      "path": "docs/ALPHA-06.md",
+      "sha256": "cae2374b4cf4addb3ad64d860fe32d25ae9c10952dcff067c59abaff5fbd9a47"
+    },
+    {
+      "path": "docs/ALPHA-07.md",
+      "sha256": "52476fa092cb21588383daa9e473b30a1ebde71eb90ee1952af45e6cf38b816c"
+    },
+    {
+      "path": "docs/ALPHA-08.md",
+      "sha256": "d6550404bd1ae9aabaa0957261cd0c23ab92354fa118a74bc75378c16693a36e"
+    },
+    {
+      "path": "docs/ALPHA-09.md",
+      "sha256": "c89da9b08d22cf1e41d01c31bcdda37515f356a6c87e5d17a1fa4349d70a37ff"
+    },
+    {
+      "path": "docs/ALPHA-10.md",
+      "sha256": "964c53d7f8d6719b7c63a595f909586c667577f362aac2117552e3782e3afef9"
+    },
+    {
+      "path": "docs/ALPHA-11.md",
+      "sha256": "c6b808626f7e349a9afe54f5f4612d2fe86d76590cee61f34d3b500cd4844c3d"
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "sha256": "f0323d90c46cccf574df7cccca36f9c54e8070a219ceda2ac36cf50e47327084"
+    },
+    {
+      "path": "docs/BACKLOG.md",
+      "sha256": "0968349289d2c6cde6a3fbb5c9ad28765dee4a5d4a27b120b34a2f86bd4e6578"
+    },
+    {
+      "path": "docs/DEVELOPMENT.md",
+      "sha256": "a117c4576241fecdadf1c38f7eeef774e8f5d4e00a39e7d8f50764477ba9754f"
+    },
+    {
+      "path": "docs/HACKATHON.md",
+      "sha256": "38acc0208268cc8bc776ab7f909a9c876010ec2756d3e64c1517a27ecd8472a5"
+    },
+    {
+      "path": "docs/PILOT-03.md",
+      "sha256": "f535fd5ce23a7e5abaf64cc5e1a096f23f6a71c63b50ee243f6282e33233db49"
+    },
+    {
+      "path": "docs/PILOT-04.md",
+      "sha256": "01ac6041581472c5d93257b3d3ecef6daf198d7adbc4f889480af5ef6045f51b"
+    },
+    {
+      "path": "docs/PILOT-05.md",
+      "sha256": "ca024f0cd08c6aaccf29f71a0cded1695922939456cb366063b469f7bf2fd447"
+    },
+    {
+      "path": "docs/PRD.md",
+      "sha256": "c8f2ee691f7c0b111836999c96e33b8effe13b649a9e0cbbbf8e7a7566e1590d"
+    },
+    {
+      "path": "docs/ROADMAP.md",
+      "sha256": "fbff5b45a02746d0ff96663a9691b48ab104c8340703f65261ac5d56b6dd2b38"
+    },
+    {
+      "path": "docs/VALIDATION.md",
+      "sha256": "3cc3c72bfa44fd11def6271c88dd216bf4323a7beb01fd6a98592c38505176b2"
+    },
+    {
+      "path": "memory/BUILD_LOG.md",
+      "sha256": "540e47c2cb9cb5b0f5ec2dae4fe7719b27608f0f31ef606f46d40d42dc8e35dc"
+    },
+    {
+      "path": "memory/DECISIONS.md",
+      "sha256": "4cfa7dc43b98ad52f830e113db216e8bda173ab95d9ba4198834a7dbfc5578a6"
+    },
+    {
+      "path": "memory/PROJECT.md",
+      "sha256": "b599fbad44fcf37f3575f36d5bed7dcb70e8024ecab15805290f25150d8d2448"
+    },
+    {
+      "path": "memory/STATUS.md",
+      "sha256": "e0fabc1c7343ece010701b4e6fa27adc7fdac2e9759dfe1a78d3a903f0d2a6c6"
+    },
+    {
+      "path": "next-env.d.ts",
+      "sha256": "1862ac4bbbc5192d4bf562161df66ea547ed3e67173100656ab606ae9797db2b"
+    },
+    {
+      "path": "next.config.ts",
+      "sha256": "7e4df4dfba315d7163b67310d2db5c3d7f2ff17c435880428c969b1e1d5796ba"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "f62b206c8cbcb9242ac8ddb18e5e8d9ecb47b501441503ba155b1c833eefbef8"
+    },
+    {
+      "path": "package.json",
+      "sha256": "bbf09d7078a19dfc4d802d93645203912e5a2f267805c7e34864e6208f3e0df3"
+    },
+    {
+      "path": "playwright.config.ts",
+      "sha256": "5f860d457addca74a70ab7b63edb449ba6fc59f55596f97990375b8eb221015c"
+    },
+    {
+      "path": "runners/egress-proxy.ts",
+      "sha256": "7d96937a380af8c3ad7592fac6c56aeb2749764b290921dbec6bb0c26d874cc2"
+    },
+    {
+      "path": "scripts/enqueue.ts",
+      "sha256": "434d6e2b2113e79be90e024316486f97aaff3ced8deb7c20618a3603c72637e0"
+    },
+    {
+      "path": "scripts/invite.ts",
+      "sha256": "43105d726baa94f885959e63d0e89444585665e03ca9994e05b17b27dda0352b"
+    },
+    {
+      "path": "scripts/migrate.ts",
+      "sha256": "feab793bd67138c66a65f1909c27b79d05bf603c081e5b27a259ff4f145ce4f8"
+    },
+    {
+      "path": "scripts/run-loop.ts",
+      "sha256": "1c71688a7f10d13b53066cfe511f1a4124b7f576828a1407f665faf32b711216"
+    },
+    {
+      "path": "scripts/setup-auth.mjs",
+      "sha256": "6a350df10687f69820f55d9ab87dd37fcefd97a5b7afa41949cc0f5e2d1477a7"
+    },
+    {
+      "path": "scripts/setup-local.mjs",
+      "sha256": "0b2efad9cb1a05a8386a25112c1b766dd59f855fb2b333df4a4d2e0185cf4286"
+    },
+    {
+      "path": "scripts/test-browser.ts",
+      "sha256": "10cae5177c50d9b64763013bdc8398edc6f7c453d5d99c124f2c71ab44da200c"
+    },
+    {
+      "path": "scripts/verify-payments.ts",
+      "sha256": "4d57b82e2093c0ffbe334b9fda7324fc9dec2f4ab60c4202a4aefbee40e5689b"
+    },
+    {
+      "path": "src/app/account.css",
+      "sha256": "5605401b240741b6cea9d0888f820073cf8ed50feb49965b90924c6cd2a039fe"
+    },
+    {
+      "path": "src/app/api/agent/v1/[...path]/route.ts",
+      "sha256": "04156b17f8357016b8d53d64608a99e33c9618f7324a837f66761aa3c80493c5"
+    },
+    {
+      "path": "src/app/api/auth/[...all]/route.ts",
+      "sha256": "74441d8384cf5b676e2f9e5bcf0e5c904a6daab12ad11aa81df1177f48031d3a"
+    },
+    {
+      "path": "src/app/api/demo/report/route.ts",
+      "sha256": "ed1e229c9f964ba781298a1fae937fadfd563cba75c2e3ef855d452a9d0b579b"
+    },
+    {
+      "path": "src/app/api/health/route.ts",
+      "sha256": "fbbbcaf7ef028415b950ffe656ebb8959a92e6fb37f333a069b3482c811791a1"
+    },
+    {
+      "path": "src/app/api/host/v1/[...path]/route.ts",
+      "sha256": "66898b486988d98f0ddd55d7c2b8efe27af6b540d78c87dc9b5d27b121390159"
+    },
+    {
+      "path": "src/app/api/ready/route.ts",
+      "sha256": "e996e06361ce6aff91d362a3f6ae4b2a1fb78a58d8de5765c0b20b6be25f3c79"
+    },
+    {
+      "path": "src/app/api/v1/[...path]/route.ts",
+      "sha256": "9d26108ec281ddf4b05258ac6535ae88ed2ef7ad8fff726ff93e7047d010f0b0"
+    },
+    {
+      "path": "src/app/demo/evidence/page.tsx",
+      "sha256": "b84d1a270ec182ed853e6a419aeb21a3b814519ce8880cca590c67ea4829b5f0"
+    },
+    {
+      "path": "src/app/demo/guide/page.tsx",
+      "sha256": "f21c861861ecc41ee1be030dcbf23e2b1ca85492caecd4252525803cb81de53c"
+    },
+    {
+      "path": "src/app/demo/page.tsx",
+      "sha256": "f30590dbdde42e1fc2692ac28ca5f4e8c269e617f900d1748c5db36def82d0af"
+    },
+    {
+      "path": "src/app/demo/payments/page.tsx",
+      "sha256": "5cf87be0bdc4297cdd85537280364e1b66ef29506306a3d93bd81e807c065379"
+    },
+    {
+      "path": "src/app/globals.css",
+      "sha256": "d3e1e8fb8be678ddac269b67959a6ec239b8cef68a29570ae60f4b4055b35d6a"
+    },
+    {
+      "path": "src/app/icon.svg",
+      "sha256": "96318a4e9c08f97ab765beb2c22bda0ddf0d86492b3bffd2c55ee423200ca21a"
+    },
+    {
+      "path": "src/app/join/page.tsx",
+      "sha256": "62ffbcfc904f1ff84b99c9fd47adc77bd3aa8f546d4d50e01c36c63f7e9045f7"
+    },
+    {
+      "path": "src/app/layout.tsx",
+      "sha256": "0bc5c45f2c73eafe8629e65c53bc68ca8d340aa34040b3316b78a524d834a2bb"
+    },
+    {
+      "path": "src/app/operator/page.tsx",
+      "sha256": "167d2beb1288dd3ffd9f36a0871b04a1cdf1b65decab0128cd5e3f7119027d59"
+    },
+    {
+      "path": "src/app/page.tsx",
+      "sha256": "17332aff66ebd92d84312852c8b2f61ab248f135b66b2abc36a394fc9c174447"
+    },
+    {
+      "path": "src/app/sign-in/page.tsx",
+      "sha256": "0f7b49e679d4ad6b89701d857bb6c6d1c52f7f49af816048ebbc5e4fdab8c635"
+    },
+    {
+      "path": "src/app/workspace/page.tsx",
+      "sha256": "fb93df4fe081cdac19f2f0ce336b3ac77be64823b9995656146612518d80345d"
+    },
+    {
+      "path": "src/components/access-panel.tsx",
+      "sha256": "24efa589a10439166c954922437f0cbd53393793e817ccb75cd3f4561e661112"
+    },
+    {
+      "path": "src/components/attention-panel.tsx",
+      "sha256": "593425d12434b64646d9ce32b7a875eb3ab309089f3560b2b34210de000c6601"
+    },
+    {
+      "path": "src/components/auth-form.tsx",
+      "sha256": "eeb388f850e3662d378dabd0136e53e0f77d98bd18bcacd3dea4279ac73ba7db"
+    },
+    {
+      "path": "src/components/authority-panel.tsx",
+      "sha256": "eb89f6995c58149e93071baf85f5cf61deb9dbdf5791305fca6c2bd0b16c22d3"
+    },
+    {
+      "path": "src/components/campaign-panel.tsx",
+      "sha256": "a6d21b48e4014e0432d76ad7b7f2ac79abd72b934b22ead74ef6144a9bdc2382"
+    },
+    {
+      "path": "src/components/host-panel.tsx",
+      "sha256": "ea822b638ecdbb5435e2ef75304c7ec576f9c9b6830a3c816b07f8e94ac85790"
+    },
+    {
+      "path": "src/components/icons.tsx",
+      "sha256": "ded3090157954b69598f1e28afec5a48ab8d30159ce83563129c26a604c2d665"
+    },
+    {
+      "path": "src/components/live-types.ts",
+      "sha256": "c70f379c6addc53277052349b66d3edbe2708f408b5f6c1797708fd97e492d6c"
+    },
+    {
+      "path": "src/components/live-workspace.tsx",
+      "sha256": "ea3f039e914ada967f75931722dbf0eb62b791d2c2f806895029059c351aea11"
+    },
+    {
+      "path": "src/components/metrics-panel.tsx",
+      "sha256": "f5a8f1537c7246b59621d20b32cb9366ff09b9f094523d5ff18d755545d03ce2"
+    },
+    {
+      "path": "src/components/operator-console.tsx",
+      "sha256": "715ae66b7b199ab59f9095f588bbbb48e442ffa8dcbfa82270c3af53aca7a092"
+    },
+    {
+      "path": "src/components/project-panel.tsx",
+      "sha256": "8d88f0c3b350c62267648c3efc22b9e5295dfa3d7cade5cc264cc00e5b99af56"
+    },
+    {
+      "path": "src/components/repair-panel.tsx",
+      "sha256": "1e8ad0b18411ef4ee0f0f16fdab9b13a5958c56e2858a3ee384079e2a18937e8"
+    },
+    {
+      "path": "src/components/resource-panel.tsx",
+      "sha256": "74d664d9d4c17211bf4dc06cd8fa0129bee266db93f63102210f423413ff7526"
+    },
+    {
+      "path": "src/components/review-panel.tsx",
+      "sha256": "010d338524aa9fbaeddf5ce9b14950a1ff522fa80fe24fac2293442fcc09084e"
+    },
+    {
+      "path": "src/components/terms-form.tsx",
+      "sha256": "c79f69a1a7169baed6f0da87a6ebada20f58486ef1586ad5137c2fbe1f1e803f"
+    },
+    {
+      "path": "src/components/workspace.tsx",
+      "sha256": "e35e9285e5f14e72cfc6d2200ca702c08eba45cee8c8e9c4aa3e0f789b46924a"
+    },
+    {
+      "path": "src/demo/data.ts",
+      "sha256": "fb256a436264ba86875e18ca6a51854f6c868d25fe179b5b8b94997839cedbae"
+    },
+    {
+      "path": "src/domain/errors.ts",
+      "sha256": "dba69283676705bbcb3a62f21d9b9840ac2b50c332a8dbb95e0f26f7f23662f8"
+    },
+    {
+      "path": "src/domain/schemas.ts",
+      "sha256": "9dd7f66191ab6cb63cdfc1982b27175b34c42b0b3f63dcada623ec8a8082492b"
+    },
+    {
+      "path": "src/domain/values.ts",
+      "sha256": "c44d20930a8ba42c4a5cd476c979117dc438c9a91923b8533ecb8a053c38a3d6"
+    },
+    {
+      "path": "src/server/access.ts",
+      "sha256": "4e32fc440ab04d7881676f7d6d9f7cad559a2ce1f99b1b5e09ff4b72abcbd92e"
+    },
+    {
+      "path": "src/server/agents.ts",
+      "sha256": "7cc3c3b02ad3cf9b7fe76d017e31e2bd27dd7f6d16a4084df59d2e246c03fc3a"
+    },
+    {
+      "path": "src/server/assignments.ts",
+      "sha256": "905b8369d98e7763a6dacb8036a035b2e07d2e3c24e8cc5ef19970fed5b458da"
+    },
+    {
+      "path": "src/server/attention.ts",
+      "sha256": "369c9c1e2b77c2ba017ff54b2026cf90b5ce8dcb682b49a3235e67aa6451a382"
+    },
+    {
+      "path": "src/server/auth/config.ts",
+      "sha256": "bc43879307ee90e7f0523314d284ed17e740a65f0f2f2c49c994a3db93fce7a9"
+    },
+    {
+      "path": "src/server/authority.ts",
+      "sha256": "3d0c99d1bdc925c4619d71bf71ce1674ae56f3290f15e4a085e704d56c29d5fd"
+    },
+    {
+      "path": "src/server/database.ts",
+      "sha256": "d91d0257ea53122c1b810b0d8fce31927ded245bb09db1f2fee96675e0620f64"
+    },
+    {
+      "path": "src/server/decisions.ts",
+      "sha256": "5b2cf2e3201386fe4d9cb6086061244663858cc4b9b032f1f2ae81971f4b1964"
+    },
+    {
+      "path": "src/server/events.ts",
+      "sha256": "f88e8aca68aa86b6ea1dd003f63c3031aafb1740c191d982ae895a1dd31f2076"
+    },
+    {
+      "path": "src/server/evidence.ts",
+      "sha256": "dc36d710b0d3252732ddc9205ff7f82557a7bef8f11b896f6981bb367dca3743"
+    },
+    {
+      "path": "src/server/exports.ts",
+      "sha256": "521f382c7878334437dc510ab7ad038986914b5782d4f27f08c2e7655a83f73f"
+    },
+    {
+      "path": "src/server/findings.ts",
+      "sha256": "314b2a4ac097b24bb1ecbc471585a6243508f1c383623e28f81ddea9c1a7a7d1"
+    },
+    {
+      "path": "src/server/http.ts",
+      "sha256": "29591bab594a13d1754230a4fe60e3ff0379b26412d9cb42c32a5fb42c38c276"
+    },
+    {
+      "path": "src/server/invitations.ts",
+      "sha256": "6e007692535991c6d1aead98ee77e37923287f1c50fb27aefbc1e1ca30dbbd7f"
+    },
+    {
+      "path": "src/server/isolation.ts",
+      "sha256": "b156460b66546f08c2bafe49d0116d4f762b0c7b2368224320873381eaa45a27"
+    },
+    {
+      "path": "src/server/jobs.ts",
+      "sha256": "ecafa85acc758519452a3630f41c3451dc40ec40de30f7bf001d74a09da673ed"
+    },
+    {
+      "path": "src/server/ledger.ts",
+      "sha256": "712a57dfaf40f2de9e9736dff32caefc49830c9ad70f55bb8206983fe2428d89"
+    },
+    {
+      "path": "src/server/metrics.ts",
+      "sha256": "688d6d3e14284f838944b24e41dd036fcd41d1d7e0092905fed8a232649575b4"
+    },
+    {
+      "path": "src/server/migrations.ts",
+      "sha256": "181c139e174afb7bf25ecb3ec8120423084fa31ab36b064b78d23361f5507513"
+    },
+    {
+      "path": "src/server/operators.ts",
+      "sha256": "b6d201523ccc6218df1bbadd3f61b87681614fe1effa519ea584a9de381b595d"
+    },
+    {
+      "path": "src/server/payables.ts",
+      "sha256": "e0589ca22c8abefb2731fd0a93964728e8823d156f64503286f4ff4e943cb827"
+    },
+    {
+      "path": "src/server/projects.ts",
+      "sha256": "dbe3c3d3b15d8ef90c3c0a5de9ecb7a68596ae270addaff72e4184114da12fac"
+    },
+    {
+      "path": "src/server/qualification.ts",
+      "sha256": "d6e594fbb9f08dbc45862a74518f3ac89f066a3845a8425c345b8a5881310b5e"
+    },
+    {
+      "path": "src/server/redaction.ts",
+      "sha256": "24ee249347823535e291c1f6c82274cad5135991635ecffdd9be340b7134a90d"
+    },
+    {
+      "path": "src/server/remesso.ts",
+      "sha256": "72b84dfdb93193a0a9da68f3efdcc225a4c83a2200f38044cdc92f9efbb1b34c"
+    },
+    {
+      "path": "src/server/repairs.ts",
+      "sha256": "76998783d500f52ddbc14eb2b9266ef556164d2b3c792cba9567884d31a72e97"
+    },
+    {
+      "path": "src/server/resources.ts",
+      "sha256": "61d40ddb6ce693f11dc7987ab77ba18ce267265c0e5a326a2975510ebf96ca42"
+    },
+    {
+      "path": "src/server/runner.ts",
+      "sha256": "b2b54125043e87cad88e5e91480f8af5147229392569388cb1b0a131960c3087"
+    },
+    {
+      "path": "src/server/settlement.ts",
+      "sha256": "8caca64cb226daa7db300b6cbd1be7b123b242c1aaae63c93eb0870028b249b1"
+    },
+    {
+      "path": "src/server/storage.ts",
+      "sha256": "0138059c26cfaa79b51ccba7456659eef5050ed54e7740c9049a0ad1c72c688c"
+    },
+    {
+      "path": "src/server/targets.ts",
+      "sha256": "d3afc9112b2382abef906177d061c9f40c62f2e470fe8c927ed8747c76565651"
+    },
+    {
+      "path": "src/server/workspaces.ts",
+      "sha256": "aba42d65ef43ed5432dcfbdc2120d2d69cf3802d9e37f38b169bd540ff2ff83f"
+    },
+    {
+      "path": "tests/accounts.test.ts",
+      "sha256": "c49889098b52be1e2293200bda2701b9def4602dd538f89dc51844c114b92db3"
+    },
+    {
+      "path": "tests/agents.test.ts",
+      "sha256": "4337c41441c069955c453c0c94e4f6c5544917bd4b6c96fd07d21c3c0d18963c"
+    },
+    {
+      "path": "tests/authority.test.ts",
+      "sha256": "81fedc56291276358cf58aac2fad0ad4579f5c0b985eed28bab476780c34e3f5"
+    },
+    {
+      "path": "tests/backend.test.ts",
+      "sha256": "8a0a0274468e7acb7f0924e054241a0e17e3126add79c7314d7c1d917d751bbe"
+    },
+    {
+      "path": "tests/browser/accounts.spec.ts",
+      "sha256": "dcc470f3d16f7b67b269964eb9e68afab90d35b411db7ce6edd512a6b87d55ac"
+    },
+    {
+      "path": "tests/browser/evidence.spec.ts",
+      "sha256": "89a963d7eabc42f29c063dd5927fc22a3f1081bf921028f0f657613a67c43d01"
+    },
+    {
+      "path": "tests/browser/operator.spec.ts",
+      "sha256": "0361e161ca2c9f4075386f1cf9b643aa168aa1de804377207e703b4df7386f60"
+    },
+    {
+      "path": "tests/browser/workspace.spec.ts",
+      "sha256": "e91fe3495d91e8c23a9a4228d77a0e8b6bd45cd0c6d128f3f3551fbc9cfe156a"
+    },
+    {
+      "path": "tests/decisions.test.ts",
+      "sha256": "c3b7c2c623fa881a37cdac1398e378d33a2f87be450a1be68cebf5ea9305ea90"
+    },
+    {
+      "path": "tests/exports.test.ts",
+      "sha256": "a236f8e86fe7c93a823b4ca23ac21e556034d261099a0c3d152c0ad6f52df3fb"
+    },
+    {
+      "path": "tests/helpers/database.ts",
+      "sha256": "8832e5c948db1c72a2d308f8e639f07e93c436055b8e1943fd322801101eb439"
+    },
+    {
+      "path": "tests/isolation.test.ts",
+      "sha256": "62272d5d1a3126adb2be049a91134af27ad79b9cfdedb30c2143593421d9fbed"
+    },
+    {
+      "path": "tests/ledger.test.ts",
+      "sha256": "4d54f179effc29a14d20a86c0a4a0e16f7fabd71be3821bb916a4ad518933798"
+    },
+    {
+      "path": "tests/metrics.test.ts",
+      "sha256": "21b84703318824c865276bbbf4c36ed0d3e8b4ec9e709f3c9fccd192769c4c0f"
+    },
+    {
+      "path": "tests/operators.test.ts",
+      "sha256": "2910fcbc412021166d7e333520d0d663727ae60a4823db31ffee1dc1f0e72e71"
+    },
+    {
+      "path": "tests/projects.test.ts",
+      "sha256": "c96113c2287df185ac923a9ca02b3563ab0a0fd940b107bfbd560d14a773895e"
+    },
+    {
+      "path": "tests/repairs.test.ts",
+      "sha256": "186b34e456bf08cee111498824d4e5de5539626aad1d2f294915890f63fe8dbc"
+    },
+    {
+      "path": "tests/resources.test.ts",
+      "sha256": "59ae1313fd38820f289253f58b492eb9a44ab7b025f2a564f4724dd1927c6081"
+    },
+    {
+      "path": "tests/runner.test.ts",
+      "sha256": "5c090caf602ef56e1af3d3eec2bc868c8bc4c635038cbb28e0a9b45128782abc"
+    },
+    {
+      "path": "tests/settlement.test.ts",
+      "sha256": "f079a4aeeedab0ee43636dc4ad712565e999e53f22eb99e19edda0e70417a302"
+    },
+    {
+      "path": "tsconfig.json",
+      "sha256": "07ea5aae2e78809233b49771e534578ec5b249083dd45394614fcda8a24994a6"
+    },
+    {
+      "path": "workers/main.ts",
+      "sha256": "e06192fa045d0625d7493bcf5497e1c8cd6107a5be1b2e4c0af7b8c220ffb433"
+    }
+  ]
+}

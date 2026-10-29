@@ -6,6 +6,14 @@ import { RepairPanel } from './repair-panel';
 import { ResourcePanel } from './resource-panel';
 import { ReviewPanel } from './review-panel';
 
+/** A live authority this brief may draw on, with what it has left to promise. */
+type LiveAuthority = {
+  id: string;
+  reference: string;
+  policyId: string;
+  revokedAt: string | null;
+  approval: { uncommittedUnits: string; state: string };
+};
 type Accounting = {
   ceilingUnits: string;
   committedUnits: string;
@@ -121,9 +129,13 @@ export function CampaignPanel({
   reload: () => Promise<void>;
 }) {
   const campaignBase = `${base}/campaigns/${campaign.id}`;
+  // Publishing commits against the workspace's payment authority, which lives
+  // a level up from the project this brief belongs to.
+  const workspaceBase = base.replace(/\/projects\/[^/]+$/, '');
   const [ledger, setLedger] = useState<Ledger>();
   const [evidence, setEvidence] = useState<Submissions>();
   const [payouts, setPayouts] = useState<{ payouts: Payout[]; note: string }>();
+  const [authorities, setAuthorities] = useState<LiveAuthority[]>();
   const [activity, setActivity] = useState<{
     events: {
       topic: string;
@@ -154,7 +166,14 @@ export function CampaignPanel({
     setPayouts(await api<{ payouts: Payout[]; note: string }>(`${campaignBase}/payouts`));
     setWaiting(await api(`${campaignBase}/attention`));
     setActivity(await api(`${campaignBase}/activity`));
-  }, [campaignBase]);
+    // Only an owner publishes, and only an owner may read the authorities.
+    if (isOwner)
+      setAuthorities(
+        (
+          await api<{ authorities: LiveAuthority[] }>(`${workspaceBase}/payment-authorities`)
+        ).authorities.filter((authority) => !authority.revokedAt),
+      );
+  }, [campaignBase, workspaceBase, isOwner]);
   useEffect(() => {
     load().catch((e) => setError(e instanceof Error ? e.message : 'Ledger unavailable.'));
   }, [load]);
@@ -238,6 +257,7 @@ export function CampaignPanel({
                 maxConcurrent: Number(field(form, 'maxConcurrent')),
                 authorizeUnits: toUnits(field(form, 'authorize') || '0'),
                 spendingAuthorization: field(form, 'spendingAuthorization'),
+                ...(field(form, 'authorityId') ? { authorityId: field(form, 'authorityId') } : {}),
                 authorizationConfirmed: form.get('authorizationConfirmed') === 'on',
               });
               setPublishing(false);
@@ -275,6 +295,19 @@ export function CampaignPanel({
             Authorize additional budget (USDC)
             <input name="authorize" inputMode="decimal" defaultValue={published ? '0' : '20'} />
           </label>
+          {authorities?.length ? (
+            <label>
+              Pay from
+              <select name="authorityId" defaultValue={authorities[0].id}>
+                {authorities.map((authority) => (
+                  <option key={authority.id} value={authority.id}>
+                    {authority.reference} · {money(authority.approval.uncommittedUnits)} left to
+                    promise
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           <label>
             Spending authorization reference
             <input
@@ -285,8 +318,9 @@ export function CampaignPanel({
             />
           </label>
           <small>
-            This records the authorization you configured; it is not escrow and no funds are held
-            here. Accepted work stays owed even if the authorization is later revoked.
+            {authorities?.length
+              ? 'The budget is committed against that approval, which every brief drawing on the same wallet shares. If it has less left to promise than this brief needs, publishing is refused rather than overcommitted. It is still not escrow: accepted work stays owed even if the approval is revoked.'
+              : 'This records the authorization you configured; it is not escrow and no funds are held here. Accepted work stays owed even if the authorization is later revoked.'}
           </small>
           <label className="check-field">
             <input name="authorizationConfirmed" type="checkbox" required />I authorize spending up

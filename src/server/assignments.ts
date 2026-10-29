@@ -9,6 +9,7 @@ import {
 } from '../domain/schemas.ts';
 import { type Actor, audit, requireRole } from './access.ts';
 import type { AgentSession } from './agents.ts';
+import { commitOnAuthority, releaseOnClose, resolveAuthority } from './authority.ts';
 import { transaction } from './database.ts';
 import { emit } from './events.ts';
 import {
@@ -151,8 +152,21 @@ async function publish(
         VALUES ($1,0,$2,$3)`,
         [campaignId, 42220, '0xcebA9300f2b948710d2653dD7B07f33A8B32118C'],
       );
-    if (authorization > 0n)
-      await authorizeBudget(db, campaignId, authorization, data.spendingAuthorization, actor.id);
+    // Which approval will actually pay. Resolved before the budget rises, so a
+    // brief whose authority cannot cover it is refused rather than published
+    // with a promise two campaigns are both relying on.
+    const authority = await resolveAuthority(db, workspaceId, campaignId, data.authorityId);
+    if (authorization > 0n) {
+      if (authority) await commitOnAuthority(db, authority.id, campaignId, authorization, actor.id);
+      await authorizeBudget(
+        db,
+        campaignId,
+        authorization,
+        data.spendingAuthorization,
+        actor.id,
+        authority?.id ?? null,
+      );
+    }
     const account = await lockAccount(db, campaignId);
     const required = perAssignment * BigInt(data.slots);
     const headroom =
@@ -170,8 +184,16 @@ async function publish(
     await db.query(
       `UPDATE campaigns SET status='open',slots=$2,max_concurrent=$3,published_terms_id=$4,
       published_by=$5,published_at=COALESCE(published_at,clock_timestamp()),closed_at=NULL,
-      spending_authorization=$6 WHERE id=$1`,
-      [campaignId, data.slots, data.maxConcurrent, terms.id, actor.id, data.spendingAuthorization],
+      spending_authorization=$6,authority_id=COALESCE($7,authority_id) WHERE id=$1`,
+      [
+        campaignId,
+        data.slots,
+        data.maxConcurrent,
+        terms.id,
+        actor.id,
+        data.spendingAuthorization,
+        authority?.id ?? null,
+      ],
     );
     await audit(
       db,
@@ -232,7 +254,7 @@ export async function authorizeMore(
   input: unknown,
 ) {
   const data = publicationSchema
-    .pick({ authorizeUnits: true, spendingAuthorization: true })
+    .pick({ authorizeUnits: true, spendingAuthorization: true, authorityId: true })
     .parse(input);
   return transaction(pool, async (db) => {
     await requireRole(db, actor, workspaceId, ['owner']);
@@ -244,12 +266,16 @@ export async function authorizeMore(
         409,
       );
     await lockAccount(db, campaignId);
+    const authority = await resolveAuthority(db, workspaceId, campaignId, data.authorityId);
+    const amount = BigInt(data.authorizeUnits);
+    if (authority) await commitOnAuthority(db, authority.id, campaignId, amount, actor.id);
     await authorizeBudget(
       db,
       campaignId,
-      BigInt(data.authorizeUnits),
+      amount,
       data.spendingAuthorization,
       actor.id,
+      authority?.id ?? null,
     );
     await audit(db, workspaceId, actor.id, 'campaign.budget_authorized', campaignId);
     return campaignAccounting(db, campaignId);
@@ -290,11 +316,18 @@ export async function setCampaignStatus(
       THEN clock_timestamp() ELSE NULL END WHERE id=$1`,
       [campaignId, status],
     );
+    // A closed brief will never spend its remainder, so the approval can
+    // promise it to the next one. What is still owed on a payable stays
+    // reserved: withdrawing an authorization has never cancelled a debt.
+    const returned = ['cancelled', 'completed'].includes(status)
+      ? await releaseOnClose(db, campaignId, `Campaign ${status}`, actor.id)
+      : 0n;
     await audit(db, workspaceId, actor.id, `campaign.${status}`, campaignId);
     return {
       status,
       reason,
       drainingAssignments: live,
+      approvalReleasedUnits: returned.toString(),
       note:
         status === 'cancelled'
           ? 'New claims stopped. Live assignments continue under their pinned terms and accepted obligations remain owed.'

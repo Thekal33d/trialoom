@@ -9,6 +9,14 @@ import {
   setCampaignStatus,
 } from '@/server/assignments';
 import { campaignAttentionRecord, workspaceAttention } from '@/server/attention';
+import {
+  registerAuthority,
+  revokeAuthority,
+  topUpAuthority,
+  unreadableAuthority,
+  verifyAuthority,
+  workspaceAuthorities,
+} from '@/server/authority';
 import { getPool, transaction } from '@/server/database';
 import {
   decideDiscovery,
@@ -66,6 +74,7 @@ import {
 } from '@/server/projects';
 import { qualificationStatus } from '@/server/qualification';
 import { redactionPolicy } from '@/server/redaction';
+import { configuredPayments } from '@/server/remesso';
 import { decideQuote, proposeQuote } from '@/server/repairs';
 import { listWorkspaces, workspaceAccess } from '@/server/workspaces';
 export const runtime = 'nodejs';
@@ -343,6 +352,42 @@ async function handler(request: Request) {
       }
       if (parts.length === 4 && parts[2] === 'runner-hosts' && method === 'DELETE')
         return json(await revokeHost(pool, actor, workspaceId, parts[3]));
+      if (parts.length === 3 && parts[2] === 'payment-authorities') {
+        if (method === 'GET') return json(await workspaceAuthorities(pool, actor, workspaceId));
+        if (method === 'POST')
+          return json(
+            await registerAuthority(pool, actor, workspaceId, await readJson(request)),
+            201,
+          );
+      }
+      if (parts.length === 4 && parts[2] === 'payment-authorities') {
+        const authorityId = uuid.parse(parts[3]);
+        if (method === 'POST')
+          return json(
+            await topUpAuthority(pool, actor, workspaceId, authorityId, await readJson(request)),
+          );
+        if (method === 'DELETE')
+          return json(
+            await revokeAuthority(pool, actor, workspaceId, authorityId, await readJson(request)),
+          );
+      }
+      // Reading the approval from the chain is a provider call, so it is a
+      // mutation: it records an observation and may mark the authority short.
+      if (
+        parts.length === 5 &&
+        parts[2] === 'payment-authorities' &&
+        parts[4] === 'verification' &&
+        method === 'POST'
+      )
+        return json(
+          await verifyAuthority(
+            pool,
+            actor,
+            workspaceId,
+            uuid.parse(parts[3]),
+            configuredPayments(pool)?.reader ?? unreadableAuthority,
+          ),
+        );
       if (parts.length === 3 && parts[2] === 'invitations' && method === 'POST') {
         const invite = await createInvitation(pool, actor, workspaceId, await readJson(request));
         return json(

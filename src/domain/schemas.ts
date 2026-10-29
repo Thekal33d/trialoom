@@ -122,6 +122,10 @@ export const publicationSchema = z
     maxConcurrent: z.number().int().min(1).max(100),
     authorizeUnits: units,
     spendingAuthorization: z.string().trim().min(1).max(200),
+    // Which registered authority this brief draws on. Optional only because a
+    // workspace that has registered none publishes against a free-text
+    // reference that pays nobody; once one exists, naming it is required.
+    authorityId: uuid.optional(),
     authorizationConfirmed: z.literal(true),
   })
   .strict();
@@ -441,4 +445,33 @@ export const quoteDecisionSchema = z
     outcome: z.enum(['approved', 'rejected', 'withdrawn']),
     reason: z.string().trim().min(3).max(500),
   })
+  .strict();
+
+/**
+ * A funded payment authority. The payer is the address whose token approval
+ * actually pays; the agent is the address Trialoom signs with. They are
+ * different parties and conflating them is how an integration pays from the
+ * wrong balance, so both are stated.
+ */
+export const paymentAuthoritySchema = z
+  .object({
+    reference: z.string().trim().min(1).max(120),
+    provider: z.literal('remesso'),
+    policyId: z
+      .string()
+      .trim()
+      .regex(/^[0-9]{1,40}$/, 'A policy id is a number.'),
+    payerAddress: addressSchema,
+    agentAddress: addressSchema,
+    // What the builder states they approved for the spender, in base units.
+    // It is a claim until a reader confirms it against the chain.
+    declaredUnits: units,
+    declarationAcknowledged: z.literal(true),
+  })
+  .strict();
+export const approvalTopUpSchema = z
+  .object({ declaredUnits: units, declarationAcknowledged: z.literal(true) })
+  .strict();
+export const authorityRevocationSchema = z
+  .object({ reason: z.string().trim().min(3).max(200) })
   .strict();

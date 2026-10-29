@@ -1,4 +1,5 @@
 import type { Pool, PoolClient } from 'pg';
+import { settleOnAuthority } from './authority.ts';
 import { transaction } from './database.ts';
 import { emit, workspaceOfCampaign } from './events.ts';
 import { completeJob, type JobLease, rescheduleJob } from './jobs.ts';
@@ -20,6 +21,18 @@ export type SettlementRequest = {
   tokenAddress: string;
   recipient: string;
   amountUnits: string;
+  /**
+   * Whose approval pays, and under which policy. A payable carries this so the
+   * adapter never has to choose a funding source: the policy and payer decide
+   * whose money moves, and a default would move the wrong wallet's.
+   */
+  authority?: {
+    id: string;
+    provider: 'remesso';
+    policyId: string;
+    payerAddress: string;
+    agentAddress: string;
+  };
 };
 export type SettlementResult = {
   status: 'submitted' | 'included' | 'finalized' | 'uncertain' | 'failed' | 'unknown';
@@ -73,6 +86,15 @@ async function payoutSubject(db: PoolClient, payable: Record<string, string>) {
     operatorId: payable.operator_id,
   };
 }
+
+type Authority = {
+  id: string;
+  provider: 'remesso';
+  policy_id: string;
+  agent_address: string;
+  payer_address: string;
+  revoked_at: Date | null;
+};
 
 const blockedFor: Record<string, string> = {
   authority_revoked: 'authority_revoked',
@@ -155,11 +177,35 @@ export async function dispatchPayout(
     }
     // Any previous attempt means this key may already exist at the provider.
     const mode = payable.attempts > 0 ? ('confirm' as const) : ('send' as const);
+    // Which approval pays. A revoked authority stops the send and keeps the
+    // debt; a payment already started is still reconciled, because money that
+    // has moved has to be accounted for whatever happened to the permission.
+    const authority = payable.authority_id
+      ? (
+          await db.query<Authority>(
+            `SELECT a.id,a.provider,a.policy_id,a.agent_address,a.revoked_at,p.payer_address
+            FROM payment_authorities a JOIN payment_approvals p ON p.id=a.approval_id
+            WHERE a.id=$1`,
+            [payable.authority_id],
+          )
+        ).rows[0]
+      : undefined;
+    if (mode === 'send' && authority?.revoked_at) {
+      await db.query(
+        `UPDATE payables SET state='blocked',blocked_reason='authority_revoked',
+        updated_at=clock_timestamp() WHERE id=$1`,
+        [payableId],
+      );
+      await db.query(`UPDATE campaigns SET status='paused' WHERE id=$1 AND status='open'`, [
+        payable.campaign_id,
+      ]);
+      return { action: 'wait' as const, detail: 'authority_revoked' };
+    }
     await db.query(
       'UPDATE payables SET attempts=attempts+1,updated_at=clock_timestamp() WHERE id=$1',
       [payableId],
     );
-    return { action: mode, payable };
+    return { action: mode, payable, authority };
   });
 
   if (prepared.action === 'missing' || prepared.action === 'done') {
@@ -171,12 +217,22 @@ export async function dispatchPayout(
     return `waiting:${prepared.detail}`;
   }
   const payable = prepared.payable;
+  const authority = prepared.authority;
   const request: SettlementRequest = {
     operationKey: payable.operation_key,
     chainId: payable.currency_chain_id,
     tokenAddress: payable.currency_address,
     recipient: payable.recipient_address,
     amountUnits: payable.amount_units,
+    authority: authority
+      ? {
+          id: authority.id,
+          provider: authority.provider,
+          policyId: authority.policy_id,
+          payerAddress: authority.payer_address,
+          agentAddress: authority.agent_address,
+        }
+      : undefined,
   };
   let result: SettlementResult;
   try {
@@ -292,6 +348,15 @@ async function applyResult(pool: Pool, payableId: string, result: SettlementResu
       decisionId: payable.decision_id,
       resourcePurchaseId: payable.resource_purchase_id,
     });
+    // The approval really did lose these units, so the commitment becomes
+    // spend rather than being freed back to the next brief.
+    if (payable.authority_id)
+      await settleOnAuthority(
+        db,
+        payable.authority_id,
+        payable.campaign_id,
+        BigInt(payable.amount_units),
+      );
     await lockAccount(db, payable.campaign_id);
     await finalizeAccepted(
       db,

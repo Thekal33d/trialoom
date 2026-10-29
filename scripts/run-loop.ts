@@ -25,6 +25,7 @@ import {
   sweepExpiredAssignments,
 } from '../src/server/assignments.ts';
 import { workspaceAttention } from '../src/server/attention.ts';
+import { registerAuthority, verifyAuthority } from '../src/server/authority.ts';
 import { transaction } from '../src/server/database.ts';
 import { decideDiscovery, decideExecution } from '../src/server/decisions.ts';
 import { storeArtifact, submitEvidence } from '../src/server/evidence.ts';
@@ -203,6 +204,8 @@ async function settle(adapter: SettlementAdapter, key: string, rounds = 4) {
   }
   return outcomes;
 }
+const approvalStanding = async (approvalId: string) =>
+  (await db.pool.query('SELECT * FROM payment_approvals WHERE id=$1', [approvalId])).rows[0];
 const payablesFor = async (assignmentId: string) =>
   (
     await db.pool.query('SELECT * FROM payables WHERE assignment_id=$1 ORDER BY kind,created_at', [
@@ -216,6 +219,7 @@ let owner!: { id: string; name: string; email: string };
 let workspaceId = '';
 let projectId = '';
 let buildId = '';
+let treasury = '';
 
 async function actorFor(email: string) {
   return (await db.pool.query('SELECT id,name,email FROM auth_user WHERE email=$1', [email]))
@@ -294,6 +298,10 @@ async function brief(
         maxConcurrent: slots,
         authorizeUnits: '40000000',
         spendingAuthorization: 'remesso-policy-loop-fixture',
+        // Once a workspace has an authority, every brief names the approval it
+        // draws on, so the ceilings cannot add up to more than one wallet has
+        // actually approved.
+        ...(treasury ? { authorityId: treasury } : {}),
         authorizationConfirmed: true,
       }),
   };
@@ -390,6 +398,22 @@ try {
     )
   ).id;
   note('project', `authorized ${target} and pinned build ${baseRevision}`);
+
+  const payer = privateKeyToAccount(generatePrivateKey()).address;
+  const authority = await registerAuthority(db.pool, owner, workspaceId, {
+    reference: 'Loop treasury policy',
+    provider: 'remesso',
+    policyId: '41',
+    payerAddress: payer,
+    agentAddress: privateKeyToAccount(generatePrivateKey()).address,
+    declaredUnits: '200000000',
+    declarationAcknowledged: true,
+  });
+  treasury = authority.authorityId;
+  note(
+    'payment authority',
+    `declared a ${authority.approval.declaredUnits} base unit approval on ${payer}; it is a revocable permission on the builder's own wallet, not escrow`,
+  );
 
   const discovery = await brief('Find invitation defects', 'bug_discovery');
   const published = await discovery.publish();
@@ -594,8 +618,109 @@ try {
     'settlement, with authority',
     `${states.join(' → ')}; the ledger moved ${discoveryPayable.amount_units} base units to finalized, and only at finality`,
   );
+  const spent = await approvalStanding(authority.approval.approvalId);
+  assert.equal(spent.settled_units, discoveryPayable.amount_units);
+  assert.equal(
+    BigInt(spent.declared_units) + BigInt(spent.settled_units),
+    BigInt(authority.approval.declaredUnits),
+  );
+  note(
+    'approval accounting',
+    `the approval records ${spent.settled_units} spent with ${spent.committed_units} still committed and ${spent.declared_units} declared remaining; a finalized payout consumes the approval instead of returning to the next brief`,
+  );
 
-  heading('6. Recovery: a crash after broadcast pays once, not twice');
+  heading('6. One approval funds every brief, and the second cannot promise the first money');
+  // A second wallet, declared tightly, so the contention is visible in one
+  // phase rather than needing the main narrative's whole budget.
+  const tight = await registerAuthority(db.pool, owner, workspaceId, {
+    reference: 'Small second wallet',
+    provider: 'remesso',
+    policyId: '42',
+    payerAddress: privateKeyToAccount(generatePrivateKey()).address,
+    agentAddress: privateKeyToAccount(generatePrivateKey()).address,
+    declaredUnits: '6000000',
+    declarationAcknowledged: true,
+  });
+  const sameWallet = await registerAuthority(db.pool, owner, workspaceId, {
+    reference: 'Same wallet, second handle',
+    provider: 'remesso',
+    policyId: '43',
+    payerAddress: tight.approval.payerAddress,
+    agentAddress: privateKeyToAccount(generatePrivateKey()).address,
+    declaredUnits: '6000000',
+    declarationAcknowledged: true,
+  });
+  // Two policies on one wallet share one approval, which is what the provider
+  // documents, so the second handle describes the same six rather than adding
+  // six more.
+  assert.equal(sameWallet.approval.approvalId, tight.approval.approvalId);
+  assert.equal(sameWallet.approval.declaredUnits, '6000000');
+  const firstTight = await brief('Tight budget one', 'bug_discovery', 1);
+  await publishCampaign(db.pool, owner, workspaceId, projectId, firstTight.campaign.campaignId, {
+    termsVersionId: firstTight.campaign.id,
+    slots: 1,
+    maxConcurrent: 1,
+    authorizeUnits: '4000000',
+    spendingAuthorization: 'remesso-policy-loop-fixture',
+    authorityId: tight.authorityId,
+    authorizationConfirmed: true,
+  });
+  const secondTight = await brief('Tight budget two', 'bug_discovery', 1);
+  const refusal = await publishCampaign(
+    db.pool,
+    owner,
+    workspaceId,
+    projectId,
+    secondTight.campaign.campaignId,
+    {
+      termsVersionId: secondTight.campaign.id,
+      slots: 1,
+      maxConcurrent: 1,
+      authorizeUnits: '4000000',
+      spendingAuthorization: 'remesso-policy-loop-fixture',
+      authorityId: sameWallet.authorityId,
+      authorizationConfirmed: true,
+    },
+  ).then(
+    () => null,
+    (error: Error & { code?: string }) => error,
+  );
+  assert.equal(refusal?.code, 'AUTHORITY_OVERCOMMITTED');
+  assert.match(refusal?.message ?? '', /2000000 left uncommitted/);
+  assert.equal(
+    (
+      await db.pool.query('SELECT status FROM campaigns WHERE id=$1', [
+        secondTight.campaign.campaignId,
+      ])
+    ).rows[0].status,
+    'draft',
+  );
+  note(
+    'shared approval',
+    'the second brief is refused rather than published against money the first one already promised; the first is untouched',
+  );
+  // Verification is what turns a declaration into a fact. A reading below the
+  // commitments is reported, and nothing is cancelled by the bad news.
+  const read = await verifyAuthority(db.pool, owner, workspaceId, tight.authorityId, {
+    name: 'loop-fixture',
+    async read() {
+      return {
+        allowanceUnits: '6000000',
+        balanceUnits: '1000000',
+        policyActive: true,
+        detail: 'The wallet has been drained elsewhere.',
+      };
+    },
+  });
+  assert.equal(read.approval.state, 'short');
+  assert.equal(read.approval.shortfallUnits, '3000000');
+  assert.equal((await approvalStanding(tight.approval.approvalId)).committed_units, '4000000');
+  note(
+    'verification',
+    `the chain read reports ${read.approval.shortfallUnits} base units short of what is committed; the obligation stands and the builder is told`,
+  );
+
+  heading('7. Recovery: a crash after broadcast pays once, not twice');
   const crashing = recordingSettlement([
     { status: 'uncertain', detail: 'The answer never came back.' },
   ]);
@@ -618,7 +743,7 @@ try {
     `${recovery.join(' → ')}; one send and ${attempts.length - 1} reconciliation(s) against the same operation key (R06)`,
   );
 
-  heading('7. Recovery: an expired claim is fenced and its reservation returns');
+  heading('8. Recovery: an expired claim is fenced and its reservation returns');
   const lapsing = await qualifiedOperator('loop-lapsed');
   const before = await campaignAccounting(db.pool, discovery.campaign.campaignId);
   const lapsed = await startWork(lapsing, discovery.campaign.campaignId);
@@ -697,7 +822,7 @@ try {
     `the attempt was fenced with ${fencedSubmission} and its reservation returned to the campaign (R12)`,
   );
 
-  heading('8. A confirmed defect is quoted, repaired and independently verified');
+  heading('9. A confirmed defect is quoted, repaired and independently verified');
   const repair = await brief('Repair the invitation validator', 'repair', 2);
   const author = await qualifiedOperator('loop-author');
   const quote = await proposeQuote(db.pool, owner, workspaceId, projectId, {
@@ -876,7 +1001,7 @@ try {
     `after confirmation, ${paidAuthor.movedUnits} base units became owed; the patch is delivered for review and Trialoom merges nothing`,
   );
 
-  heading('9. A run buys a capped resource and the eligible cost is reimbursed');
+  heading('10. A run buys a capped resource and the eligible cost is reimbursed');
   await authorizeResourceCeiling(db.pool, 1_000_000n, 'loop-fixture-funding');
   const buyer = await qualifiedOperator('loop-buyer');
   const buying = await startWork(buyer, discovery.campaign.campaignId);
@@ -990,7 +1115,7 @@ try {
     'the settlement is unknown, so the purchase was not bought again and its 20000 base units stayed reserved through the release (R07)',
   );
 
-  heading('10. A witnessed run is held to what its egress proxy saw');
+  heading('11. A witnessed run is held to what its egress proxy saw');
   // Terms are immutable once written, so the requirement is part of the brief
   // from the start rather than something set on it afterwards.
   const witnessed = await brief('Witnessed invitation journey', 'bug_discovery', 2, {
@@ -1126,7 +1251,7 @@ try {
     `the proxy saw ${agreed.egress.allowedOrigins.join(', ')} and denied ${agreed.egress.deniedAttempts} attempt(s) to leave the allowlist; the agent's claim had to agree`,
   );
 
-  heading('11. The work instruments itself, and the targets say what they rest on');
+  heading('12. The work instruments itself, and the targets say what they rest on');
   const stream = (
     await db.pool.query<{ topic: string; n: number }>(
       'SELECT topic,count(*)::int AS n FROM events GROUP BY topic ORDER BY topic',
@@ -1163,7 +1288,7 @@ try {
       .join(', '),
   );
 
-  heading('12. The builder sees what is waiting and exports the record');
+  heading('13. The builder sees what is waiting and exports the record');
   const queue = await workspaceAttention(db.pool, owner, workspaceId);
   const queued = queue.campaigns.find((row) => row.id === discovery.campaign.campaignId);
   note(
@@ -1197,7 +1322,7 @@ try {
     `${Object.keys(files).length} files, hash ${contentHash.slice(0, 12)} verified from the file itself, no raw archive and no leaked credential`,
   );
 
-  heading('13. The ledger still replays, and what is owed is visible');
+  heading('14. The ledger still replays, and what is owed is visible');
   const final = await campaignAccounting(db.pool, discovery.campaign.campaignId);
   assert.equal(final?.reconciled, true);
   const repairLedger = await campaignAccounting(db.pool, repair.campaign.campaignId);
@@ -1234,7 +1359,8 @@ try {
     openPayables,
     limits: [
       'Evidence is produced by this harness, not by a hosted sandboxed runner.',
-      'No funded payment authority is configured: the truthful end state is an owed, blocked payable, and finality here is a recording fixture.',
+      'No funded payment authority is configured: the truthful end state is an owed, blocked payable, and finality here is a recording fixture. The live adapter is exercised against a real policy on a disposable Celo fork by `npm run payments:fork`.',
+      'The payment authority here is declared, not verified against any chain: the approval accounting is exercised, the approval itself is a stated number.',
       'No resource wallet is configured: the provider is a fixture and nothing was bought.',
       'The loop drives the server modules directly; the HTTP surface is covered by the browser checks.',
     ],

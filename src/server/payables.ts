@@ -51,6 +51,16 @@ export async function recordPayables(
 ) {
   const wallet = await payoutWallet(db, source.operatorId);
   const fee = feeRecipient(env);
+  // The approval that will pay, fixed with the payable rather than looked up
+  // when the worker runs: the campaign's authority could be revoked by then,
+  // and this payment is still owed against the one that was committed for it.
+  const authorityId =
+    (
+      await db.query<{ authority_id: string | null }>(
+        'SELECT authority_id FROM campaigns WHERE id=$1',
+        [source.campaignId],
+      )
+    ).rows[0]?.authority_id ?? null;
   const created: { id: string; kind: string; state: string; amountUnits: string }[] = [];
   let operatorPayableId: string | null = null;
   // Operator work settles first: a fee is collectible only once it has.
@@ -85,12 +95,13 @@ export async function recordPayables(
       operationKey(),
       blocked ? 'blocked' : 'queued',
       blocked,
+      authorityId,
     ];
     const inserted = await db.query<{ id: string; operation_key: string }>(
       `INSERT INTO payables (campaign_id,assignment_id,decision_id,operator_id,kind,category,
       depends_on,amount_units,currency_chain_id,currency_address,currency_decimals,
-      recipient_address,recipient_wallet_id,operation_key,state,blocked_reason)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+      recipient_address,recipient_wallet_id,operation_key,state,blocked_reason,authority_id)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
       RETURNING id,operation_key`,
       values,
     );

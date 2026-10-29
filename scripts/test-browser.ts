@@ -836,6 +836,18 @@ try {
       email: `${viewport}-join@example.test`,
       name: 'Invited browser workspace',
     });
+    // The payment authority check has its own workspace: registering one makes
+    // naming it a requirement for every later publication there, which would
+    // otherwise reach the other specs through the shared database.
+    const treasury = await bootstrapWorkspace(db.pool, {
+      email: `${viewport}-treasury-owner@example.test`,
+      name: 'Treasury workspace',
+    });
+    await acceptInvitation(
+      db.pool,
+      { token: treasury.token, name: 'Treasury builder', password },
+      null,
+    );
     fixtures[viewport] = {
       password,
       ownerEmail,
@@ -844,6 +856,8 @@ try {
       campaignId: campaign.campaignId,
       termsVersionId: campaign.id,
       joinToken: join.token,
+      treasuryOwnerEmail: `${viewport}-treasury-owner@example.test`,
+      treasuryWorkspaceId: treasury.workspaceId,
       reviewerEmail: `${viewport}-reviewer@example.test`,
       operatorEmail: `${viewport}-operator@example.test`,
       evidenceOwnerEmail: `${viewport}-evidence-owner@example.test`,

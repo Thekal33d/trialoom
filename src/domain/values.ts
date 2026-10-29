@@ -25,3 +25,15 @@ export function formatUnits(value: string, decimals = 6): string {
   const fraction = padded.slice(-decimals).replace(/0+$/, '');
   return `${padded.slice(0, -decimals)}.${fraction.padEnd(2, '0')}`;
 }
+/**
+ * Base units as the exact decimal a payment provider expects. Unlike
+ * `formatUnits` this pads nothing and rounds nothing: 1 base unit of a
+ * six-decimal token is "0.000001", and an amount that cannot be written
+ * exactly cannot be sent.
+ */
+export function exactUnits(value: string, decimals = 6): string {
+  const padded = value.padStart(decimals + 1, '0');
+  const whole = padded.slice(0, -decimals).replace(/^0+(?=\d)/, '');
+  const fraction = padded.slice(-decimals).replace(/0+$/, '');
+  return fraction ? `${whole}.${fraction}` : whole;
+}

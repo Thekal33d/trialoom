@@ -390,3 +390,14 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Validation: lint over 110 files, strict types, 28 capability checks, 193 database checks (4 new), 58 browser checks, `npm run loop` at 44 steps, `npm run payments:fork` at 19 checks, and a production build.
 - Left unfixed and reported: pressing Verify with no provider configured still raises an `authority.unreadable` notice saying the approval "could not be read, so what it can pay is no longer confirmed", which conflates an unreachable chain with an unconfigured deployment for an approval that was never confirmed.
 - Commit subject: `fix: hold the approval for draining work, and stop a wait retiring its job`.
+
+## 2026-10-29 — Review follow-up — The false alarm an absent provider raised
+
+- Fixed the last thing the state review reported: pressing Verify, or the recurring read running, with no payment provider configured raised an `authority.unreadable` notice saying the approval "could not be read, so what it can pay is no longer confirmed".
+- Two things were wrong with it. **An absent reader is not a failed read**: nothing about the approval had changed, nothing went wrong on the chain, and the approval was already visibly unverified, so there was nothing to tell anybody — and in this build, where nothing is configured, it fired on every attempt. And the wording claimed something was **no longer** confirmed about an approval that had never been confirmed at all.
+- `AUTHORITY_READER_UNAVAILABLE` was already a distinguishable code, so the guard is one condition. The refusal is still recorded on the approval as `last_read_error`, which is the honest explanation of why it stays unverified; what stops is the notice.
+- The notice's wording now depends on whether a reading ever existed: an approval that has been read says what it can pay is no longer confirmed, one that never has says it has never been confirmed against the chain, and the detail carries `everRead` so a receiver can tell the two apart without parsing prose.
+- Also stopped a pointless retry storm in exactly the state this build is in: a provider that is absent now will be absent in fifteen minutes, so that case waits the ordinary six-hour interval rather than retrying at the pace of an incident. A reader that is configured and genuinely fails still retries sooner.
+- Verified the new check fails without the guard: it reported the false notice, summary and all. A browser check now also asserts that clicking Verify with nothing configured leaves no notice on the screen, which is where a builder would have seen the false alarm.
+- Validation: lint over 110 files, strict types, 28 capability checks, 194 database checks (1 new), 58 browser checks, `npm run loop` at 44 steps, `npm run payments:fork` at 19 checks, and a production build.
+- Commit subject: `fix: do not raise a notice when no provider was ever configured`.

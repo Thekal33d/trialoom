@@ -139,6 +139,8 @@ The signing secret is **stored rather than digested**, which is the opposite of 
 | The policy is inactive on chain | `authority.inactive` | New claims had already stopped |
 | The approval could not be read | `authority.unreadable` | None |
 
+**An absent reader is not a failed read.** With no provider configured nothing about the approval has changed, nothing went wrong on the chain, and the approval is already visibly unverified — so raising `authority.unreadable` on every attempt was a false alarm, and it said the approval was "no longer confirmed" about one that had never been confirmed at all. The refusal is still recorded on the approval as the reason it stays unverified, nobody is told, and the recurring read waits the ordinary interval rather than retrying at the pace of an incident. A reader that is configured and genuinely fails still raises the notice, and its wording now depends on whether a reading ever existed.
+
 A notice decides nothing. It is an account of a condition the platform already holds, and no obligation is cancelled and no payment blocked because one was or was not delivered.
 
 ## What the fork check establishes

@@ -335,6 +335,10 @@ test('an owner registers a payment authority and sees one shared approval', asyn
   await row.getByRole('button', { name: 'Verify against the chain' }).click();
   await expect(panel).toContainText('No payment provider is configured');
   await expect(row).toContainText('declared, never read from the chain');
+  // A provider that is absent is not an incident: nothing about the approval
+  // changed, so the refusal leaves no notice behind.
+  const told = page.locator('.live-section', { hasText: 'Where you are told' });
+  await expect(told).not.toContainText('could not be read');
 
   // A second handle on the same wallet describes the same approval.
   await panel.getByRole('button', { name: 'Register an authority' }).click();

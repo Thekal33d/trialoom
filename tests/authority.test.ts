@@ -1355,3 +1355,44 @@ test('replacing a notice destination really requeues what was never delivered', 
   assert.equal(sent[0].url, 'https://second.example.com/hook');
   await revokeEndpoint(db.pool, owner, workspaceId, second.endpointId);
 });
+
+test('an unconfigured provider explains itself without raising a false alarm', async () => {
+  const live = await authority('No provider', '5000000');
+  await assert.rejects(
+    verifyAuthority(db.pool, owner, workspaceId, live.authorityId, unreadableAuthority),
+    /No payment provider is configured/,
+  );
+  // Nothing about the approval changed and nothing went wrong on the chain, so
+  // there is nobody to tell: the approval is already visibly unverified.
+  assert.deepEqual(await noticesFor(live.authorityId), []);
+  const approval = await approvalOf(live.approval.approvalId);
+  assert.equal(approval.state, 'declared');
+  assert.equal(approval.observed_at, null);
+  assert.match(approval.last_read_error, /No payment provider is configured/);
+  // And the recurring read waits the ordinary interval rather than retrying at
+  // the pace of an incident, because a provider that is absent now will be
+  // absent in fifteen minutes.
+  const scheduled = await runVerification(live.authorityId, unreadableAuthority);
+  assert.equal(scheduled.outcome, 'unread:AUTHORITY_READER_UNAVAILABLE');
+  assert.deepEqual(await noticesFor(live.authorityId), []);
+  assert.ok(scheduled.job?.wait > 3600 * (verificationIntervalHours - 1));
+
+  // A reader that is configured and genuinely fails is a different thing, and
+  // it says the approval has never been confirmed rather than that it is no
+  // longer confirmed.
+  await runVerification(live.authorityId, failingReader('forno returned 502'));
+  const raised = await noticesFor(live.authorityId);
+  assert.equal(raised.length, 1);
+  assert.equal(raised[0].topic, 'authority.unreadable');
+  assert.match(raised[0].summary, /has never been confirmed/);
+  assert.equal(raised[0].detail.everRead, false);
+
+  // Once a reading exists, a later failure is the loss of something real.
+  await runVerification(live.authorityId, reading('5000000', '5000000'));
+  assert.ok((await noticesFor(live.authorityId))[0].resolved_at);
+  await runVerification(live.authorityId, failingReader('forno returned 502'));
+  const again = (await noticesFor(live.authorityId)).filter((row) => !row.resolved_at);
+  assert.equal(again.length, 1);
+  assert.match(again[0].summary, /no longer confirmed/);
+  assert.equal(again[0].detail.everRead, true);
+});

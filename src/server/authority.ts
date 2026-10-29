@@ -634,19 +634,34 @@ export async function observeAuthority(
     // say the approval has not been checked lately, which is a different thing
     // from saying it is short.
     const message = `${(error as Error).message}`.slice(0, 300);
+    // And an absent reader is not a failed read. With no provider configured
+    // nothing about the approval has changed, nothing went wrong on the chain,
+    // and the approval is already visibly unverified — so there is nothing to
+    // tell anybody, and raising it was a false alarm on every attempt.
+    const absent = (error as { code?: string }).code === 'AUTHORITY_READER_UNAVAILABLE';
     await transaction(pool, async (db) => {
+      const approval = await lockApproval(db, handle.approvalId);
       await db.query(
         `UPDATE payment_approvals SET last_read_error=$2,updated_at=clock_timestamp() WHERE id=$1`,
         [handle.approvalId, message],
       );
+      if (absent) return;
       // An approval nobody can read is worth telling somebody about, because
-      // the record will otherwise keep reporting a reading taken days ago.
+      // the record will otherwise keep reporting a reading taken days ago —
+      // unless there has never been one, which the summary has to say rather
+      // than claiming something was confirmed and no longer is.
       await raiseNotice(db, {
         workspaceId: handle.workspaceId,
         topic: 'authority.unreadable',
         subjectId: handle.id,
-        summary: `The approval behind "${handle.policyId}" could not be read, so what it can pay is no longer confirmed.`,
-        detail: { policyId: handle.policyId, reason: message },
+        summary: approval.observed_at
+          ? `The approval behind policy ${handle.policyId} could not be read, so what it can pay is no longer confirmed.`
+          : `The approval behind policy ${handle.policyId} could not be read, and it has never been confirmed against the chain.`,
+        detail: {
+          policyId: handle.policyId,
+          reason: message,
+          everRead: approval.observed_at !== null,
+        },
       });
     });
     throw error;
@@ -802,8 +817,16 @@ export async function verifyScheduled(
     if (!outcome.policyActive) return `inactive:${outcome.pausedCampaigns}`;
     return outcome.approval.state;
   } catch (error) {
-    await rescheduleJob(pool, lease, retrySeconds);
-    return `unread:${(error as { code?: string }).code ?? 'failed'}`;
+    const code = (error as { code?: string }).code;
+    // A provider that is not configured will not be configured fifteen minutes
+    // from now, so that case waits the ordinary interval instead of retrying
+    // at the pace of an incident.
+    await rescheduleJob(
+      pool,
+      lease,
+      code === 'AUTHORITY_READER_UNAVAILABLE' ? verificationIntervalHours * 3600 : retrySeconds,
+    );
+    return `unread:${code ?? 'failed'}`;
   }
 }
 

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "task": "PILOT-05",
-  "verifiedAt": "2026-10-29T20:20:00.000Z",
+  "verifiedAt": "2026-10-29T22:00:00.000Z",
   "sourceRevision": "300f1c2",
   "sourceTreeDirty": true,
   "scope": "A payout was recorded, queued and then blocked because no payment authority existed. Adds the live Remesso adapter and, more importantly, an account of what a payment authority can actually deliver: one token approval is shared by every policy the same wallet grants, so per-campaign budgets say nothing about solvency and two live briefs could each believe they were funded. Payout gas is read from each transaction\u2019s own receipt and reported in the currency it was paid in, which closes one of the economics target\u2019s holes without making it measurable. Each approval is re-read on a timer that reschedules itself, and a read that failed is kept strictly apart from an approval that is genuinely short. What that read finds is raised once as a notice, resolved when it stops, and delivered as a signed POST that records whether anyone was told",
@@ -55,7 +55,7 @@
     "lint": "biome check, 110 files",
     "types": "tsc --noEmit, strict",
     "capability": "28 spike checks",
-    "database": 193,
+    "database": 194,
     "browser": 58,
     "build": "next build succeeded",
     "loop": "14 phases, 44 steps, exit 0",
@@ -94,7 +94,8 @@
       "cancelling a brief holds the approval for an assignment that is still live, releasing only the genuine remainder, and the next brief cannot promise what that work will owe",
       "a payout whose provider keeps answering \"included\" is still polled after the attempt limit and finalizes whenever the chain gets there",
       "a payout the provider keeps refusing spends the limit and is retired as dead rather than left pending and unclaimable, while the payable stays blocked and owed",
-      "replacing a notice destination revives the finished delivery job rather than reporting a requeue that did nothing"
+      "replacing a notice destination revives the finished delivery job rather than reporting a requeue that did nothing",
+      "an unconfigured provider records why the approval stays unverified and raises no notice, and waits the ordinary interval rather than retrying as an incident; a configured reader that genuinely fails still raises one, saying the approval has never been confirmed when no reading ever existed"
     ]
   },
   "ci": "configured; not run on GitHub",
@@ -120,8 +121,7 @@
     "a notice goes to a URL rather than to a person: there is still no email and no platform-reviewer channel, and a workspace that registers no destination is back to reading the queue, with the difference that the platform records that nobody was told",
     "review escalation could use this channel and does not yet; that belongs with PILOT-01",
     "no reminders: an open notice is delivered once and then waits for the condition to clear, so a shortfall nobody acts on for a week is not raised again",
-    "a real HTTPS delivery from a registered row is untested, because registration refuses a loopback URL by design; the transport is tested against a loopback server and the orchestration against the database",
-    "pressing Verify with no payment provider configured still raises an authority.unreadable notice, which conflates an unreachable chain with an unconfigured deployment for an approval that was never confirmed"
+    "a real HTTPS delivery from a registered row is untested, because registration refuses a loopback URL by design; the transport is tested against a loopback server and the orchestration against the database"
   ],
   "sourceFiles": [
     {
@@ -302,7 +302,7 @@
     },
     {
       "path": "docs/PILOT-05.md",
-      "sha256": "4d2cf4b5f1182f2c13e6e7bfd2b5a1b4d89e026871ebdf80531fba06c41c9073"
+      "sha256": "db15dbf30523fb04a861920d65c809f44adcd3b7fbd722b6df65efd7b95a12e7"
     },
     {
       "path": "docs/PRD.md",
@@ -318,7 +318,7 @@
     },
     {
       "path": "memory/BUILD_LOG.md",
-      "sha256": "ca117528e5bf8955aab5eb6eb4723eaa033f926b441bf7dcc4e4167d8cfcd5c8"
+      "sha256": "b86bba1c20d688dd6fc755ad1ab641a73cdebce841e39ae52ba310d398195d50"
     },
     {
       "path": "memory/DECISIONS.md",
@@ -330,7 +330,7 @@
     },
     {
       "path": "memory/STATUS.md",
-      "sha256": "c6528f3862dae68a10abcf3e7ef0c028aefbcf10c0e8dd04bcf5a68a3474460b"
+      "sha256": "7b3c133d8430ffe1ba75c60da87b7173846af9f53ea904df5c90bcaa7a708692"
     },
     {
       "path": "next-env.d.ts",
@@ -578,7 +578,7 @@
     },
     {
       "path": "src/server/authority.ts",
-      "sha256": "0481901a98b495669283aa908f3d7c724e83979d75226024331e7edf8703ba2e"
+      "sha256": "3011e239f1efe9aabbcdd0ebff2a0ad353871e130c62a431717ae1d341f62dbf"
     },
     {
       "path": "src/server/database.ts",
@@ -702,7 +702,7 @@
     },
     {
       "path": "tests/authority.test.ts",
-      "sha256": "48537222063424004253f46c89ae6e8aba4c73e3c3f7786cf7e333acac8a39e3"
+      "sha256": "b427af2c141f7fb6ff43aabd49ac876a05fe511b29d7a4a9512410d0750d67a7"
     },
     {
       "path": "tests/backend.test.ts",
@@ -710,7 +710,7 @@
     },
     {
       "path": "tests/browser/accounts.spec.ts",
-      "sha256": "927ee51fa8c467803aac8487998cf7d661487a5842d0bd3b9ab05c212b4365ff"
+      "sha256": "a94522f59a91ddd866876361cd203b8b1f89e60f3ee26b978c5ea59aeb9f9a57"
     },
     {
       "path": "tests/browser/evidence.spec.ts",
@@ -835,6 +835,7 @@
     "a job rescheduled to its attempt limit was left pending, and the claim query will not take a job at the limit, so an exhausted job looked live and was never claimed again. rescheduleJob now retires it as dead and the reaper covers pending rows too.",
     "polling a payout counted as a failed attempt, so a chain whose finalized tag lagged more than four polls retired the job and left the payout stuck at included with the ledger never moving. Only a refusal spends an attempt now.",
     "registerEndpoint reported requeuing notices whose delivery job was already finished; enqueueJob deliberately will not revive a completed job, because a dedupe key is a payment\u2019s permanent identity, so reviving one is an explicit requeueJob.",
-    "the claim in this document that a notice retry did not spend the attempt limit was false when written; the code now matches it and four checks hold the distinction between a wait and a failure."
+    "the claim in this document that a notice retry did not spend the attempt limit was false when written; the code now matches it and four checks hold the distinction between a wait and a failure.",
+    "an absent reader raised authority.unreadable on every attempt, claiming an approval was no longer confirmed when it had never been confirmed. Nothing about the approval had changed and nothing went wrong on the chain, so the refusal is now recorded without telling anybody."
   ]
 }

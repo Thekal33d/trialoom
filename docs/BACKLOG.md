@@ -43,7 +43,8 @@ The local execution baseline and observed provider constraints are sufficient fo
 | HACK-01 | H | Event setup and track choice | Ready | SETUP-02 | Complete setup items in [HACKATHON.md](HACKATHON.md); resolve rule interpretation; record real entry identifiers |
 | HACK-02 | H | Selected event integration requirements | Not started | HACK-01, VAL-03, VAL-04 | Verified implementation and references for selected checklist; no mock-derived proof |
 | HACK-03 | H | Demo and submission evidence | Not started | HACK-02, ALPHA-11 | Usable demo, reproducible setup, meaningful real usage, sanitized evidence, limitations, final commit |
-| PILOT-01 | M3 | Appeals, operations, privacy, security | Not started | ALPHA-11 | Appeals and reviewer coverage; retention/export controls; isolation/payment review; all release scenarios pass |
+| PILOT-03 | M3 | Runner isolation and the egress witness | Done (foundation) | ALPHA-11 | A registered host under a written contract reports what its proxy allowed and denied under its own credential, the platform compares that with the agent's claim, and a witnessed run with no witness is refused, verified in [PILOT-03](PILOT-03.md) and [evidence](evidence/PILOT-03.json); Trialoom does not run the host, so the sandbox itself is still asserted |
+| PILOT-01 | M3 | Appeals, operations, privacy, security | Not started | ALPHA-11, PILOT-03 | Appeals and reviewer coverage; retention/export controls; payment review; all release scenarios pass |
 | PILOT-02 | M3 | Invited customer campaigns and measurement | Not started | PILOT-01 | Disclosed terms/caps; all PRD pilot metrics measured with denominators and real costs |
 | BETA-01 | M4 | Public guarantees and scale | Deferred | PILOT-02 | Implemented guarantee model, reviewed contracts/providers, qualification and incident readiness |
 | EXPAND-01 | M5 | Additional services and app creation | Deferred | Pilot demand evidence | Acceptance criteria and demonstrated demand per service |

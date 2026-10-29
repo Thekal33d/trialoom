@@ -69,7 +69,7 @@ Archives and images cannot be cleaned by a text policy, so they are stored priva
 
 ## What remains
 
-- Real isolation: the gVisor runner host, resource caps, and an egress proxy that enforces the allowlist instead of checking a report.
+- Real isolation: the gVisor runner host and resource caps. The egress half has since moved from a report to a witness in [PILOT-03](PILOT-03.md): a registered host's proxy denies and reports egress under its own credential, and the platform compares that with what the agent claims. The sandbox itself is still asserted, because Trialoom does not run the host.
 - A target that exposes no revision can still change under a pinned build without this check noticing (R05's remaining gap).
 - Reviewable traces, retention and deletion controls, and evidence export.
 - Settlement (ALPHA-08). Nothing in this step pays anyone, and acceptance and rejection arrived in [ALPHA-06](ALPHA-06.md).

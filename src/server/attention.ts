@@ -134,6 +134,17 @@ export async function workspaceAttention(pool: Pool, actor: Actor, workspaceId: 
           needsAttention: short || approval.stale || approval.observedAt === null,
         };
       });
+    // Whether anybody was actually told. A condition the platform raised and
+    // could not deliver is worse than one it merely recorded, because the
+    // builder has no reason to come and look.
+    const told = (
+      await db.query<{ delivery: string; n: number }>(
+        `SELECT delivery,count(*)::int AS n FROM notices
+        WHERE workspace_id=$1 AND resolved_at IS NULL GROUP BY delivery`,
+        [id],
+      )
+    ).rows;
+    const byDelivery = (state: string) => told.find((row) => row.delivery === state)?.n ?? 0;
     if (role === 'reviewer') await audit(db, id, actor.id, 'reviewer.attention_read', id);
     const waiting = rows
       .map((row) => row.attention?.waitingHours)
@@ -161,6 +172,10 @@ export async function workspaceAttention(pool: Pool, actor: Actor, workspaceId: 
         authoritiesUnreadable: authorities.filter((row) => row.lastReadError !== null).length,
         authoritiesStale: authorities.filter((row) => row.stale).length,
         authoritiesShort: authorities.filter((row) => row.shortfallUnits !== null).length,
+        noticesOpen: told.reduce((count, row) => count + row.n, 0),
+        noticesDelivered: byDelivery('delivered'),
+        noticesUndelivered: byDelivery('pending') + byDelivery('failed'),
+        noticesNowhereToSend: byDelivery('undeliverable'),
       },
       authorities: authorities.sort((a, b) => Number(b.needsAttention) - Number(a.needsAttention)),
       policy: {

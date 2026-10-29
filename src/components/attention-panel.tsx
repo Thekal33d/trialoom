@@ -47,6 +47,10 @@ type Queue = {
     authoritiesUnreadable: number;
     authoritiesStale: number;
     authoritiesShort: number;
+    noticesOpen: number;
+    noticesDelivered: number;
+    noticesUndelivered: number;
+    noticesNowhereToSend: number;
     longestWaitHours: number | null;
   };
   authorities: {
@@ -189,6 +193,13 @@ export function AttentionPanel({ base, role }: { base: string; role: string }) {
           commitments, {totals.authoritiesStale} with a reading older than {policy.stalenessHours}{' '}
           hours, {totals.authoritiesUnreadable} that could not be read at all. None of this cancels
           an obligation or blocks a payment by itself.
+        </p>
+      )}
+      {(totals.noticesNowhereToSend > 0 || totals.noticesUndelivered > 0) && (
+        <p className="section-description" role="status">
+          {totals.noticesNowhereToSend > 0
+            ? `${totals.noticesNowhereToSend} of these reached nobody: this workspace has no notice destination registered, so it is waiting here to be noticed.`
+            : `${totals.noticesUndelivered} notice(s) have not been delivered yet. They are retried, and what is on the record does not depend on it.`}
         </p>
       )}
       {totals.pastEscalation > 0 && (

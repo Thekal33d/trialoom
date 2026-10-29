@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { AuthorityPanel } from './authority-panel';
 import { HostPanel } from './host-panel';
 import { api, field } from './live-types';
+import { NoticePanel } from './notice-panel';
 
 type Access = {
   members: { id: string; name: string; email: string; role: string }[];
@@ -193,6 +194,7 @@ export function AccessPanel({ base, userId }: { base: string; userId: string }) 
             )}
           </section>
           <AuthorityPanel base={base} />
+          <NoticePanel base={base} />
           <HostPanel base={base} />
           <section className="live-section">
             <h2>Access and change history</h2>

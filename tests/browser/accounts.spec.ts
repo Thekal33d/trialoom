@@ -349,6 +349,19 @@ test('an owner registers a payment authority and sees one shared approval', asyn
   await expect(second).toContainText('10.00 USDC declared');
   await expect(second).toContainText('10.00 USDC left to promise');
 
+  // Where this workspace would be told, and what it means that there is
+  // nowhere yet. Registering needs a resolvable public host, so the successful
+  // path is covered by the database checks that inject a resolver.
+  const notices = page.locator('.live-section', { hasText: 'Where you are told' });
+  await expect(notices).toContainText('No destination is registered');
+  await expect(notices).toContainText('marked as having reached nobody');
+  await expect(notices).toContainText('It decides nothing');
+  await notices.getByRole('button', { name: 'Register a destination' }).click();
+  await expect(notices).toContainText('one signed POST');
+  await expect(notices).toContainText('carries no key, grant or credential');
+  await expect(notices).toContainText('A private or internal address is refused');
+  await notices.getByRole('button', { name: 'Cancel' }).click();
+
   // The queue names what can pay, and an approval nobody has read yet is a
   // declaration rather than a fact.
   await page.getByRole('button', { name: "What's waiting" }).click();

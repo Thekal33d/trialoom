@@ -109,6 +109,36 @@ The first is a **fact the chain reported** — the same fact a failed payout wou
 
 The worker now also carries the live adapter, which it did not when PILOT-05 landed: `configuredPayments` was reached only by the verification route, so nothing would ever have paid through the adapter in production. It says which adapter it has at startup, because absence is the state of this build and should not look like a working payment path that happens to pay nobody.
 
+## Telling somebody
+
+A condition the platform records and nobody is told about is only a notification if the builder happens to open the queue. So the three conditions the recurring read can find now leave the platform.
+
+Two properties carry the design.
+
+**A notice is raised when a condition becomes true and resolved when it stops.** A partial unique index — one open notice per topic and subject — is the deduplication, in the database rather than in application logic, so two concurrent readers cannot both raise it and a read running every six hours cannot announce the same shortfall four times a day. Resolution is silence: the notice closes with the reason, and a condition that returns is news again.
+
+**A notice says whether anyone was told.** A workspace with nowhere to be told, an endpoint that refused, and a condition that resolved before delivery are three separately recorded outcomes rather than one silence: `undeliverable`, `failed`, `suppressed`. Every attempt is kept, so "nobody was told" and "we tried four times and the endpoint answered 500" are different answers. A destination that is down is not a failing handler, so retrying does not spend the attempts that would retire the job — the undelivered notice sitting in the queue is the thing worth seeing.
+
+Suppression is worth stating as a choice: stale news is worse than none, because a builder told about a shortfall that has since cleared goes looking for something that is not there.
+
+### The destination
+
+A workspace registers one HTTPS URL, held to **the same admission rules as a test target** — HTTPS, no credentials or query in the URL, and an address that is not in private space — because a notice destination is a URL the platform will call on a schedule, which is exactly the shape of request an attacker would like aimed at private space. One live destination per workspace, so "was anyone told?" has one answer.
+
+Each delivery is one signed POST: `X-Trialoom-Timestamp` and `X-Trialoom-Signature`, the latter `sha256=` plus HMAC-SHA256 over `timestamp.body`, keyed with a secret shown once at registration. Signing over the timestamp as well as the body means a captured body cannot be replayed under a new one. Nothing is read from the response beyond its status, and redirects are refused: a receiver that could answer back would be a way into the platform.
+
+The signing secret is **stored rather than digested**, which is the opposite of how a runner host's credential is kept. The asymmetry is inherent — a host presents its credential and the platform only has to recognise it, while here the platform has to present a signature, so it needs the key. It is never returned after registration, never selected by a read path, and never travels in a notice.
+
+**Nothing that leaves the platform carries a credential.** The body is composed by the platform from its own records — no operator prose reaches a destination the platform does not control — and the detail column is held to `event_payload_is_clean`, the same recursive guard the event stream uses, so a key, grant or token is refused at any depth by the table rather than by a careful caller.
+
+| Condition | Raised as | Effect on the work |
+| --- | --- | --- |
+| The approval is short of its commitments | `authority.short` | None |
+| The policy is inactive on chain | `authority.inactive` | New claims had already stopped |
+| The approval could not be read | `authority.unreadable` | None |
+
+A notice decides nothing. It is an account of a condition the platform already holds, and no obligation is cancelled and no payment blocked because one was or was not delivered.
+
 ## What the fork check establishes
 
 `npm run payments:fork` drives the product's own path against deployed contract code on a disposable Anvil fork of Celo that the script starts and stops. Fourteen checks pass:
@@ -124,7 +154,8 @@ That is the first time value has moved through Trialoom's own code path. **It is
 - **Only payout gas is recorded.** A resource purchase is also sent by a platform wallet and also costs gas; nothing records that, because no live resource adapter exists to read a receipt from. The PRD's economics definition names payout gas specifically, so this is a gap rather than a missed requirement.
 - **A receipt that cannot be read is simply not recorded.** The reader never throws into the settlement path — losing a cost record is far better than failing a payment that already settled — so a run of RPC failures at the moment of finality leaves gas unrecorded for that transaction with nothing to retry it, since the job completes at finality.
 - **The re-read interval is fixed in code, not per workspace.** Six hours suits a pilot; a busy workspace drawing on a shared wallet would want minutes, and nothing lets it ask for that.
-- **Nothing notifies anybody.** A short or unreadable approval appears in the queue and waits to be looked at. There is no email, no webhook and no platform-reviewer channel, which is the same gap escalation has.
+- **A notice goes to a URL, not to a person.** There is still no email and no platform-reviewer channel, so a workspace that registers no destination is back to looking at the queue — the difference is that the platform now records that nobody was told. Review escalation could use this channel and does not yet; that belongs with PILOT-01.
+- **No reminders.** An open notice is delivered once and then sits open until the condition clears. A shortfall nobody acts on for a week is not raised again.
 - **The agent key comes from the environment.** There is no key management, no rotation, and no hardware signer. A compromised process can spend the whole approval up to the policy's per-payment and per-day caps.
 - **One signer.** The SDK's coordinator serializes signing across workers, which is correct, but it also means payout throughput is one transaction at a time per agent address.
 - **Nothing reconciles on its own.** `recoverPending` exists in the SDK and is not wired to a schedule; recovery happens when the outbox retries a payable, which is adequate but not the provider's own recommendation.

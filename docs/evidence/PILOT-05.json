@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "task": "PILOT-05",
-  "verifiedAt": "2026-10-29T17:40:00.000Z",
+  "verifiedAt": "2026-10-29T19:40:00.000Z",
   "sourceRevision": "300f1c2",
   "sourceTreeDirty": true,
-  "scope": "A payout was recorded, queued and then blocked because no payment authority existed. Adds the live Remesso adapter and, more importantly, an account of what a payment authority can actually deliver: one token approval is shared by every policy the same wallet grants, so per-campaign budgets say nothing about solvency and two live briefs could each believe they were funded. Payout gas is read from each transaction\u2019s own receipt and reported in the currency it was paid in, which closes one of the economics target\u2019s holes without making it measurable. Each approval is re-read on a timer that reschedules itself, and a read that failed is kept strictly apart from an approval that is genuinely short",
+  "scope": "A payout was recorded, queued and then blocked because no payment authority existed. Adds the live Remesso adapter and, more importantly, an account of what a payment authority can actually deliver: one token approval is shared by every policy the same wallet grants, so per-campaign budgets say nothing about solvency and two live briefs could each believe they were funded. Payout gas is read from each transaction\u2019s own receipt and reported in the currency it was paid in, which closes one of the economics target\u2019s holes without making it measurable. Each approval is re-read on a timer that reschedules itself, and a read that failed is kept strictly apart from an approval that is genuinely short. What that read finds is raised once as a notice, resolved when it stops, and delivered as a signed POST that records whether anyone was told",
   "runtime": {
     "node": "v24.11.1",
     "postgres": "18.6",
@@ -52,13 +52,13 @@
     "keySource": "TRIALOOM_REMESSO_AGENT_KEY; absent in this build, so the unconfigured adapter still blocks every payout"
   },
   "checks": {
-    "lint": "biome check, 108 files",
+    "lint": "biome check, 110 files",
     "types": "tsc --noEmit, strict",
     "capability": "28 spike checks",
-    "database": 182,
+    "database": 189,
     "browser": 58,
     "build": "next build succeeded",
-    "loop": "14 phases, 42 steps, exit 0",
+    "loop": "14 phases, 44 steps, exit 0",
     "fork": "19 checks against deployed contract code on a disposable Anvil fork of Celo, exit 0",
     "covered": [
       "two briefs cannot both promise one shared approval; the refusal leaves the first published and the second a draft, and what fits is still publishable to the last base unit",
@@ -82,7 +82,15 @@
       "a policy the chain says is inactive stops new claims and keeps the accepted obligation exactly as accepted, while a shortfall on an active policy pauses nothing",
       "revoking an authority ends its recurring read rather than leaving it spinning, and no further observation arrives",
       "the queue names an approval nobody has read, one whose reading has gone stale, and one that is short, and leaves a fresh covering reading alone",
-      "on the fork, the worker\u2019s own dispatch drove the recurring read against the real chain through verified, then inactive after the policy was revoked on chain, then revoked"
+      "on the fork, the worker\u2019s own dispatch drove the recurring read against the real chain through verified, then inactive after the policy was revoked on chain, then revoked",
+      "a shortfall is raised once however often it is re-read, resolved when the approval covers its commitments, and raised again if it returns",
+      "a read nobody could complete is raised as its own condition and closed by a later successful read; revoking the authority closes everything it raised",
+      "a workspace with nowhere to be told records that the notice reached nobody and queues nothing; registering a destination requeues what is already open",
+      "a destination that refuses leaves the notice undelivered with its attempt recorded, and the retry does not spend the attempts that would retire the job",
+      "a condition that cleared before delivery is suppressed rather than sent",
+      "one real signed POST was verified by a loopback receiver that checked the signature itself; the same body under a different timestamp or a different key does not verify",
+      "a destination in private space and a second live destination are both refused",
+      "the table refuses a notice carrying a credential at three different depths"
     ]
   },
   "ci": "configured; not run on GitHub",
@@ -105,7 +113,10 @@
     "only payout gas is recorded: a resource purchase is also sent by a platform wallet and also costs gas, but no live resource adapter exists to read a receipt from",
     "a receipt that cannot be read is not recorded and nothing retries it, because the job completes at finality",
     "the re-read interval is fixed in code rather than per workspace: six hours suits a pilot, and a busy workspace on a shared wallet would want minutes",
-    "nothing notifies anybody: a short or unreadable approval appears in the queue and waits to be looked at, the same gap escalation has"
+    "a notice goes to a URL rather than to a person: there is still no email and no platform-reviewer channel, and a workspace that registers no destination is back to reading the queue, with the difference that the platform records that nobody was told",
+    "review escalation could use this channel and does not yet; that belongs with PILOT-01",
+    "no reminders: an open notice is delivered once and then waits for the condition to clear, so a shortfall nobody acts on for a week is not raised again",
+    "a real HTTPS delivery from a registered row is untested, because registration refuses a loopback URL by design; the transport is tested against a loopback server and the orchestration against the database"
   ],
   "sourceFiles": [
     {
@@ -217,6 +228,10 @@
       "sha256": "196e28ab61762550e4ebb99143c229ddd72d72c06a44faf57d28beec1ee94873"
     },
     {
+      "path": "db/migrations/0017_notices.sql",
+      "sha256": "b034fd7af58b612b3e57632adf7e1960925792ae279414cd006e057af5156949"
+    },
+    {
       "path": "docs/ALPHA-02.md",
       "sha256": "0bc89f1575bf80e4ba1eab387d4cc518b5b271d88d32693f6a8a720fee4247af"
     },
@@ -250,7 +265,7 @@
     },
     {
       "path": "docs/ALPHA-10.md",
-      "sha256": "41f21845a4fba59b063766219f053e846de548871db4b441ffc7419983144a64"
+      "sha256": "c235e68734f915955c97f528628f5efd8de687fe32a20720b1f2fd225cb7709e"
     },
     {
       "path": "docs/ALPHA-11.md",
@@ -266,7 +281,7 @@
     },
     {
       "path": "docs/DEVELOPMENT.md",
-      "sha256": "4bd8fb6ad82e1117ca777f0c056ab27d5992c2d98656ba685638abefb3c17b05"
+      "sha256": "22b111fd554aeac63fb5c6a7b92936eac68c07e2082b08851deb91c15df237da"
     },
     {
       "path": "docs/HACKATHON.md",
@@ -282,7 +297,7 @@
     },
     {
       "path": "docs/PILOT-05.md",
-      "sha256": "87e32ed56d244b368d21d2ff46dd71baa08266547a4e982ecf504d7455b77f58"
+      "sha256": "b1e2e1de8ef4a994cfdd6779a5694b37e201938fe8b77eb53e1c78e2b3558370"
     },
     {
       "path": "docs/PRD.md",
@@ -294,15 +309,15 @@
     },
     {
       "path": "docs/VALIDATION.md",
-      "sha256": "7ccf28c62270a907beaf6e854b68ee25d9145e1b561ffeb21d6e9d204ba928b1"
+      "sha256": "a4e187562ad301ea85c5ad31523f14d27315c3e362f93585a31bc98acc122908"
     },
     {
       "path": "memory/BUILD_LOG.md",
-      "sha256": "7ebbc1d761fb0a2fce121bfe188ea1e100e9f77deeda920a9fb364d232ab2f7f"
+      "sha256": "f2eecef6813fe3eae817176a3f0003b11b42e587f636cced73b0bfe3b5c91f77"
     },
     {
       "path": "memory/DECISIONS.md",
-      "sha256": "a4cccea0e5cbf77c5b848d7befa01bf781c883d3b19d93285bee8a0d85181a41"
+      "sha256": "5bde4b06c0d6be9b54c934e23d8956f6ca298d61c6ca297449f63c378c12badd"
     },
     {
       "path": "memory/PROJECT.md",
@@ -310,7 +325,7 @@
     },
     {
       "path": "memory/STATUS.md",
-      "sha256": "4de33f40936359b98c071011878000ec9091ce5e5770d335d8a09ce695f28d8b"
+      "sha256": "dcf88b38c104e2aeb6faf7e6b84cf6e88513f4576e2a19ebaa18a2b7788f9055"
     },
     {
       "path": "next-env.d.ts",
@@ -350,7 +365,7 @@
     },
     {
       "path": "scripts/run-loop.ts",
-      "sha256": "52ee956672e5ebe586e3a0d7108d23c71789ed319d468ffaa3ffbe8446a50665"
+      "sha256": "b7a00beaf227b6745d4982979222c5177761ee3c2e16ff851afc445e69aa1ee5"
     },
     {
       "path": "scripts/setup-auth.mjs",
@@ -398,7 +413,7 @@
     },
     {
       "path": "src/app/api/v1/[...path]/route.ts",
-      "sha256": "9d26108ec281ddf4b05258ac6535ae88ed2ef7ad8fff726ff93e7047d010f0b0"
+      "sha256": "4bc634f75fae69b24381d467679b12c92e3aaa7cffe60d194da1cbd6c54c7259"
     },
     {
       "path": "src/app/demo/evidence/page.tsx",
@@ -450,11 +465,11 @@
     },
     {
       "path": "src/components/access-panel.tsx",
-      "sha256": "24efa589a10439166c954922437f0cbd53393793e817ccb75cd3f4561e661112"
+      "sha256": "9e4c62d7559c0c261aaaa7b437044cca29f45b0d8ea3dd3c52f61c137e3b2967"
     },
     {
       "path": "src/components/attention-panel.tsx",
-      "sha256": "13afbc086366f1a239928bdd541455ecfda500655b36c90a6fef038ac060c71c"
+      "sha256": "68e088a6d62969301347de59e1cbfb784073a0b404f1ff6c80bd8d2a0890af68"
     },
     {
       "path": "src/components/auth-form.tsx",
@@ -487,6 +502,10 @@
     {
       "path": "src/components/metrics-panel.tsx",
       "sha256": "f5a8f1537c7246b59621d20b32cb9366ff09b9f094523d5ff18d755545d03ce2"
+    },
+    {
+      "path": "src/components/notice-panel.tsx",
+      "sha256": "fb1f2c9acf4f6961718b438dfbeedb257a2702d17c3237d740b8c6996156d57d"
     },
     {
       "path": "src/components/operator-console.tsx",
@@ -526,7 +545,7 @@
     },
     {
       "path": "src/domain/schemas.ts",
-      "sha256": "9dd7f66191ab6cb63cdfc1982b27175b34c42b0b3f63dcada623ec8a8082492b"
+      "sha256": "758ab0caf658114f6bc86264ec9429223e8eca34bda4536071abbccc41c23de7"
     },
     {
       "path": "src/domain/values.ts",
@@ -546,7 +565,7 @@
     },
     {
       "path": "src/server/attention.ts",
-      "sha256": "32201ec25fdf8501db24cf7eccc8fe47fab28f123d770e82b62643e336d166ff"
+      "sha256": "e9a73fbbc88505c2b9bdd54b300232c99ac9fde0af920d7df231b2dd503a04a6"
     },
     {
       "path": "src/server/auth/config.ts",
@@ -554,7 +573,7 @@
     },
     {
       "path": "src/server/authority.ts",
-      "sha256": "58d288e026d89280532a17456ebcf129c354bcf0c66cc36366080ede041fb084"
+      "sha256": "eb932da6106298ce1430ab655f8584c279ffbe0312116c5b185f329f5ee6db62"
     },
     {
       "path": "src/server/database.ts",
@@ -611,6 +630,10 @@
     {
       "path": "src/server/migrations.ts",
       "sha256": "181c139e174afb7bf25ecb3ec8120423084fa31ab36b064b78d23361f5507513"
+    },
+    {
+      "path": "src/server/notices.ts",
+      "sha256": "e12b5109841d41c9b89b7fe2e8e4a7b52dfb9f50cfa016e18d2ee064dd260833"
     },
     {
       "path": "src/server/operators.ts",
@@ -674,7 +697,7 @@
     },
     {
       "path": "tests/authority.test.ts",
-      "sha256": "d9348edf44fadecee08ac176a020f26b48d5f6bc6b98ea2d3b1d7d4b820aed4c"
+      "sha256": "4dbe6dce7c1c03d5270598d22d3c051d480dcbb240076d7ad5c6df2d54475ebf"
     },
     {
       "path": "tests/backend.test.ts",
@@ -682,7 +705,7 @@
     },
     {
       "path": "tests/browser/accounts.spec.ts",
-      "sha256": "46ac58f4ab16f96811de6adf14ca844d94429cfbf8a7bdc211861aa150150485"
+      "sha256": "927ee51fa8c467803aac8487998cf7d661487a5842d0bd3b9ab05c212b4365ff"
     },
     {
       "path": "tests/browser/evidence.spec.ts",
@@ -750,7 +773,7 @@
     },
     {
       "path": "workers/main.ts",
-      "sha256": "f8172cfa5b4adc75d1f266e7dfd927d3cf1b1eb0f21e10ea799116e1c6513fb3"
+      "sha256": "c8defc98050c61c752a901782b369dc28c780e0a56dbe7a7ccc05e166e797a19"
     }
   ],
   "gas": {
@@ -781,5 +804,25 @@
       "readFailed": "reported as unread; the previous reading stands"
     },
     "workerCarriesTheLiveAdapter": "fixed here: configuredPayments was reached only by the verification route, so nothing would have paid through the adapter in production. The worker builds the adapter and reader once and says which it has at startup"
+  },
+  "notices": {
+    "raiseAndResolve": "raised when a condition becomes true and resolved when it stops; one open notice per topic and subject enforced by a partial unique index rather than by application logic",
+    "topics": [
+      "authority.short",
+      "authority.inactive",
+      "authority.unreadable"
+    ],
+    "whetherAnyoneWasTold": {
+      "undeliverable": "the workspace has nowhere to be told",
+      "failed": "the destination refused it, with every attempt kept",
+      "suppressed": "the condition resolved before delivery; stale news sends the builder looking for something that is not there"
+    },
+    "retryIsAWait": "a destination that is down is not a failing handler, so retrying does not spend the attempts that would retire the job",
+    "destinationAdmission": "the same rules as a test target: HTTPS, no credentials or query in the URL, and an address outside private space. One live destination per workspace, so the question has one answer",
+    "signature": "X-Trialoom-Timestamp plus X-Trialoom-Signature, sha256= followed by HMAC-SHA256 over timestamp.body; signing the timestamp as well as the body means a captured body cannot be replayed under a new one",
+    "oneWay": "redirects refused and nothing read from the response beyond its status: a receiver that could answer back would be a way into the platform",
+    "secretAtRest": "stored rather than digested, because the platform presents a signature rather than recognising one. Shown once, never returned, never selected by a read path, never travels in a notice",
+    "nothingLeavesWithACredential": "the body is composed from the platform\u2019s own records, never from operator prose, and the detail column reuses event_payload_is_clean so a key or grant is refused at any depth by the table",
+    "decidesNothing": true
   }
 }

@@ -45,6 +45,12 @@ import { campaignAccounting, outstandingCommitment } from '../src/server/ledger.
 import { pilotMetrics } from '../src/server/metrics.ts';
 import { migrate } from '../src/server/migrations.ts';
 import {
+  deliverNotice,
+  type NoticeBody,
+  type NoticeTransport,
+  registerEndpoint,
+} from '../src/server/notices.ts';
+import {
   createCredential,
   issueWalletChallenge,
   proveWallet,
@@ -770,6 +776,61 @@ try {
   note(
     'scheduled verification',
     `the recurring read found the wallet ${flagged.shortfallUnits} base units short of what is committed, put itself back on the queue for ${verificationIntervalHours} hours' time, and the queue now names it; the obligation stands and nothing was cancelled`,
+  );
+
+  // A condition nobody is told about is only a notification if the builder
+  // happens to open the queue, so the shortfall goes out as one signed notice.
+  const raised = (
+    await db.pool.query(`SELECT * FROM notices WHERE subject_id=$1 AND resolved_at IS NULL`, [
+      tight.authorityId,
+    ])
+  ).rows;
+  assert.equal(raised.length, 1);
+  assert.equal(raised[0].topic, 'authority.short');
+  assert.equal(raised[0].delivery, 'undeliverable');
+  note(
+    'notice raised',
+    `the shortfall was raised as a notice and recorded as having reached nobody, because this workspace had nowhere to be told`,
+  );
+  const destination = await registerEndpoint(
+    db.pool,
+    owner,
+    workspaceId,
+    { name: 'Loop destination', url: 'https://notices.example.com/trialoom', acknowledged: true },
+    publicDns,
+  );
+  assert.equal(destination.requeued, 1);
+  const told: { body: NoticeBody; url: string }[] = [];
+  const noticeTransport: NoticeTransport = {
+    name: 'loop-fixture',
+    async deliver(body, endpoint) {
+      told.push({ body, url: endpoint.url });
+      return { delivered: true, status: 202, detail: 'The fixture destination accepted it.' };
+    },
+  };
+  const noticeJob = await leaseFor(`notice:${raised[0].id}`);
+  assert.ok(noticeJob, 'registering a destination must requeue what was already open');
+  assert.equal(await deliverNotice(db.pool, noticeJob, noticeTransport), 'delivered');
+  assert.equal(told.length, 1);
+  assert.equal(told[0].body.topic, 'authority.short');
+  assert.equal(told[0].body.detail.shortfallUnits, '3000000');
+  // Nothing that leaves the platform carries a key, a grant or a credential.
+  assert.doesNotMatch(JSON.stringify(told[0].body), /secret|token|credential|privateKey|grant/i);
+  // Reading again while it is still short tells nobody a second time.
+  const due2 = await leaseFor(`authority:${tight.authorityId}`);
+  assert.ok(due2);
+  await verifyScheduled(db.pool, due2, drained);
+  assert.equal(
+    (
+      await db.pool.query('SELECT count(*)::int AS n FROM notices WHERE subject_id=$1', [
+        tight.authorityId,
+      ])
+    ).rows[0].n,
+    1,
+  );
+  note(
+    'notice delivered',
+    `one signed notice reached ${told[0].url} carrying the shortfall and no credential; re-reading the same shortfall told nobody a second time`,
   );
 
   heading('7. Recovery: a crash after broadcast pays once, not twice');

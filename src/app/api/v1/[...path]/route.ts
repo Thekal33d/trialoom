@@ -53,6 +53,7 @@ import {
 } from '@/server/invitations';
 import { registerHost, revokeHost, workspaceHosts } from '@/server/isolation';
 import { pilotReadiness } from '@/server/metrics';
+import { registerEndpoint, revokeEndpoint, workspaceNotices } from '@/server/notices';
 import {
   createCredential,
   issueWalletChallenge,
@@ -352,6 +353,16 @@ async function handler(request: Request) {
       }
       if (parts.length === 4 && parts[2] === 'runner-hosts' && method === 'DELETE')
         return json(await revokeHost(pool, actor, workspaceId, parts[3]));
+      if (parts.length === 3 && parts[2] === 'notices') {
+        if (method === 'GET') return json(await workspaceNotices(pool, actor, workspaceId));
+        if (method === 'POST')
+          return json(
+            await registerEndpoint(pool, actor, workspaceId, await readJson(request)),
+            201,
+          );
+      }
+      if (parts.length === 4 && parts[2] === 'notices' && method === 'DELETE')
+        return json(await revokeEndpoint(pool, actor, workspaceId, parts[3]));
       if (parts.length === 3 && parts[2] === 'payment-authorities') {
         if (method === 'GET') return json(await workspaceAuthorities(pool, actor, workspaceId));
         if (method === 'POST')

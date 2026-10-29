@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
+import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test, { after, before } from 'node:test';
@@ -30,6 +31,16 @@ import {
 } from '../src/server/invitations.ts';
 import { campaignAccounting } from '../src/server/ledger.ts';
 import { migrate } from '../src/server/migrations.ts';
+import {
+  deliverNotice,
+  type NoticeBody,
+  type NoticeDelivery,
+  type NoticeTransport,
+  noticeSignatureMatches,
+  registerEndpoint,
+  revokeEndpoint,
+  webhookTransport,
+} from '../src/server/notices.ts';
 import { createCredential, registerOperator } from '../src/server/operators.ts';
 import { addBuild, createCampaign, createProject } from '../src/server/projects.ts';
 import { submitAttempt } from '../src/server/qualification.ts';
@@ -918,4 +929,322 @@ test('the queue names an approval nobody has read, one gone stale, and one that 
   assert.equal(entry?.shortfallUnits, null);
   assert.equal(queue.policy.stalenessHours, stalenessHours);
   assert.match(queue.policy.staleReadings, /never cancels an obligation/);
+});
+
+const noticesFor = async (subjectId: string) =>
+  (
+    await db.pool.query(`SELECT * FROM notices WHERE subject_id=$1 ORDER BY raised_at,topic`, [
+      subjectId,
+    ])
+  ).rows;
+/** Captures what the orchestration hands a transport, without a network. */
+function capturingTransport(
+  result: NoticeDelivery = { delivered: true, status: 202, detail: 'Accepted.' },
+) {
+  const sent: { body: NoticeBody; url: string }[] = [];
+  const transport: NoticeTransport = {
+    name: 'capturing',
+    async deliver(body, endpoint) {
+      sent.push({ body, url: endpoint.url });
+      return result;
+    },
+  };
+  return { transport, sent };
+}
+async function deliverFor(noticeId: string, transport: NoticeTransport) {
+  const lease = (
+    await db.pool.query(
+      `UPDATE outbox_jobs SET state='leased',attempts=attempts+1,lease_token=gen_random_uuid(),
+      lease_until=clock_timestamp()+interval '30 seconds',available_at=clock_timestamp()
+      WHERE dedupe_key=$1 AND state IN ('pending','leased')
+      RETURNING id,topic,lease_token,attempts,payload`,
+      [`notice:${noticeId}`],
+    )
+  ).rows[0];
+  if (!lease) return 'no-job';
+  return deliverNotice(db.pool, lease, transport);
+}
+/** Registers a destination without the admission check a real URL goes through. */
+async function endpointAt(url: string) {
+  const secret = `trn_${randomBytes(32).toString('base64url')}`;
+  const { rows } = await db.pool.query<{ id: string }>(
+    `INSERT INTO notice_endpoints (workspace_id,name,url,signing_secret,registered_by)
+    VALUES ($1,'Fixture',$2,$3,$4) RETURNING id`,
+    [workspaceId, url, secret, owner.id],
+  );
+  return { id: rows[0].id, url, signingSecret: secret };
+}
+
+test('a shortfall is raised once, resolved when it clears, and raised again if it returns', async () => {
+  const live = await authority('Told once', '10000000');
+  await newCampaign('Told once brief', { authorityId: live.authorityId, ceilingUnits: '8000000' });
+  await runVerification(live.authorityId, reading('10000000', '3000000'));
+  let open = (await noticesFor(live.authorityId)).filter((row) => !row.resolved_at);
+  assert.equal(open.length, 1);
+  assert.equal(open[0].topic, 'authority.short');
+  assert.match(open[0].summary, /5000000 base units short/);
+  assert.equal(open[0].detail.shortfallUnits, '5000000');
+  // Nothing in a notice is a credential, and the table refuses one at any depth.
+  assert.ok(!JSON.stringify(open[0].detail).match(/secret|token|grant/i));
+
+  // The read runs every six hours; it must not announce the same shortfall
+  // four times a day.
+  await runVerification(live.authorityId, reading('10000000', '2000000'));
+  assert.equal((await noticesFor(live.authorityId)).length, 1);
+
+  // A covering reading closes it, with silence as the resolution.
+  await runVerification(live.authorityId, reading('10000000', '10000000'));
+  const closed = await noticesFor(live.authorityId);
+  assert.equal(closed.length, 1);
+  assert.ok(closed[0].resolved_at);
+  assert.match(closed[0].resolved_reason, /covers what is committed/);
+
+  // And if it returns, that is news again.
+  await runVerification(live.authorityId, reading('10000000', '1000000'));
+  open = (await noticesFor(live.authorityId)).filter((row) => !row.resolved_at);
+  assert.equal(open.length, 1);
+  assert.equal((await noticesFor(live.authorityId)).length, 2);
+});
+
+test('a read nobody could complete is raised separately from a shortfall', async () => {
+  const live = await authority('Unread notice', '10000000');
+  await runVerification(live.authorityId, failingReader('forno timed out'));
+  const open = (await noticesFor(live.authorityId)).filter((row) => !row.resolved_at);
+  assert.equal(open.length, 1);
+  assert.equal(open[0].topic, 'authority.unreadable');
+  assert.match(open[0].summary, /could not be read/);
+  assert.match(open[0].detail.reason, /forno timed out/);
+  // Repeated failures are the same condition, not a new one each cycle.
+  await runVerification(live.authorityId, failingReader('forno timed out'));
+  assert.equal((await noticesFor(live.authorityId)).length, 1);
+  // A successful read closes it even if the news is bad in another way.
+  await runVerification(live.authorityId, reading('10000000', '10000000'));
+  assert.ok((await noticesFor(live.authorityId))[0].resolved_at);
+});
+
+test('an inactive policy is told, and revoking the authority closes what it raised', async () => {
+  const live = await authority('Inactive notice', '40000000');
+  const campaign = await newCampaign('Inactive notice brief', {
+    authorityId: live.authorityId,
+    ceilingUnits: '4000000',
+  });
+  assert.ok(campaign.campaignId);
+  await runVerification(live.authorityId, reading('40000000', '40000000', false));
+  const open = (await noticesFor(live.authorityId)).filter((row) => !row.resolved_at);
+  assert.equal(open.length, 1);
+  assert.equal(open[0].topic, 'authority.inactive');
+  assert.match(open[0].summary, /no longer active on chain/);
+  assert.match(open[0].summary, /still owed/);
+  assert.equal(open[0].detail.pausedCampaigns, 1);
+  await revokeAuthority(db.pool, owner, workspaceId, live.authorityId, {
+    reason: 'Rotating after the policy was revoked.',
+  });
+  const after = await noticesFor(live.authorityId);
+  assert.ok(after.every((row) => row.resolved_at));
+  assert.match(after[0].resolved_reason, /revoked by its owner/);
+});
+
+test('with nowhere to be told, a notice records that it reached nobody', async () => {
+  const live = await authority('Nowhere', '10000000');
+  await newCampaign('Nowhere brief', { authorityId: live.authorityId, ceilingUnits: '8000000' });
+  await runVerification(live.authorityId, reading('10000000', '1000000'));
+  const notice = (await noticesFor(live.authorityId))[0];
+  assert.equal(notice.delivery, 'undeliverable');
+  assert.equal(notice.endpoint_id, null);
+  assert.match(notice.last_error, /no notice destination/i);
+  // No job was queued for it, because there was nothing to try.
+  assert.equal(
+    (
+      await db.pool.query('SELECT count(*)::int AS n FROM outbox_jobs WHERE dedupe_key=$1', [
+        `notice:${notice.id}`,
+      ])
+    ).rows[0].n,
+    0,
+  );
+  const queue = await workspaceAttention(db.pool, owner, workspaceId);
+  assert.ok(queue.totals.noticesNowhereToSend >= 1);
+
+  // Registering a destination lets what is already open go out.
+  const { transport, sent } = capturingTransport();
+  const registered = await registerEndpoint(
+    db.pool,
+    owner,
+    workspaceId,
+    { name: 'Ops', url: 'https://notices.example.com/trialoom', acknowledged: true },
+    async () => ['93.184.215.14'],
+  );
+  assert.ok(registered.requeued >= 1);
+  assert.match(registered.signingSecret, /^trn_/);
+  assert.equal(await deliverFor(notice.id, transport), 'delivered');
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].body.topic, 'authority.short');
+  assert.equal(sent[0].url, 'https://notices.example.com/trialoom');
+  const delivered = (await noticesFor(live.authorityId))[0];
+  assert.equal(delivered.delivery, 'delivered');
+  assert.ok(delivered.delivered_at);
+  const attempt = (
+    await db.pool.query('SELECT * FROM notice_attempts WHERE notice_id=$1', [notice.id])
+  ).rows;
+  assert.equal(attempt.length, 1);
+  assert.equal(attempt[0].delivered, true);
+  assert.equal(attempt[0].status, 202);
+  // A second live destination would make "was anyone told?" ambiguous.
+  await assert.rejects(
+    registerEndpoint(
+      db.pool,
+      owner,
+      workspaceId,
+      { name: 'Another', url: 'https://second.example.com/hook', acknowledged: true },
+      async () => ['93.184.215.14'],
+    ),
+    /already has a live notice destination/,
+  );
+  // And a destination pointing into private space is refused outright.
+  await assert.rejects(
+    registerEndpoint(
+      db.pool,
+      owner,
+      workspaceId,
+      { name: 'Internal', url: 'https://hooks.internal/trialoom', acknowledged: true },
+      async () => ['10.0.0.9'],
+    ),
+    /Private or internal|not supported|resolve/i,
+  );
+  await revokeEndpoint(db.pool, owner, workspaceId, registered.endpointId);
+});
+
+test('a destination that refuses leaves the notice undelivered and keeps retrying', async () => {
+  const live = await authority('Refused', '10000000');
+  await newCampaign('Refused brief', { authorityId: live.authorityId, ceilingUnits: '8000000' });
+  const endpoint = await endpointAt('https://refusing.example.com/hook');
+  await runVerification(live.authorityId, reading('10000000', '1000000'));
+  const notice = (await noticesFor(live.authorityId))[0];
+  assert.equal(notice.delivery, 'pending');
+  const { transport } = capturingTransport({
+    delivered: false,
+    status: 500,
+    detail: 'The endpoint answered 500.',
+  });
+  assert.equal(await deliverFor(notice.id, transport), 'undelivered');
+  const failed = (await noticesFor(live.authorityId))[0];
+  assert.equal(failed.delivery, 'failed');
+  assert.equal(failed.attempts, 1);
+  assert.match(failed.last_error, /answered 500/);
+  // A destination that is down is not a failing handler: the job waits rather
+  // than spending the attempts that would retire it.
+  const job = (
+    await db.pool.query(
+      `SELECT state,attempts,available_at>clock_timestamp() AS deferred FROM outbox_jobs
+      WHERE dedupe_key=$1`,
+      [`notice:${notice.id}`],
+    )
+  ).rows[0];
+  assert.equal(job.state, 'pending');
+  assert.equal(job.deferred, true);
+  assert.equal(job.attempts, 1);
+  const queue = await workspaceAttention(db.pool, owner, workspaceId);
+  assert.ok(queue.totals.noticesUndelivered >= 1);
+
+  // A condition that cleared before anyone was told is suppressed: stale news
+  // would send the builder looking for a shortfall that no longer exists.
+  await runVerification(live.authorityId, reading('10000000', '10000000'));
+  assert.equal(await deliverFor(notice.id, transport), 'done');
+  const suppressed = (await noticesFor(live.authorityId))[0];
+  assert.equal(suppressed.delivery, 'suppressed');
+  assert.equal(suppressed.attempts, 1);
+  await db.pool.query(`UPDATE notice_endpoints SET revoked_at=clock_timestamp() WHERE id=$1`, [
+    endpoint.id,
+  ]);
+});
+
+test('a delivery is one signed POST that a receiver can verify', async () => {
+  const received: {
+    body: string;
+    signature: string | undefined;
+    timestamp: string | undefined;
+    topic: string | undefined;
+    method: string | undefined;
+  }[] = [];
+  const server = createServer((request, response) => {
+    let body = '';
+    request.on('data', (chunk) => {
+      body += chunk;
+    });
+    request.on('end', () => {
+      received.push({
+        body,
+        signature: request.headers['x-trialoom-signature'] as string | undefined,
+        timestamp: request.headers['x-trialoom-timestamp'] as string | undefined,
+        topic: request.headers['x-trialoom-topic'] as string | undefined,
+        method: request.method,
+      });
+      response.writeHead(204).end();
+    });
+  });
+  await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
+  const port = (server.address() as { port: number }).port;
+  try {
+    const secret = `trn_${randomBytes(32).toString('base64url')}`;
+    const body: NoticeBody = {
+      noticeId: randomUUID(),
+      topic: 'authority.short',
+      workspaceId,
+      subjectId: randomUUID(),
+      raisedAt: new Date().toISOString(),
+      summary: 'The approval is short of what is committed against it.',
+      detail: { policyId: '12', shortfallUnits: '5000000' },
+    };
+    const result = await webhookTransport.deliver(body, {
+      id: randomUUID(),
+      url: `http://127.0.0.1:${port}/hook`,
+      signingSecret: secret,
+    });
+    assert.equal(result.delivered, true);
+    assert.equal(result.status, 204);
+    assert.equal(received.length, 1);
+    assert.equal(received[0].method, 'POST');
+    assert.equal(received[0].topic, 'authority.short');
+    // The receiver can tell a real notice from anything else that finds the URL.
+    assert.ok(received[0].signature && received[0].timestamp);
+    assert.ok(
+      noticeSignatureMatches(
+        secret,
+        received[0].timestamp,
+        received[0].body,
+        received[0].signature,
+      ),
+    );
+    // A captured body replayed under a different timestamp does not verify.
+    assert.ok(!noticeSignatureMatches(secret, '0', received[0].body, received[0].signature));
+    assert.ok(
+      !noticeSignatureMatches(
+        'trn_other',
+        received[0].timestamp,
+        received[0].body,
+        received[0].signature,
+      ),
+    );
+    const parsed = JSON.parse(received[0].body);
+    assert.equal(parsed.summary, body.summary);
+    assert.equal(parsed.detail.shortfallUnits, '5000000');
+  } finally {
+    await new Promise<void>((done) => server.close(() => done()));
+  }
+});
+
+test('the table refuses a notice carrying a credential at any depth', async () => {
+  const live = await authority('Guarded', '1000000');
+  for (const detail of [
+    { token: 'trp_live' },
+    { outer: { signature: '0xdeadbeef' } },
+    { items: [{ runToken: 'trr_live' }] },
+  ])
+    await assert.rejects(
+      db.pool.query(
+        `INSERT INTO notices (workspace_id,topic,subject_id,summary,detail)
+        VALUES ($1,'authority.short',$2,'forced',$3)`,
+        [workspaceId, live.authorityId, JSON.stringify(detail)],
+      ),
+      /notices_detail_clean/,
+    );
 });

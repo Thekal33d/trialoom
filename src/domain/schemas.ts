@@ -475,3 +475,12 @@ export const approvalTopUpSchema = z
 export const authorityRevocationSchema = z
   .object({ reason: z.string().trim().min(3).max(200) })
   .strict();
+
+/** Where a workspace wants to be told. Held to the target admission rules. */
+export const noticeEndpointSchema = z
+  .object({
+    name: z.string().trim().min(1).max(80),
+    url: z.string().trim().min(12).max(2048),
+    acknowledged: z.literal(true),
+  })
+  .strict();

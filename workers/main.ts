@@ -4,6 +4,7 @@ import { verifyScheduled } from '../src/server/authority.ts';
 import { createPool, databaseUrl } from '../src/server/database.ts';
 import { releaseSettledAssignments } from '../src/server/decisions.ts';
 import { processOne } from '../src/server/jobs.ts';
+import { deliverNotice, webhookTransport } from '../src/server/notices.ts';
 import { configuredPayments } from '../src/server/remesso.ts';
 import { reconcilePurchase } from '../src/server/resources.ts';
 import { dispatchPayout } from '../src/server/settlement.ts';
@@ -49,6 +50,10 @@ try {
       // A declaration believed until somebody presses a button is not an
       // account of what can be paid, so each approval is re-read on a timer.
       'authority.verify': (client, lease) => verifyScheduled(client, lease, payments?.reader),
+      // And a condition nobody is told about is only a notification if they
+      // happen to open the queue. A workspace with no destination registered
+      // keeps the notice, marked as having reached nobody.
+      'notice.deliver': (client, lease) => deliverNotice(client, lease, webhookTransport),
     });
     if (once) break;
     if (!worked) await setTimeout(1000, undefined, { signal: controller.signal });

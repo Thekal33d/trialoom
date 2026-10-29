@@ -9,6 +9,7 @@ import { settlementCurrency } from '../domain/values.ts';
 import { type Actor, audit, requireRole } from './access.ts';
 import { transaction } from './database.ts';
 import { completeJob, enqueueJob, type JobLease, rescheduleJob } from './jobs.ts';
+import { noticeTopics, raiseNotice, resolveNotices } from './notices.ts';
 
 /**
  * A payment authority is what makes a payout possible, and it is deliberately
@@ -356,6 +357,14 @@ export async function revokeAuthority(
       `UPDATE campaigns SET status='paused' WHERE authority_id=$1 AND status='open' RETURNING id`,
       [authority.id],
     );
+    // The builder did this deliberately, so there is nothing left to tell them
+    // about the approval behind it.
+    await resolveNotices(
+      db,
+      authority.id,
+      [...noticeTopics],
+      'The authority was revoked by its owner.',
+    );
     await audit(db, workspaceId, actor.id, 'payment_authority.revoked', authority.id);
     return { authorityId: authority.id, pausedCampaigns: paused.rowCount ?? 0 };
   });
@@ -606,10 +615,22 @@ export async function observeAuthority(
     // A read that failed is not a reading. The error is kept so the queue can
     // say the approval has not been checked lately, which is a different thing
     // from saying it is short.
-    await pool.query(
-      `UPDATE payment_approvals SET last_read_error=$2,updated_at=clock_timestamp() WHERE id=$1`,
-      [handle.approvalId, `${(error as Error).message}`.slice(0, 300)],
-    );
+    const message = `${(error as Error).message}`.slice(0, 300);
+    await transaction(pool, async (db) => {
+      await db.query(
+        `UPDATE payment_approvals SET last_read_error=$2,updated_at=clock_timestamp() WHERE id=$1`,
+        [handle.approvalId, message],
+      );
+      // An approval nobody can read is worth telling somebody about, because
+      // the record will otherwise keep reporting a reading taken days ago.
+      await raiseNotice(db, {
+        workspaceId: handle.workspaceId,
+        topic: 'authority.unreadable',
+        subjectId: handle.id,
+        summary: `The approval behind "${handle.policyId}" could not be read, so what it can pay is no longer confirmed.`,
+        detail: { policyId: handle.policyId, reason: message },
+      });
+    });
     throw error;
   }
   return transaction(pool, async (db) => {
@@ -656,6 +677,46 @@ export async function observeAuthority(
             [handle.id],
           )
         ).rowCount ?? 0;
+    // Telling somebody is separate from recording it. A condition is raised
+    // once and resolved when it stops, so a read every six hours does not
+    // announce the same shortfall four times a day.
+    const shortfall = committed > reachable ? committed - reachable : 0n;
+    await resolveNotices(
+      db,
+      handle.id,
+      ['authority.unreadable'],
+      'The approval was read successfully.',
+    );
+    if (!reading.policyActive)
+      await raiseNotice(db, {
+        workspaceId: handle.workspaceId,
+        topic: 'authority.inactive',
+        subjectId: handle.id,
+        summary: `Policy ${handle.policyId} is no longer active on chain, so new claims have stopped on ${paused === 1 ? 'the brief' : `${paused} briefs`} it funds. What has been accepted is still owed.`,
+        detail: { policyId: handle.policyId, pausedCampaigns: paused },
+      });
+    else await resolveNotices(db, handle.id, ['authority.inactive'], 'The policy is active again.');
+    if (reading.policyActive && shortfall > 0n)
+      await raiseNotice(db, {
+        workspaceId: handle.workspaceId,
+        topic: 'authority.short',
+        subjectId: handle.id,
+        summary: `The approval behind policy ${handle.policyId} is ${shortfall} base units short of what the briefs drawing on it have committed. Nothing has been cancelled; those payouts will block as owed.`,
+        detail: {
+          policyId: handle.policyId,
+          committedUnits: approval.committed_units,
+          shortfallUnits: shortfall.toString(),
+          observedAllowanceUnits: reading.allowanceUnits,
+          observedBalanceUnits: reading.balanceUnits,
+        },
+      });
+    else if (shortfall === 0n)
+      await resolveNotices(
+        db,
+        handle.id,
+        ['authority.short'],
+        'The approval covers what is committed against it.',
+      );
     await audit(
       db,
       by.workspaceId ?? handle.workspaceId,

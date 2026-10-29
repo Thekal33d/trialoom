@@ -71,6 +71,22 @@ The SDK's `remesso-sdk/postgres` storage keeps its payment journals, its signer 
 
 One pg client runs a single statement at a time, while postgres.js allows a reserved connection to be called freely, so queries on one connection are chained. On the connection holding the signer's session advisory lock, overlapping them would be a correctness problem rather than a driver warning.
 
+## What it costs to send
+
+Remesso's fees guide is explicit that **the agent's own key pays** for each agent payment, around 85,000 gas, and that the executor does not cover it. The same page settles a second question: "Policy payments carry no fee. What an agent pays is what arrives." So capping `maxDebit` at the recipient's amount is right, and gas is a separate, platform-funded cost.
+
+`payout_gas` records one reading per transaction, taken from the receipt rather than estimated: the gas used, the price it was actually paid at, their product, and the currency. `CHECK (cost_units = gas_used * effective_price)` means the cost is not a third number someone can disagree with, and `UNIQUE (transaction_hash)` is what lets the adapter report the same receipt on every poll without ever counting it twice. The row is immutable, because a receipt reading is evidence.
+
+**Gas never touches the campaign ledger, the builder's liability or the token approval.** The approval funds the transfer, not its gas; the agent's own balance pays that. The fork check asserts exactly this: the agent's CELO balance falls by precisely the recorded cost, and the payee's USDC rises by precisely the amount owed.
+
+### Currency is the hard part
+
+Gas is paid in CELO unless the transaction names a Celo fee currency, in which case the price and therefore the cost are denominated in that token — the SDK picks CELO when the agent holds at least twice the estimate and otherwise falls back to the policy's token. So a cost in CELO and a fee collected in USDC are **not addable**, and this product has no exchange rate.
+
+The readings are therefore grouped by currency and never converted. Each group reports whether it is denominated in the currency the platform collects its fee in, and only that group could ever be set against revenue. A fee currency this build does not recognise is still recorded, with no decimals, so its cost is visible and openly unconvertible rather than quietly dropped or shifted by a guessed exponent.
+
+This closes one of the economics target's holes and does not make it measurable. It now says "payout gas is recorded but not convertible: 2 transaction(s) cost 0.00085 CELO, and no CELO/USDC rate exists here" instead of "payout gas is not recorded", and it still refuses to print a margin, because platform compute, verification cost, human review and refunds remain unrecorded.
+
 ## What the fork check establishes
 
 `npm run payments:fork` drives the product's own path against deployed contract code on a disposable Anvil fork of Celo that the script starts and stops. Fourteen checks pass:
@@ -82,7 +98,9 @@ That is the first time value has moved through Trialoom's own code path. **It is
 ## What remains
 
 - **No mainnet transaction, and no funded wallet.** Nothing here establishes production behaviour, gas cost, real finality timing, or event eligibility.
-- **Gas is not accounted anywhere.** The adapter's `maxDebit` covers the token debit; network gas is a separate cost paid by the agent address, and no record of it exists. The economics target still has a hole in exactly that shape.
+- **A CELO gas cost cannot be set against USDC revenue.** Recording it was the achievable half; converting it needs a price feed, which would be a new external dependency and a new thing to be wrong about. Until there is one, the economics target reports the two separately and prints no margin.
+- **Only payout gas is recorded.** A resource purchase is also sent by a platform wallet and also costs gas; nothing records that, because no live resource adapter exists to read a receipt from. The PRD's economics definition names payout gas specifically, so this is a gap rather than a missed requirement.
+- **A receipt that cannot be read is simply not recorded.** The reader never throws into the settlement path — losing a cost record is far better than failing a payment that already settled — so a run of RPC failures at the moment of finality leaves gas unrecorded for that transaction with nothing to retry it, since the job completes at finality.
 - **A declaration is believed until someone reads it.** Verification is a button, not a schedule: nothing re-reads an approval periodically, so an approval drained elsewhere stays `verified` in the record until the next read or the next failed payout. A scheduled re-read belongs with the attention queue.
 - **The agent key comes from the environment.** There is no key management, no rotation, and no hardware signer. A compromised process can spend the whole approval up to the policy's per-payment and per-day caps.
 - **One signer.** The SDK's coordinator serializes signing across workers, which is correct, but it also means payout throughput is one transaction at a time per agent address.

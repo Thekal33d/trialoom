@@ -4,11 +4,13 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test, { after, before } from 'node:test';
+import { settlementCurrency } from '../src/domain/values.ts';
 import type { Actor } from '../src/server/access.ts';
 import { authenticateAgent } from '../src/server/agents.ts';
 import { claim, publishCampaign } from '../src/server/assignments.ts';
 import { decideDiscovery, decideExecution } from '../src/server/decisions.ts';
 import { storeArtifact, submitEvidence } from '../src/server/evidence.ts';
+import { type GasSpend, gasByCurrency } from '../src/server/gas.ts';
 import {
   acceptInvitation,
   bootstrapWorkspace,
@@ -16,6 +18,7 @@ import {
 } from '../src/server/invitations.ts';
 import { claimJob, processOne } from '../src/server/jobs.ts';
 import { campaignAccounting } from '../src/server/ledger.ts';
+import { pilotMetrics } from '../src/server/metrics.ts';
 import { migrate } from '../src/server/migrations.ts';
 import { createCredential, registerOperator } from '../src/server/operators.ts';
 import { bindPendingPayouts, operatorPayouts } from '../src/server/payables.ts';
@@ -650,4 +653,163 @@ test('a discovery award is its own payable with its own key', async () => {
   const accounting = await campaignAccounting(db.pool, work.campaign.campaignId);
   assert.equal(accounting?.finalizedUnits, '1000000');
   assert.equal(accounting?.reconciled, true);
+});
+
+/**
+ * A provider that also reports what sending cost, the way the live adapter
+ * reports it from the receipt. Gas is a platform cost, so the point of these
+ * checks is that it is recorded exactly once per transaction and never ends up
+ * anywhere near what the builder owes.
+ */
+function gasReportingAdapter(spend: Partial<GasSpend> & { costUnits?: string } = {}) {
+  const reads: string[] = [];
+  const gas = (hash: string): GasSpend => {
+    reads.push(hash);
+    const gasUsed = spend.gasUsed ?? '85000';
+    const effectivePrice = spend.effectivePrice ?? '5000000000';
+    return {
+      gasUsed,
+      effectivePrice,
+      costUnits: spend.costUnits ?? (BigInt(gasUsed) * BigInt(effectivePrice)).toString(),
+      feeCurrencyAddress: spend.feeCurrencyAddress ?? null,
+      currencySymbol: spend.currencySymbol ?? 'CELO',
+      currencyDecimals: spend.currencyDecimals ?? 18,
+      reader: 'fixture',
+    };
+  };
+  const adapter: SettlementAdapter = {
+    name: 'gas-fixture',
+    async send(request) {
+      const hash = hashFor(request.operationKey);
+      return { status: 'included', transactionHash: hash, gas: gas(hash), detail: 'In a block.' };
+    },
+    async confirm({ operationKey, transactionHash }) {
+      const hash = transactionHash ?? hashFor(operationKey);
+      return { status: 'finalized', transactionHash: hash, gas: gas(hash), detail: 'Final.' };
+    },
+  };
+  return { adapter, reads };
+}
+const gasOf = (payableId: string) =>
+  db.pool.query(`SELECT * FROM payout_gas WHERE payable_id=$1`, [payableId]);
+
+test('what a payout cost to send is recorded once per transaction', async () => {
+  const work = await acceptedWork('gas-recorded');
+  const payable = (await payablesOf(work.assignment.assignmentId)).rows.find(
+    (row) => row.kind === 'operator',
+  );
+  const { adapter, reads } = gasReportingAdapter();
+  const states = await settle(adapter, payable.operation_key, 3);
+  assert.deepEqual(states.slice(0, 2), ['included', 'finalized']);
+  const rows = (await gasOf(payable.id)).rows;
+  // The adapter reported the same receipt on inclusion, on finality and once
+  // more after it, and the transaction is still one cost.
+  assert.ok(reads.length >= 2);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].gas_used, '85000');
+  assert.equal(rows[0].cost_units, '425000000000000');
+  assert.equal(rows[0].currency_symbol, 'CELO');
+  assert.equal(rows[0].currency_decimals, 18);
+  assert.equal(rows[0].fee_currency_address, null);
+  assert.equal(rows[0].transaction_hash, hashFor(payable.operation_key));
+  // Gas is the platform's cost: the builder's ledger and the amount owed to
+  // the operator are exactly what the acceptance decided.
+  const accounting = await campaignAccounting(db.pool, work.campaign.campaignId);
+  assert.equal(accounting?.finalizedUnits, payable.amount_units);
+  assert.equal(
+    (await payablesOf(work.assignment.assignmentId)).rows.find((row) => row.kind === 'operator')
+      .amount_units,
+    payable.amount_units,
+  );
+});
+
+test('a gas reading is evidence: immutable, and its cost must be the product', async () => {
+  const work = await acceptedWork('gas-immutable');
+  const payable = (await payablesOf(work.assignment.assignmentId)).rows.find(
+    (row) => row.kind === 'operator',
+  );
+  const { adapter } = gasReportingAdapter();
+  await settle(adapter, payable.operation_key, 2);
+  await assert.rejects(
+    db.pool.query(`UPDATE payout_gas SET cost_units=1 WHERE payable_id=$1`, [payable.id]),
+    /immutable/i,
+  );
+  await assert.rejects(
+    db.pool.query(`DELETE FROM payout_gas WHERE payable_id=$1`, [payable.id]),
+    /immutable/i,
+  );
+  // A cost that is not gas used times the price it was paid at is not a cost.
+  await assert.rejects(
+    db.pool.query(
+      `INSERT INTO payout_gas (payable_id,transaction_hash,gas_used,effective_price,cost_units,
+      currency_symbol,currency_decimals,reader) VALUES ($1,$2,21000,1000,999,'CELO',18,'forced')`,
+      [payable.id, `0x${'ab'.repeat(32)}`],
+    ),
+    /payout_gas_cost/,
+  );
+});
+
+test('gas paid in the settlement token is comparable with revenue; gas in CELO is not', async () => {
+  const native = await acceptedWork('gas-native');
+  const nativePayable = (await payablesOf(native.assignment.assignmentId)).rows.find(
+    (row) => row.kind === 'operator',
+  );
+  await settle(gasReportingAdapter().adapter, nativePayable.operation_key, 2);
+  const inCelo = (await gasByCurrency(db.pool, workspaceId)).find(
+    (row) => row.currencySymbol === 'CELO',
+  );
+  assert.ok(inCelo);
+  assert.equal(inCelo.comparableWithRevenue, false);
+  assert.equal(inCelo.currencyDecimals, 18);
+
+  // Celo's fee abstraction lets the same token pay for its own transfer, and
+  // that cost can be set against a fee collected in it.
+  const abstracted = await acceptedWork('gas-abstracted');
+  const abstractedPayable = (await payablesOf(abstracted.assignment.assignmentId)).rows.find(
+    (row) => row.kind === 'operator',
+  );
+  await settle(
+    gasReportingAdapter({
+      gasUsed: '120000',
+      effectivePrice: '100',
+      feeCurrencyAddress: settlementCurrency.address,
+      currencySymbol: settlementCurrency.symbol,
+      currencyDecimals: settlementCurrency.decimals,
+    }).adapter,
+    abstractedPayable.operation_key,
+    2,
+  );
+  const inUsdc = (await gasByCurrency(db.pool, workspaceId)).find(
+    (row) => row.currencySymbol === settlementCurrency.symbol,
+  );
+  assert.ok(inUsdc);
+  assert.equal(inUsdc.comparableWithRevenue, true);
+  assert.equal(inUsdc.costUnits, '12000000');
+  // The two never become one number.
+  assert.equal((await gasByCurrency(db.pool, workspaceId)).length, 2);
+
+  // The economics target stops claiming gas is unrecorded, reports each
+  // currency, and says plainly that the CELO half cannot be converted. It is
+  // still incomplete: compute, verification and refunds are missing.
+  const economics = (await pilotMetrics(db.pool, workspaceId)).find(
+    (metric) => metric.id === 'economics',
+  );
+  assert.equal(economics?.complete, false);
+  assert.equal(economics?.value, null);
+  assert.ok(!economics?.missing.some((reason) => /gas is not recorded/.test(reason)));
+  assert.ok(
+    economics?.missing.some((reason) =>
+      /Payout gas is recorded but not convertible.*CELO/.test(reason),
+    ),
+  );
+  assert.ok(
+    !economics?.missing.some((reason) =>
+      new RegExp(`not convertible.*${settlementCurrency.symbol}, and`).test(reason),
+    ),
+  );
+  const reported = economics?.detail?.payoutGasByCurrency as { currencySymbol: string }[];
+  assert.deepEqual(reported.map((row) => row.currencySymbol).sort(), [
+    'CELO',
+    settlementCurrency.symbol,
+  ]);
 });

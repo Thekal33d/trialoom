@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "task": "PILOT-05",
-  "verifiedAt": "2026-10-29T14:30:00.000Z",
-  "sourceRevision": "7ca64a1",
+  "verifiedAt": "2026-10-29T16:10:00.000Z",
+  "sourceRevision": "300f1c2",
   "sourceTreeDirty": true,
-  "scope": "A payout was recorded, queued and then blocked because no payment authority existed. Adds the live Remesso adapter and, more importantly, an account of what a payment authority can actually deliver: one token approval is shared by every policy the same wallet grants, so per-campaign budgets say nothing about solvency and two live briefs could each believe they were funded",
+  "scope": "A payout was recorded, queued and then blocked because no payment authority existed. Adds the live Remesso adapter and, more importantly, an account of what a payment authority can actually deliver: one token approval is shared by every policy the same wallet grants, so per-campaign budgets say nothing about solvency and two live briefs could each believe they were funded. Payout gas is read from each transaction\u2019s own receipt and reported in the currency it was paid in, which closes one of the economics target\u2019s holes without making it measurable",
   "runtime": {
     "node": "v24.11.1",
     "postgres": "18.6",
@@ -23,7 +23,8 @@
     "clientReference": "https://docs.remesso.xyz/docs/reference/client \u2014 policies.get returns ownerAllowance, ownerBalance, active, remainingToday and spendable; PaymentOperation.status values",
     "postgresStorage": "remesso-sdk/postgres POSTGRES.md \u2014 shared journals, signer lock and nonce floor are required for multiple workers on one signing address",
     "latestRelease": "remesso-sdk 0.3.1 published 2026-10-28 and not adopted; 0.3.0 stays pinned because the recorded spike hashes and these checks were run against it",
-    "contractAddressesUnchanged": "USDC 0xcebA9300f2b948710d2653dD7B07f33A8B32118C, RemessoAgentAllowance 0xA6351fAeEb097698289586C4D6188530300DB209, RemessoExecutorV5 0x3C357af3300f383Ea49B6D6ED8e084199a92bEd8, read from the pinned deployment manifest and confirmed as deployed code on the fork"
+    "contractAddressesUnchanged": "USDC 0xcebA9300f2b948710d2653dD7B07f33A8B32118C, RemessoAgentAllowance 0xA6351fAeEb097698289586C4D6188530300DB209, RemessoExecutorV5 0x3C357af3300f383Ea49B6D6ED8e084199a92bEd8, read from the pinned deployment manifest and confirmed as deployed code on the fork",
+    "feesAndGas": "https://docs.remesso.xyz/docs/guides/fees-and-gas \u2014 the agent\u2019s own key pays for each agent payment, around 85,000 gas, and the executor does not cover it; CELO is used when the key holds twice the estimate, otherwise the policy\u2019s token through fee abstraction; policy payments carry no protocol fee, so what an agent pays is what arrives"
   },
   "accounting": {
     "approvalIdentity": "chain, token and payer: the tuple that identifies the approval on chain, not the workspace, policy or authority that references it",
@@ -51,14 +52,14 @@
     "keySource": "TRIALOOM_REMESSO_AGENT_KEY; absent in this build, so the unconfigured adapter still blocks every payout"
   },
   "checks": {
-    "lint": "biome check, 107 files",
+    "lint": "biome check, 108 files",
     "types": "tsc --noEmit, strict",
     "capability": "28 spike checks",
-    "database": 174,
+    "database": 177,
     "browser": 58,
     "build": "next build succeeded",
-    "loop": "14 phases, 40 steps, exit 0",
-    "fork": "14 checks against deployed contract code on a disposable Anvil fork of Celo, exit 0",
+    "loop": "14 phases, 42 steps, exit 0",
+    "fork": "18 checks against deployed contract code on a disposable Anvil fork of Celo, exit 0",
     "covered": [
       "two briefs cannot both promise one shared approval; the refusal leaves the first published and the second a draft, and what fits is still publishable to the last base unit",
       "a second authority on the same wallet resolves to one approval row and states the same amount rather than doubling it, while a different wallet has its own room",
@@ -70,7 +71,12 @@
       "a revoked authority blocks the payout with a named reason, pauses the brief, keeps the debt exactly as accepted, and funds nothing new",
       "verification refuses with no provider configured; a reading below the commitments marks the approval short and cancels nothing; an inactive policy is short whatever the numbers say; observations are immutable",
       "on a Celo fork with a real policy: the reader reads the live approval and balance, the worker settles a real payable from included to finality, exactly the owed amount reaches the payee in one signed transaction, the approval records the spend, a re-read of the chain agrees, the same key again moves nothing, and a policy revoked on chain reads as short",
-      "over real HTTP: an owner registers an authority, sees one shared approval across two handles on the same wallet, is refused a reading with no provider configured, and revokes it with what that does and does not do stated"
+      "over real HTTP: an owner registers an authority, sees one shared approval across two handles on the same wallet, is refused a reading with no provider configured, and revokes it with what that does and does not do stated",
+      "what a payout cost to send is recorded once per transaction, however many times the adapter reports the same receipt, and the builder\u2019s ledger and the amount owed are untouched by it",
+      "a gas reading is immutable and undeletable, and a cost that is not gas used times the price paid is refused by the table",
+      "gas paid in the settlement token is comparable with revenue, gas paid in CELO is not, and the two are never summed into one number",
+      "the economics target stops reporting payout gas as missing, names the recorded cost in the currency it was paid in, and still prints no margin",
+      "on the fork: the agent\u2019s own CELO balance fell by exactly the recorded gas while the payee\u2019s USDC rose by exactly the amount owed"
     ]
   },
   "ci": "configured; not run on GitHub",
@@ -81,8 +87,7 @@
     "no mainnet transaction, no funded wallet, and no evidence of production behaviour or event eligibility"
   ],
   "limits": [
-    "no mainnet transaction and no funded wallet, so nothing here establishes production behaviour, gas cost or real finality timing",
-    "network gas is not accounted anywhere: maxDebit covers the token debit only, and the economics target still has a hole in that shape",
+    "no mainnet transaction and no funded wallet, so nothing here establishes production behaviour or real finality timing",
     "verification is a button, not a schedule: an approval drained elsewhere stays verified in the record until the next read or the next failed payout",
     "the agent key comes from the environment, with no rotation and no hardware signer; a compromised process can spend up to the policy caps",
     "one signer, serialized by the SDK coordinator, so payout throughput is one transaction at a time per agent address",
@@ -90,7 +95,10 @@
     "no webhook or indexer: payment state is pulled when a job runs rather than pushed on inclusion",
     "the platform fee recipient and the resource recipient are still unconfigured, so those payables block for a missing recipient rather than a missing authority",
     "an authority is fixed at a brief\u2019s first publication, so moving a live brief to another wallet needs the brief closed",
-    "remesso-sdk 0.3.1 exists and is not adopted"
+    "remesso-sdk 0.3.1 exists and is not adopted",
+    "a CELO gas cost cannot be set against USDC revenue without a price feed, which does not exist here, so the economics target reports the two separately and prints no margin",
+    "only payout gas is recorded: a resource purchase is also sent by a platform wallet and also costs gas, but no live resource adapter exists to read a receipt from",
+    "a receipt that cannot be read is not recorded and nothing retries it, because the job completes at finality"
   ],
   "sourceFiles": [
     {
@@ -194,6 +202,10 @@
       "sha256": "9c42cb8f39e39e121f3b32d86215d3ecfc04b35645c9405cc83aec40a12674c6"
     },
     {
+      "path": "db/migrations/0015_payout_gas.sql",
+      "sha256": "31a0265a4cda55c5b517b70af94118a1bdaecb8b3d280c05ac05ec5767cd960e"
+    },
+    {
       "path": "docs/ALPHA-02.md",
       "sha256": "0bc89f1575bf80e4ba1eab387d4cc518b5b271d88d32693f6a8a720fee4247af"
     },
@@ -231,7 +243,7 @@
     },
     {
       "path": "docs/ALPHA-11.md",
-      "sha256": "c6b808626f7e349a9afe54f5f4612d2fe86d76590cee61f34d3b500cd4844c3d"
+      "sha256": "c8db6ff5df90f91a79d0bd9adb5a8b9abffdcddaf8e645ed737daff55b4a307a"
     },
     {
       "path": "docs/ARCHITECTURE.md",
@@ -239,7 +251,7 @@
     },
     {
       "path": "docs/BACKLOG.md",
-      "sha256": "0968349289d2c6cde6a3fbb5c9ad28765dee4a5d4a27b120b34a2f86bd4e6578"
+      "sha256": "262d20b18559fe9d2f77f79307264dfb0986ce8ea8d6cf34358613a6410fa4ec"
     },
     {
       "path": "docs/DEVELOPMENT.md",
@@ -255,11 +267,11 @@
     },
     {
       "path": "docs/PILOT-04.md",
-      "sha256": "01ac6041581472c5d93257b3d3ecef6daf198d7adbc4f889480af5ef6045f51b"
+      "sha256": "d9b05ca0b1f952c04fd69555da1950aed04d2cd39604485222bf09b29cc7a605"
     },
     {
       "path": "docs/PILOT-05.md",
-      "sha256": "ca024f0cd08c6aaccf29f71a0cded1695922939456cb366063b469f7bf2fd447"
+      "sha256": "793883c1b791a2eca92ef7e7dedd7b06849a9fa062be9f7302d459db3e387f2a"
     },
     {
       "path": "docs/PRD.md",
@@ -271,15 +283,15 @@
     },
     {
       "path": "docs/VALIDATION.md",
-      "sha256": "3cc3c72bfa44fd11def6271c88dd216bf4323a7beb01fd6a98592c38505176b2"
+      "sha256": "855fd701af9b865247ee74995a7c34e34eb67391cbe34fbf0b8936a0daba2680"
     },
     {
       "path": "memory/BUILD_LOG.md",
-      "sha256": "540e47c2cb9cb5b0f5ec2dae4fe7719b27608f0f31ef606f46d40d42dc8e35dc"
+      "sha256": "227379631cec1782fcddbe51224ba9bf46aa2f8bff3c31f971f54a7e4170f36b"
     },
     {
       "path": "memory/DECISIONS.md",
-      "sha256": "4cfa7dc43b98ad52f830e113db216e8bda173ab95d9ba4198834a7dbfc5578a6"
+      "sha256": "f1445e783c9bd82491e89d1814b184b62f1196a4ce521dcb0ca874fe4d103785"
     },
     {
       "path": "memory/PROJECT.md",
@@ -287,7 +299,7 @@
     },
     {
       "path": "memory/STATUS.md",
-      "sha256": "e0fabc1c7343ece010701b4e6fa27adc7fdac2e9759dfe1a78d3a903f0d2a6c6"
+      "sha256": "97088907acb76d5341e4a609aad1eb63a9969aa8c5e01eb84e96984123ed58d1"
     },
     {
       "path": "next-env.d.ts",
@@ -327,7 +339,7 @@
     },
     {
       "path": "scripts/run-loop.ts",
-      "sha256": "1c71688a7f10d13b53066cfe511f1a4124b7f576828a1407f665faf32b711216"
+      "sha256": "3e3bda357d5bae35b2bc9987d4a8e59a3c86d76bb4e6d62c5cc6ca63ccc9fbbf"
     },
     {
       "path": "scripts/setup-auth.mjs",
@@ -343,7 +355,7 @@
     },
     {
       "path": "scripts/verify-payments.ts",
-      "sha256": "4d57b82e2093c0ffbe334b9fda7324fc9dec2f4ab60c4202a4aefbee40e5689b"
+      "sha256": "7ec87eb28fee77d8bc94137b9ffa97a4910cda52c886396590100b88997b633a"
     },
     {
       "path": "src/app/account.css",
@@ -558,6 +570,10 @@
       "sha256": "314b2a4ac097b24bb1ecbc471585a6243508f1c383623e28f81ddea9c1a7a7d1"
     },
     {
+      "path": "src/server/gas.ts",
+      "sha256": "712571447a541e9a66579f8693b36e86cc73e0ba3c1926242e694cf4537fcc3f"
+    },
+    {
       "path": "src/server/http.ts",
       "sha256": "29591bab594a13d1754230a4fe60e3ff0379b26412d9cb42c32a5fb42c38c276"
     },
@@ -579,7 +595,7 @@
     },
     {
       "path": "src/server/metrics.ts",
-      "sha256": "688d6d3e14284f838944b24e41dd036fcd41d1d7e0092905fed8a232649575b4"
+      "sha256": "a4fd97ab0967cf89bf10c3ae1de6f45956fa5046606bb2abbda92818df0ad23e"
     },
     {
       "path": "src/server/migrations.ts",
@@ -607,7 +623,7 @@
     },
     {
       "path": "src/server/remesso.ts",
-      "sha256": "72b84dfdb93193a0a9da68f3efdcc225a4c83a2200f38044cdc92f9efbb1b34c"
+      "sha256": "c003cee65967645cf2fe4c4b5ee81513ee9b5e9ad0dd8378686522291543b246"
     },
     {
       "path": "src/server/repairs.ts",
@@ -623,7 +639,7 @@
     },
     {
       "path": "src/server/settlement.ts",
-      "sha256": "8caca64cb226daa7db300b6cbd1be7b123b242c1aaae63c93eb0870028b249b1"
+      "sha256": "48ced2f36406d080b0cb197c2d6e7f762fd90d0ac41736a5a1bff6dd26124770"
     },
     {
       "path": "src/server/storage.ts",
@@ -715,7 +731,7 @@
     },
     {
       "path": "tests/settlement.test.ts",
-      "sha256": "f079a4aeeedab0ee43636dc4ad712565e999e53f22eb99e19edda0e70417a302"
+      "sha256": "3264a400902ad32cf0a4d475a9ef9d7c40a4b33a022e3c5cb9d5dc3be9a4dd60"
     },
     {
       "path": "tsconfig.json",
@@ -725,5 +741,15 @@
       "path": "workers/main.ts",
       "sha256": "e06192fa045d0625d7493bcf5497e1c8cd6107a5be1b2e4c0af7b8c220ffb433"
     }
-  ]
+  ],
+  "gas": {
+    "table": "payout_gas, immutable, one row per transaction hash",
+    "source": "the transaction receipt (gasUsed, effectiveGasPrice) and the transaction itself (Celo feeCurrency), not an estimate",
+    "costIsTheProduct": "CHECK (cost_units = gas_used * effective_price)",
+    "idempotentPerTransaction": "UNIQUE (transaction_hash), so an adapter may report the same receipt on every poll",
+    "platformCostOnly": "never enters the campaign ledger, the builder\u2019s liability or the token approval; the approval funds the transfer, the agent\u2019s own balance funds its gas",
+    "currenciesNeverConverted": "readings are grouped by the currency each was paid in, each stating whether it is the currency the fee is collected in; an unrecognised fee currency is recorded with no decimals rather than shifted by a guessed exponent",
+    "economicsEffect": "the target names a real cost instead of an absence and still refuses to print a margin: compute, verification, human review and refunds remain unrecorded",
+    "measuredOnTheFork": "the agent\u2019s CELO balance fell by exactly the recorded cost while the payee\u2019s USDC rose by exactly the amount owed"
+  }
 }

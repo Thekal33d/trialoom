@@ -150,6 +150,18 @@ function recordingSettlement(script: SettlementResult[]): SettlementAdapter & { 
       return {
         status: seen === 1 ? ('included' as const) : ('finalized' as const),
         transactionHash: hash,
+        // What sending it cost the platform, the way the live adapter reads it
+        // from the receipt. Reported on every confirmation, because recording
+        // is keyed by the transaction rather than by the attempt.
+        gas: {
+          gasUsed: '85000',
+          effectivePrice: '5000000000',
+          costUnits: '425000000000000',
+          feeCurrencyAddress: null,
+          currencySymbol: 'CELO',
+          currencyDecimals: 18,
+          reader: 'loop-fixture',
+        },
         detail: seen === 1 ? 'In a block.' : 'Reconciled the original payment.',
       };
     },
@@ -627,6 +639,21 @@ try {
   note(
     'approval accounting',
     `the approval records ${spent.settled_units} spent with ${spent.committed_units} still committed and ${spent.declared_units} declared remaining; a finalized payout consumes the approval instead of returning to the next brief`,
+  );
+  const spentGas = (
+    await db.pool.query('SELECT * FROM payout_gas WHERE payable_id=$1', [discoveryPayable.id])
+  ).rows;
+  // Two confirmations read the same receipt; the transaction is one cost.
+  assert.equal(spentGas.length, 1);
+  assert.equal(
+    BigInt(spentGas[0].cost_units),
+    BigInt(spentGas[0].gas_used) * BigInt(spentGas[0].effective_price),
+  );
+  const ledgerAfterGas = await campaignAccounting(db.pool, discovery.campaign.campaignId);
+  assert.equal(ledgerAfterGas?.finalizedUnits, afterFinality?.finalizedUnits);
+  note(
+    'what it cost to send',
+    `${spentGas[0].gas_used} gas at ${spentGas[0].effective_price} recorded once against the transaction, in ${spentGas[0].currency_symbol}; it is the platform's cost, so the builder's ledger did not move`,
   );
 
   heading('6. One approval funds every brief, and the second cannot promise the first money');
@@ -1287,6 +1314,15 @@ try {
       .map((target) => `${target.id}=${target.complete ? (target.value ?? 'none') : 'no input'}`)
       .join(', '),
   );
+  // Economics has one fewer hole than it did: the gas actually spent is
+  // recorded and reported in the currency it was paid in. It is still
+  // incomplete, and still refuses to print a margin.
+  const margin = targets.find((target) => target.id === 'economics');
+  assert.ok(margin && !margin.complete && margin.value === null);
+  assert.ok(!margin.missing.some((reason) => /gas is not recorded/.test(reason)));
+  const unconvertible = margin.missing.find((reason) => /not convertible/.test(reason));
+  assert.ok(unconvertible, 'recorded gas must be reported as unconvertible, not as missing');
+  note('economics', `${unconvertible} The rest of its inputs are still named as missing.`);
 
   heading('13. The builder sees what is waiting and exports the record');
   const queue = await workspaceAttention(db.pool, owner, workspaceId);

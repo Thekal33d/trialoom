@@ -16,7 +16,7 @@ It runs against a disposable database and the **real server modules**, writes it
 | 2. Execute and report | Two operators prove payout wallets, qualify, claim, run against a revalidated target, and report the same failure, which confirms one defect from two independent reports |
 | 3. Decide | A person accepts both executions and awards the discovery reward to the earliest complete report; the second is refused the reward and keeps its execution payment |
 | 4. Owe | Two acceptances write four separate payables, each with its own operation key, and with no payment authority the amount is visibly blocked and still owed |
-| 5. Settle | With an authority, submitted → included → finalized; the ledger moves only at finality, and the approval records the spend rather than freeing it for the next brief |
+| 5. Settle | With an authority, submitted → included → finalized; the ledger moves only at finality, the approval records the spend rather than freeing it for the next brief, and what the transaction cost to send is recorded once against it as the platform's own cost |
 | 6. One shared approval | Two policies on one wallet draw on one approval, so the second brief is refused with the uncommitted amount named while the first stands, and a reading below the commitments reports a shortfall that cancels nothing |
 | 7. Crash after broadcast | One send and a reconciliation against the same key; the money is never sent twice |
 | 8. Expired claim | A complete but lapsed attempt is fenced and its whole reservation returns |

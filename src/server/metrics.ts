@@ -1,8 +1,9 @@
 import type { Pool, PoolClient } from 'pg';
 import { uuid } from '../domain/schemas.ts';
-import { settlementCurrency } from '../domain/values.ts';
+import { exactUnits, settlementCurrency } from '../domain/values.ts';
 import { type Actor, audit, requireRole } from './access.ts';
 import { transaction } from './database.ts';
+import { type GasByCurrency, gasByCurrency } from './gas.ts';
 import { feeRecipient } from './payables.ts';
 
 /**
@@ -33,6 +34,15 @@ export type Metric = {
 
 const ratio = (numerator: number, denominator: number) =>
   denominator === 0 ? null : numerator / denominator;
+/**
+ * A cost in whatever currency it was actually paid in. A fee currency this
+ * build does not know has no decimals, so its amount is stated in base units
+ * rather than shifted by a guess.
+ */
+const amount = (row: GasByCurrency) =>
+  row.currencyDecimals === null
+    ? `${row.costUnits} base units of ${row.currencySymbol}`
+    : `${exactUnits(row.costUnits, row.currencyDecimals)} ${row.currencySymbol}`;
 
 /** The pilot targets five builders; the first five are the ones measured. */
 const pilotBuilders = 5;
@@ -196,6 +206,11 @@ export async function pilotMetrics(db: Pool | PoolClient, workspaceId: string): 
         WHERE q.workspace_id=$1 AND c.published_at IS NOT NULL) AS campaigns`,
   );
   const feeConfigured = feeRecipient() !== null;
+  // Payout gas, per currency. Gas paid in CELO and a fee collected in USDC are
+  // not addable, so the readings stay apart rather than being converted at a
+  // rate this product does not have.
+  const gas = await gasByCurrency(db, workspaceId);
+  const unconvertibleGas = gas.filter((row) => !row.comparableWithRevenue);
 
   const usefulDelivery = ratio(delivery.accepted, delivery.decided);
   const precision = ratio(discovery.confirmed, discovery.adjudicated);
@@ -341,7 +356,12 @@ export async function pilotMetrics(db: Pool | PoolClient, workspaceId: string): 
       complete: false,
       missing: [
         'Platform-funded compute is not recorded: Trialoom does not run the runner host.',
-        'Payout gas is not recorded: no transfer has been made.',
+        ...(gas.length
+          ? unconvertibleGas.map(
+              (row) =>
+                `Payout gas is recorded but not convertible: ${row.transactions} transaction(s) cost ${amount(row)}, and no ${row.currencySymbol}/${settlementCurrency.symbol} rate exists here.`,
+            )
+          : ['Payout gas is not recorded: no payout has reached a block.']),
         'Verification cost and human review time carry no rate, so neither converts to money.',
         'Refunds do not exist as a concept in the ledger.',
         ...(feeConfigured
@@ -354,6 +374,9 @@ export async function pilotMetrics(db: Pool | PoolClient, workspaceId: string): 
         feeRevenueFinalizedUnits: economics.fees,
         unrecoveredResourceUnits: economics.absorbed,
         publishedCampaigns: economics.campaigns,
+        // Each currency separately, with whether it can be set against
+        // revenue at all. Nothing here is summed into a margin.
+        payoutGasByCurrency: gas,
       },
     },
   ];

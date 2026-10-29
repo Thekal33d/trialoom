@@ -53,6 +53,8 @@ Each one reports its definition, threshold, value, numerator, denominator, wheth
 | Payment timeliness | ≥95% within 60 minutes | **No** — no payout has reached finality |
 | Economics | Nonnegative median margin | **No** — most of the cost side is unrecorded |
 
+> PILOT-05 closed one of economics' holes. Payout gas is now read from each transaction's own receipt and reported in the currency it was paid in, so the target names a real cost instead of an absence. It is still incomplete, and still prints no margin: a cost in CELO and a fee in USDC are not addable without a rate this product does not have, and compute, verification, review and refunds remain unrecorded.
+
 **A target whose inputs do not exist reports what is missing instead of a number.** This is the central decision of the step. Economics could easily print a positive figure by treating unrecorded compute, gas, verification and review cost as zero — and that figure would be worse than useless, because the exit gate would be read off it. Instead it names each missing input and reports what *is* known — finalized fee revenue, unrecovered resource cost — as parts, never summed into a margin.
 
 Payment correctness is the one target that is complete regardless: a duplicate finalized payout either exists or does not, and the ceiling invariant is a table check rather than a sample.
@@ -66,7 +68,7 @@ The readiness view also shows the **stream's own coverage**, because a target re
 - **Review burden is an upper bound, and only for reviews done on the screen.** It measures the span from a reviewer opening a submission to the decision, which includes any time they spent away. A decision recorded without opening the review surface — through the API, say — has no measurable review time, and the metric says how many of those there are rather than quietly reporting a partial median.
 - **Additional value needs a product change, not instrumentation.** Whether a defect was already covered by the builder's own checks is a judgement, and the honest options are to ask the builder at the discovery decision or to leave the metric empty. It is empty.
 - **No per-builder breakdown.** Repeat purchase and additional value are stated per builder in the PRD; they are computed per workspace here, which is the same thing only while one workspace means one builder.
-- **No cost rates anywhere.** Verification cost and human review time carry no money rate, so neither converts into margin even once measured.
+- **No cost rates anywhere.** Verification cost and human review time carry no money rate, so neither converts into margin even once measured. Payout gas is now measured exactly, and is in a different currency from the revenue, which needs a price rather than a rate card.
 - **No instrumentation of the agent API's own health** — latency, error rates, rate-limit pressure — and no retention policy on the stream, which will grow without bound.
 - The metrics are computed on read, with no materialization. That is fine at pilot size and will not be at scale.
 

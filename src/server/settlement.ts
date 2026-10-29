@@ -2,6 +2,7 @@ import type { Pool, PoolClient } from 'pg';
 import { settleOnAuthority } from './authority.ts';
 import { transaction } from './database.ts';
 import { emit, workspaceOfCampaign } from './events.ts';
+import { type GasSpend, recordPayoutGas } from './gas.ts';
 import { completeJob, type JobLease, rescheduleJob } from './jobs.ts';
 import { finalizeAccepted, lockAccount } from './ledger.ts';
 import { payoutWallet } from './payables.ts';
@@ -37,6 +38,12 @@ export type SettlementRequest = {
 export type SettlementResult = {
   status: 'submitted' | 'included' | 'finalized' | 'uncertain' | 'failed' | 'unknown';
   transactionHash?: string;
+  /**
+   * What sending it cost the platform, read from the receipt. Reported
+   * whenever the adapter can see it; recording is idempotent per transaction,
+   * so an adapter never has to remember what it already reported.
+   */
+  gas?: GasSpend;
   reason?:
     | 'authority_revoked'
     | 'insufficient_balance'
@@ -278,6 +285,11 @@ async function applyResult(pool: Pool, payableId: string, result: SettlementResu
   await transaction(pool, async (db) => {
     const payable = (await db.query('SELECT * FROM payables WHERE id=$1 FOR UPDATE', [payableId]))
       .rows[0];
+    // What the platform spent to send this, recorded with the state change it
+    // belongs to. It is a cost rather than a liability: nothing about it is
+    // owed by the builder or drawn from their approval.
+    const hash = result.transactionHash ?? payable.transaction_hash;
+    if (result.gas && hash) await recordPayoutGas(db, payableId, hash, result.gas);
     if (result.status === 'failed') {
       await db.query(
         `UPDATE payables SET state='blocked',blocked_reason=$2,updated_at=clock_timestamp()
@@ -299,7 +311,6 @@ async function applyResult(pool: Pool, payableId: string, result: SettlementResu
       );
       return;
     }
-    const hash = result.transactionHash ?? payable.transaction_hash;
     if (result.status === 'submitted') {
       await db.query(
         `UPDATE payables SET state='submitted',transaction_hash=COALESCE(transaction_hash,$2),

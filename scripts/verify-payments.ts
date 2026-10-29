@@ -33,11 +33,13 @@ import {
 } from '../src/server/authority.ts';
 import { decideExecution } from '../src/server/decisions.ts';
 import { storeArtifact, submitEvidence } from '../src/server/evidence.ts';
+import { gasByCurrency } from '../src/server/gas.ts';
 import {
   acceptInvitation,
   bootstrapWorkspace,
   createInvitation,
 } from '../src/server/invitations.ts';
+import { pilotMetrics } from '../src/server/metrics.ts';
 import { migrate } from '../src/server/migrations.ts';
 import {
   createCredential,
@@ -418,6 +420,9 @@ try {
   // 5. The worker pays it through the live adapter.
   const before = await balanceOf(seller.address);
   const nonceBefore = await chain.getTransactionCount({ address: env.accounts.buyer });
+  // Gas comes out of the agent's own balance, not the builder's approval, so
+  // this is the number the recorded cost has to match.
+  const celoBefore = await chain.getBalance({ address: env.accounts.buyer });
   const lease = async () =>
     (
       await db.pool.query(
@@ -466,6 +471,41 @@ try {
   check(
     'the chain agrees: the live approval fell by exactly what was paid',
     reread.approval.observedAllowanceUnits === '18000000',
+  );
+
+  // What it cost to send, read from the receipt rather than estimated.
+  const gasRow = (await db.pool.query('SELECT * FROM payout_gas WHERE payable_id=$1', [payable.id]))
+    .rows;
+  const spend = gasRow[0];
+  check(
+    'the receipt\u2019s own gas was recorded once against the payout',
+    gasRow.length === 1 &&
+      spend.transaction_hash === paid.transaction_hash &&
+      BigInt(spend.cost_units) === BigInt(spend.gas_used) * BigInt(spend.effective_price) &&
+      BigInt(spend.gas_used) > 0n,
+  );
+  check(
+    'the agent\u2019s own balance fell by exactly the recorded gas, and the payee\u2019s did not',
+    celoBefore - (await chain.getBalance({ address: env.accounts.buyer })) ===
+      BigInt(spend.cost_units) && (await balanceOf(seller.address)) - before === 2_000_000n,
+  );
+  const perCurrency = await gasByCurrency(db.pool, workspaceId);
+  check(
+    `gas was paid in ${spend.currency_symbol} and is reported as its own cost, not folded into revenue`,
+    perCurrency.length === 1 &&
+      perCurrency[0].comparableWithRevenue === false &&
+      perCurrency[0].costUnits === spend.cost_units &&
+      spend.fee_currency_address === null,
+  );
+  const economics = (await pilotMetrics(db.pool, workspaceId)).find(
+    (metric) => metric.id === 'economics',
+  );
+  check(
+    'the economics target reports the real gas and still refuses to print a margin',
+    economics?.complete === false &&
+      economics?.value === null &&
+      !economics.missing.some((reason) => /gas is not recorded/.test(reason)) &&
+      economics.missing.some((reason) => /not convertible/.test(reason)),
   );
 
   // 6. The provider's own journal, which is what every recovery path rests on.
@@ -527,7 +567,7 @@ try {
   );
 
   console.log(
-    `\n${checks.length} fork checks passed. ${exactUnits('2000000')} USDC moved on a disposable fork; no mainnet value was spent.`,
+    `\n${checks.length} fork checks passed. ${exactUnits('2000000')} USDC moved on a disposable fork and cost ${exactUnits(spend.cost_units, 18)} ${spend.currency_symbol} in gas; no mainnet value was spent.`,
   );
 } finally {
   await db.close();

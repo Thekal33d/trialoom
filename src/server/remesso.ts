@@ -1,11 +1,13 @@
 import type { Pool } from 'pg';
 import type { PaymentStatus } from 'remesso-sdk';
-import { createRemesso } from 'remesso-sdk';
+import { createRemesso, deployment } from 'remesso-sdk';
 import { createPostgresStorage } from 'remesso-sdk/postgres';
 import { privateKeyToAccount } from 'viem/accounts';
+import { celo } from 'viem/chains';
 import { AppError } from '../domain/errors.ts';
 import { exactUnits, settlementCurrency } from '../domain/values.ts';
 import type { AuthorityHandle, AuthorityReader, AuthorityReading } from './authority.ts';
+import type { GasSpend } from './gas.ts';
 import type { SettlementAdapter, SettlementRequest, SettlementResult } from './settlement.ts';
 
 /**
@@ -132,6 +134,44 @@ const reasonFor: Partial<Record<PaymentStatus, SettlementResult['reason']>> = {
   expired: 'policy_expired',
 };
 
+/**
+ * What the transaction cost, read from its own receipt. Gas is paid in CELO
+ * unless the transaction names a Celo fee currency, in which case the
+ * effective price and therefore the cost are denominated in that token: the
+ * two are not addable, so the currency is recorded rather than assumed.
+ *
+ * A receipt that cannot be read returns nothing. Losing a cost record is worse
+ * than having it, and far better than failing a payment that already settled,
+ * so this never throws into the settlement path; the next poll tries again,
+ * and recording is idempotent per transaction.
+ */
+async function readGas(sdk: Client, hash: `0x${string}`): Promise<GasSpend | undefined> {
+  try {
+    const [receipt, sent] = await Promise.all([
+      sdk.publicClient.getTransactionReceipt({ hash }),
+      sdk.publicClient.getTransaction({ hash }),
+    ]);
+    const feeCurrency = (sent as { feeCurrency?: string | null }).feeCurrency ?? null;
+    const token = feeCurrency
+      ? deployment.tokens.find((entry) => entry.address.toLowerCase() === feeCurrency.toLowerCase())
+      : null;
+    const cost = receipt.gasUsed * receipt.effectiveGasPrice;
+    return {
+      gasUsed: receipt.gasUsed.toString(),
+      effectivePrice: receipt.effectiveGasPrice.toString(),
+      costUnits: cost.toString(),
+      feeCurrencyAddress: feeCurrency,
+      // An unknown fee currency is still recorded, with no decimals, so its
+      // cost is visible and openly unconvertible rather than quietly dropped.
+      currencySymbol: feeCurrency ? (token?.symbol ?? feeCurrency) : celo.nativeCurrency.symbol,
+      currencyDecimals: feeCurrency ? (token?.decimals ?? null) : celo.nativeCurrency.decimals,
+      reader: 'remesso',
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 function missingRecord(error: unknown) {
   const text = `${(error as { code?: string }).code ?? ''} ${(error as Error).message ?? ''}`;
   return /not_found|no saved payment|unknown key/i.test(text);
@@ -181,6 +221,7 @@ export function remessoAdapter(pool: Pool, config: RemessoConfig): SettlementAda
       return {
         status: result.status === 'confirmed' ? 'included' : 'submitted',
         transactionHash: result.hash,
+        gas: result.status === 'confirmed' ? await readGas(sdk, result.hash) : undefined,
         detail: result.repeat
           ? `This key had already paid ${result.sent}; nothing new was sent.`
           : `Sent ${result.sent} under policy ${authority.policyId}.`,
@@ -196,6 +237,10 @@ export function remessoAdapter(pool: Pool, config: RemessoConfig): SettlementAda
         return {
           status,
           transactionHash: operation.hash,
+          gas:
+            operation.hash && ['included', 'finalized'].includes(operation.status)
+              ? await readGas(sdk, operation.hash)
+              : undefined,
           reason: reasonFor[operation.status],
           detail:
             operation.error?.message ??

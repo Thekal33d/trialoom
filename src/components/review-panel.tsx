@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { formatUnits, toUnits } from '@/domain/values';
 import { api, field } from './live-types';
 
@@ -78,6 +78,25 @@ export function ReviewPanel({
   useEffect(() => {
     load().catch((e) => setError(e instanceof Error ? e.message : 'Review unavailable.'));
   }, [load]);
+  // Review burden is measured from here. Nothing else knows when a person
+  // started looking, and the server records one open per reviewer per
+  // assignment, so a second visit does not stretch the measured span.
+  //
+  // Each assignment is announced at most once per mounted panel: this is a
+  // measurement, and a re-render must not spend the caller's mutation budget
+  // telling the server something it already knows.
+  const announced = useRef(new Set<string>());
+  useEffect(() => {
+    if (!review || !canDecide) return;
+    const undecided = new Set(submissions.map((submission) => submission.assignment_id));
+    for (const decision of review.decisions)
+      if (decision.matter === 'execution') undecided.delete(decision.assignment_id);
+    for (const assignmentId of undecided) {
+      if (announced.current.has(assignmentId)) continue;
+      announced.current.add(assignmentId);
+      void api(`${campaignBase}/reviews`, 'POST', { assignmentId }).catch(() => undefined);
+    }
+  }, [review, canDecide, submissions, campaignBase]);
   async function run(work: () => Promise<void>, fallback: string) {
     setBusy(true);
     setError('');

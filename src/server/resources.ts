@@ -6,6 +6,7 @@ import { settlementCurrency } from '../domain/values.ts';
 import { type AgentSession, requireScope } from './agents.ts';
 import { liveAssignment } from './assignments.ts';
 import { transaction } from './database.ts';
+import { emit, workspaceOfCampaign } from './events.ts';
 import { completeJob, enqueueJob, type JobLease, rescheduleJob } from './jobs.ts';
 import {
   heldForResources,
@@ -636,6 +637,35 @@ export async function reconcilePurchase(
       );
     return 'absorbed';
   });
+  // Reconciliation is where a resource purchase stops being uncertain, so that
+  // is the moment worth measuring: what it cost and who ended up bearing it.
+  if (['reimbursed', 'absorbed', 'unsettled'].includes(result)) {
+    const settled = (await pool.query('SELECT * FROM resource_purchases WHERE id=$1', [purchaseId]))
+      .rows[0];
+    const tenant = await workspaceOfCampaign(pool, settled.campaign_id);
+    await emit(
+      pool,
+      'resource.settled',
+      {
+        workspaceId: tenant?.workspace_id,
+        projectId: settled.project_id,
+        campaignId: settled.campaign_id,
+        assignmentId: settled.assignment_id,
+        operatorId: settled.operator_id,
+      },
+      {
+        purchaseId,
+        provider: settled.provider,
+        sku: settled.sku,
+        outcome: result,
+        state: settled.state,
+        charge: settled.charge,
+        ceilingUnits: settled.ceiling_units,
+        costUnits: settled.cost_units,
+        attempts: settled.attempts,
+      },
+    );
+  }
   if (result === 'over_limit') {
     await pool.query(
       `UPDATE resource_purchases SET state='uncertain',reason='settlement_uncertain',

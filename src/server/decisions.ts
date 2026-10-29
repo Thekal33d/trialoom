@@ -12,6 +12,7 @@ import {
 import { type Actor, audit, requireRole } from './access.ts';
 import type { AgentSession } from './agents.ts';
 import { transaction } from './database.ts';
+import { emit, workspaceOfCampaign } from './events.ts';
 import {
   acceptedByAssignment,
   type Breakdown,
@@ -139,6 +140,32 @@ async function post(
       ],
     );
   }
+  // Every acceptance passes through here, so the acceptance event is emitted
+  // once, beside the decision that authorized it.
+  const tenant = await workspaceOfCampaign(db, campaignId);
+  await emit(
+    db,
+    'decision.accepted',
+    {
+      workspaceId: tenant?.workspace_id,
+      projectId: tenant?.project_id,
+      campaignId,
+      assignmentId,
+      operatorId: operatorId ?? null,
+      actorId: actor.id,
+    },
+    {
+      decisionId: rows[0].id,
+      matter: posted.matter,
+      outcome: posted.outcome,
+      actorRole: role,
+      amountUnits: posted.amount === undefined ? null : posted.amount.toString(),
+      movedUnits: moved.toString(),
+      category,
+      payables: payables.length,
+      appealable: posted.appealable,
+    },
+  );
   // Base units cross the API as strings; a BigInt has no JSON form.
   return {
     decisionId: rows[0].id,
@@ -509,6 +536,19 @@ export async function decideDuplicate(
       null,
     );
     await audit(db, workspaceId, actor.id, 'decision.duplicate', id);
+    await emit(
+      db,
+      'duplicate.decided',
+      {
+        workspaceId,
+        projectId,
+        campaignId: assignment.campaign_id,
+        assignmentId: assignment.id,
+        operatorId: assignment.operator_id,
+        actorId: actor.id,
+      },
+      { findingId: id, defectId, actorRole: role },
+    );
     return { ...result, findingId: id, defectId, matter: 'duplicate' };
   });
 }
@@ -641,6 +681,16 @@ export async function openAppeal(
     }
     // The reservation is held until the appeal is resolved.
     await db.query('UPDATE assignments SET release_after=NULL WHERE id=$1', [id]);
+    await emit(
+      db,
+      'appeal.opened',
+      {
+        campaignId: assignment.campaign_id,
+        assignmentId: id,
+        operatorId: session.operator.id,
+      },
+      { subject: data.subject, refusedMatter: matter, refusedOutcome: decision.outcome },
+    );
     return { ...posted, assignmentId: id, subject: data.subject, state: 'open' };
   });
 }

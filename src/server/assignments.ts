@@ -10,6 +10,7 @@ import {
 import { type Actor, audit, requireRole } from './access.ts';
 import type { AgentSession } from './agents.ts';
 import { transaction } from './database.ts';
+import { emit } from './events.ts';
 import {
   authorizeBudget,
   campaignAccounting,
@@ -71,6 +72,32 @@ export async function publishCampaign(
   input: unknown,
 ) {
   const data = publicationSchema.parse(input);
+  try {
+    return await publish(pool, actor, workspaceId, projectId, campaignId, data);
+  } catch (error) {
+    // A refused publication rolls its own transaction back, so the event is
+    // written afterwards on the pool. Otherwise the stream would record only
+    // the publications that succeeded, and funding failure would be invisible.
+    const code = (error as { code?: string }).code;
+    if (code && ['INSUFFICIENT_BUDGET', 'AMOUNT_INVALID', 'CAMPAIGN_UNFUNDED'].includes(code))
+      await emit(
+        pool,
+        'campaign.funding_failed',
+        { workspaceId, projectId, campaignId, actorId: actor.id },
+        { reason: code, detail: (error as Error).message, slots: data.slots },
+      );
+    throw error;
+  }
+}
+
+async function publish(
+  pool: Pool,
+  actor: Actor,
+  workspaceId: string,
+  projectId: string,
+  campaignId: string,
+  data: ReturnType<typeof publicationSchema.parse>,
+) {
   return transaction(pool, async (db) => {
     // Money decisions belong to the workspace owner.
     await requireRole(db, actor, workspaceId, ['owner']);
@@ -153,6 +180,35 @@ export async function publishCampaign(
       first ? 'campaign.published' : 'campaign.republished',
       campaignId,
     );
+    await emit(
+      db,
+      'campaign.published',
+      { workspaceId, projectId, campaignId, actorId: actor.id },
+      {
+        first,
+        service: terms.document.service,
+        termsVersion: terms.version,
+        slots: data.slots,
+        maxConcurrent: data.maxConcurrent,
+        perAssignmentUnits: perAssignment.toString(),
+        ceilingUnits: account.ceiling_units,
+        minimumIsolation: terms.document.minimumIsolation ?? 'attested',
+      },
+    );
+    // A builder returning to buy again is the pilot's first metric, and it is
+    // only knowable at the moment they publish.
+    const earlier = await db.query<{ n: number }>(
+      `SELECT count(*)::int AS n FROM campaigns c JOIN projects p ON p.id=c.project_id
+      WHERE p.workspace_id=$1 AND c.id<>$2 AND c.published_at IS NOT NULL`,
+      [workspaceId, campaignId],
+    );
+    if (first && earlier.rows[0].n > 0)
+      await emit(
+        db,
+        'purchase.repeated',
+        { workspaceId, projectId, campaignId, actorId: actor.id },
+        { earlierCampaigns: earlier.rows[0].n },
+      );
     return {
       campaignId,
       status: 'open',
@@ -372,6 +428,23 @@ export async function claimAssignment(db: PoolClient, session: AgentSession, inp
       throw error;
     }
     await commitAssignment(db, campaignId, assignment.id, parts, null);
+    await emit(
+      db,
+      'assignment.claimed',
+      {
+        workspaceId: campaign.workspace_id,
+        projectId: campaign.project_id,
+        campaignId,
+        assignmentId: assignment.id,
+        operatorId: session.operator.id,
+      },
+      {
+        service: terms.document.service,
+        termsVersion: terms.version,
+        maxLiabilityUnits: total(parts).toString(),
+        slotsUsed: counts.used + 1,
+      },
+    );
     return {
       assignmentId: assignment.id,
       // The attempt token fences this execution attempt. It is shown once.

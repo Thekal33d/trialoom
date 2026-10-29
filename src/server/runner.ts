@@ -5,6 +5,7 @@ import { runStartSchema, uuid } from '../domain/schemas.ts';
 import type { AgentSession } from './agents.ts';
 import { liveAssignment } from './assignments.ts';
 import { transaction } from './database.ts';
+import { emit } from './events.ts';
 import { bindHost, hostContract, requiredIsolation } from './isolation.ts';
 import type { TermsDocument } from './ledger.ts';
 import { type ResolveTarget, validateTarget } from './targets.ts';
@@ -356,6 +357,26 @@ export async function issueRun(db: PoolClient, session: AgentSession, prepared: 
       );
     throw error;
   }
+  await emit(
+    db,
+    'run.started',
+    {
+      projectId: assignment.project_id,
+      campaignId: assignment.campaign_id,
+      assignmentId: assignment.id,
+      operatorId: session.operator.id,
+    },
+    {
+      runId: run.id,
+      isolationLevel: bound.level,
+      requiredIsolation: required,
+      hostId: bound.host?.id ?? null,
+      revisionConfirmed: targetCheck.revisionConfirmed,
+      targetHealthy: targetCheck.targetHealthy,
+      addressesChanged: targetCheck.addressesChanged,
+      hops: targetCheck.hops.length,
+    },
+  );
   return {
     runId: run.id,
     assignmentId: assignment.id,

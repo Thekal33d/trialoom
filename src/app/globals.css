@@ -1172,8 +1172,13 @@ dd {
   }
   .sidebar nav {
     display: flex;
-    justify-content: space-between;
-    gap: 4px;
+    /* The workspace has more destinations than fit one narrow row. Wrapping
+       keeps every one reachable instead of pushing the last ones off the
+       sidebar and over the content beneath it. */
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    column-gap: 14px;
+    row-gap: 6px;
     margin-top: 20px;
   }
   .nav-link {

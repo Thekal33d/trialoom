@@ -12,6 +12,7 @@ import { canonicalJson } from '../domain/values.ts';
 import { type Actor, audit, requireRole } from './access.ts';
 import { transaction } from './database.ts';
 import { campaignDecisions } from './decisions.ts';
+import { emit } from './events.ts';
 import { campaignFindings, noteConsistentPass, recordFinding } from './findings.ts';
 import { verifyEgress } from './isolation.ts';
 import { campaignPayouts } from './payables.ts';
@@ -414,6 +415,49 @@ export async function submitEvidence(pool: Pool, session: RunSession, input: unk
       manifest.service !== 'repair' && data.outcome === 'executed'
         ? await noteConsistentPass(db, assignment.project_id, assignment.build_id, data)
         : 0;
+    await emit(
+      db,
+      'evidence.submitted',
+      {
+        projectId: assignment.project_id,
+        campaignId: assignment.campaign_id,
+        assignmentId: assignment.id,
+        operatorId: run.operator_id,
+      },
+      {
+        submissionId: submission.id,
+        service: manifest.service,
+        outcome: data.outcome,
+        blockedReason: data.blockedReason ?? null,
+        artifactCount: stored.length,
+        totalBytes: totalBytes.toString(),
+        durationSeconds: Math.round((finished - started) / 1000),
+        isolationLevel: run.isolation_level,
+        witnessed: egress.witnessed,
+        deniedAttempts: egress.deniedAttempts,
+        repairRole: role,
+      },
+    );
+    // Reproduction is the outcome of clustering, and it is what the discovery
+    // precision metric divides by. Recorded whether or not it confirmed.
+    if (finding)
+      await emit(
+        db,
+        'reproduction.outcome',
+        {
+          projectId: assignment.project_id,
+          campaignId: assignment.campaign_id,
+          assignmentId: assignment.id,
+          operatorId: run.operator_id,
+        },
+        {
+          findingId: finding.findingId,
+          defectId: finding.defectId,
+          match: finding.match,
+          independent: finding.independent,
+          independenceReason: finding.independenceReason,
+        },
+      );
     return {
       submissionId: submission.id,
       runId: run.id,

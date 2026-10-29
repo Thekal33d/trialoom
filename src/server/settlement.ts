@@ -1,5 +1,6 @@
-import type { Pool } from 'pg';
+import type { Pool, PoolClient } from 'pg';
 import { transaction } from './database.ts';
+import { emit, workspaceOfCampaign } from './events.ts';
 import { completeJob, type JobLease, rescheduleJob } from './jobs.ts';
 import { finalizeAccepted, lockAccount } from './ledger.ts';
 import { payoutWallet } from './payables.ts';
@@ -60,6 +61,18 @@ export const unconfiguredAdapter: SettlementAdapter = {
     };
   },
 };
+
+/** A payout has no actor: nobody pressed a button to make it final. */
+async function payoutSubject(db: PoolClient, payable: Record<string, string>) {
+  const tenant = await workspaceOfCampaign(db, payable.campaign_id);
+  return {
+    workspaceId: tenant?.workspace_id,
+    projectId: tenant?.project_id,
+    campaignId: payable.campaign_id,
+    assignmentId: payable.assignment_id,
+    operatorId: payable.operator_id,
+  };
+}
 
 const blockedFor: Record<string, string> = {
   authority_revoked: 'authority_revoked',
@@ -248,6 +261,15 @@ async function applyResult(pool: Pool, payableId: string, result: SettlementResu
         updated_at=clock_timestamp() WHERE id=$1`,
         [payableId, hash],
       );
+      // Inclusion and finality are separate facts, so they are separate events.
+      if (payable.included_at === null)
+        await emit(db, 'payout.included', await payoutSubject(db, payable), {
+          payableId,
+          kind: payable.kind,
+          category: payable.category,
+          amountUnits: payable.amount_units,
+          attempts: payable.attempts,
+        });
       return;
     }
     // Finality is the only state that moves money in the ledger.
@@ -260,6 +282,16 @@ async function applyResult(pool: Pool, payableId: string, result: SettlementResu
       WHERE id=$1`,
       [payableId, hash],
     );
+    await emit(db, 'payout.finalized', await payoutSubject(db, payable), {
+      payableId,
+      kind: payable.kind,
+      category: payable.category,
+      amountUnits: payable.amount_units,
+      attempts: payable.attempts,
+      // Payment timeliness is measured from acceptance to this moment.
+      decisionId: payable.decision_id,
+      resourcePurchaseId: payable.resource_purchase_id,
+    });
     await lockAccount(db, payable.campaign_id);
     await finalizeAccepted(
       db,

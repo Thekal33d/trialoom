@@ -11,6 +11,7 @@ import {
   type ProjectSummary,
   type WorkspaceSummary,
 } from './live-types';
+import { MetricsPanel } from './metrics-panel';
 import { ProjectPanel } from './project-panel';
 export function LiveWorkspace({
   user,
@@ -20,7 +21,7 @@ export function LiveWorkspace({
   workspaces: WorkspaceSummary[];
 }) {
   const [workspaceId, setWorkspaceId] = useState(workspaces[0]?.id ?? ''),
-    [view, setView] = useState<'projects' | 'access' | 'attention'>('projects');
+    [view, setView] = useState<'projects' | 'access' | 'attention' | 'metrics'>('projects');
   const workspace = workspaces.find((item) => item.id === workspaceId),
     base = `/api/v1/workspaces/${workspaceId}`;
   const [projects, setProjects] = useState<ProjectSummary[]>([]),
@@ -155,6 +156,19 @@ export function LiveWorkspace({
             <Icon name="overview" />
             {workspace?.role === 'reviewer' ? 'Review queue' : "What's waiting"}
           </button>
+          <button
+            className={`nav-link ${view === 'metrics' ? 'active' : ''}`}
+            type="button"
+            onClick={() => {
+              setView('metrics');
+              setDetail(undefined);
+              setCreating(false);
+              setError('');
+            }}
+          >
+            <Icon name="book" />
+            Pilot readiness
+          </button>
           {workspace?.role === 'owner' && (
             <button
               className={`nav-link ${view === 'access' ? 'active' : ''}`}
@@ -202,13 +216,15 @@ export function LiveWorkspace({
           <div className="breadcrumb">
             <strong>{workspace?.name ?? 'Your workspace'}</strong>
             <span>/</span>
-            {view === 'access'
-              ? 'Access'
-              : view === 'attention'
-                ? workspace?.role === 'reviewer'
-                  ? 'Review queue'
-                  : "What's waiting"
-                : 'Projects'}
+            {view === 'metrics'
+              ? 'Pilot readiness'
+              : view === 'access'
+                ? 'Access'
+                : view === 'attention'
+                  ? workspace?.role === 'reviewer'
+                    ? 'Review queue'
+                    : "What's waiting"
+                  : 'Projects'}
           </div>
           <button type="button" className="text-button sign-out" onClick={() => void signOut()}>
             Sign out
@@ -229,6 +245,8 @@ export function LiveWorkspace({
             <AccessPanel key={workspaceId} base={base} userId={user.id} />
           ) : view === 'attention' && workspace.role !== 'operator' ? (
             <AttentionPanel key={workspaceId} base={base} role={workspace.role} />
+          ) : view === 'metrics' && workspace.role !== 'operator' ? (
+            <MetricsPanel key={workspaceId} base={base} />
           ) : workspace.role === 'operator' ? (
             <div className="empty-work">
               <div className="eyebrow">OPERATOR ACCOUNT</div>

@@ -709,3 +709,56 @@ test('the egress witness is the host, and no agent credential can speak for it',
   });
   expect(asAgent.status()).toBe(401);
 });
+
+test('pilot readiness shows every target and what it is missing', async ({ page }, info) => {
+  const fixture = fixtures[info.project.name];
+  await signIn(page, fixture.evidenceOwnerEmail, fixture.password);
+  await page.getByRole('button', { name: 'Pilot readiness' }).click();
+  const panel = page.locator('.attention-panel');
+  await expect(panel).toContainText('Pilot readiness');
+  await expect(panel).toContainText('An exit gate read off an incomplete figure');
+  // Every one of the PRD's eight targets is named, measurable or not.
+  for (const name of [
+    'Repeat purchase',
+    'Additional value',
+    'Useful delivery',
+    'Discovery precision',
+    'Review burden',
+    'Payment correctness',
+    'Payment timeliness',
+    'Economics',
+  ])
+    await expect(panel).toContainText(name);
+  // A target with no input says so, and names what is missing.
+  await expect(panel).toContainText('no input');
+  await expect(panel).toContainText('judgement nobody records');
+  await expect(panel).toContainText('no funded payment authority is configured');
+  // The stream's own coverage, so a target resting on a silent event is visible.
+  await expect(panel).toContainText('Instrumented events');
+  await expect(panel).toContainText('campaign.published');
+  await expect(panel).toContainText('evidence.submitted');
+
+  const results = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+    .analyze();
+  expect(
+    results.violations.map(({ id, nodes }) => ({ id, targets: nodes.map((node) => node.target) })),
+  ).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+  await page.screenshot({ path: info.outputPath('readiness.png'), fullPage: true, scale: 'css' });
+
+  const readiness = await (
+    await page.request.get(`/api/v1/workspaces/${fixture.evidenceWorkspaceId}/metrics`)
+  ).json();
+  expect(readiness.metrics).toHaveLength(8);
+  // No metric reports a number without the inputs behind it.
+  for (const metric of readiness.metrics)
+    if (!metric.complete) expect(metric.missing.length).toBeGreaterThan(0);
+  const correctness = readiness.metrics.find(
+    (metric: { id: string }) => metric.id === 'payment-correctness',
+  );
+  expect(correctness.value).toBe(0);
+  expect(correctness.meetsTarget).toBe(true);
+});

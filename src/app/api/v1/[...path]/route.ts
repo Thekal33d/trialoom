@@ -18,6 +18,7 @@ import {
   operatorDecisions,
   resolveAppeal,
 } from '@/server/decisions';
+import { noteReviewOpened } from '@/server/events';
 import {
   campaignPayoutRecord,
   campaignRepairRecord,
@@ -43,6 +44,7 @@ import {
   revokeInvitation,
 } from '@/server/invitations';
 import { registerHost, revokeHost, workspaceHosts } from '@/server/isolation';
+import { pilotReadiness } from '@/server/metrics';
 import {
   createCredential,
   issueWalletChallenge,
@@ -237,6 +239,22 @@ async function handler(request: Request) {
               return json(
                 await campaignResourceRecord(pool, actor, workspaceId, projectId, campaignId),
               );
+            // Review burden is only measurable if something records when a
+            // person started looking.
+            if (parts[6] === 'reviews' && method === 'POST') {
+              const body = (await readJson(request)) as { assignmentId?: string };
+              return json(
+                await noteReviewOpened(
+                  pool,
+                  actor,
+                  workspaceId,
+                  projectId,
+                  campaignId,
+                  uuid.parse(body?.assignmentId ?? ''),
+                ),
+                201,
+              );
+            }
             if (parts[6] === 'attention' && method === 'GET')
               return json(
                 await campaignAttentionRecord(pool, actor, workspaceId, projectId, campaignId),
@@ -314,6 +332,8 @@ async function handler(request: Request) {
         return json(await workspaceAccess(pool, actor, workspaceId));
       if (parts.length === 3 && parts[2] === 'attention' && method === 'GET')
         return json(await workspaceAttention(pool, actor, workspaceId));
+      if (parts.length === 3 && parts[2] === 'metrics' && method === 'GET')
+        return json(await pilotReadiness(pool, actor, workspaceId));
       if (parts.length === 3 && parts[2] === 'runner-hosts') {
         if (method === 'GET') return json(await workspaceHosts(pool, actor, workspaceId));
         if (method === 'POST')

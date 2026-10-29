@@ -112,6 +112,9 @@ test('builder creates a project, pins a build, saves terms, and preserves old ve
   await page
     .getByLabel('Payment and resource terms')
     .fill('Accepted work remains owed. Authorization is not escrow. Platform covers payout gas.');
+  // A brief can demand a witnessed run, which is the whole point of admitting
+  // a runner host. It was reachable only by hand-crafted API call before.
+  await page.getByLabel('Execution isolation').selectOption('witnessed');
   await page.getByLabel('I approve this scope').check();
   await accessible(page);
   await page.screenshot({
@@ -253,4 +256,45 @@ test('public signup, cross-origin mutations, oversized bodies, and excess attemp
   );
   expect(attempts.filter((response) => response.status() === 429)).toHaveLength(1);
   expect(attempts.filter((response) => response.status() === 400)).toHaveLength(10);
+});
+
+test('an owner admits a runner host and can revoke it', async ({ page }, info) => {
+  const fixture = fixtures[info.project.name];
+  await signIn(page, fixture);
+  await page.getByRole('button', { name: 'Workspace access' }).click();
+  const hosts = page.locator('.live-section', { hasText: 'Runner hosts' });
+  await expect(hosts).toContainText('runner-host-v1');
+  // Admitting a host is a declaration, and the panel says so.
+  await expect(hosts).toContainText('Trialoom does not run these hosts');
+  await expect(hosts).toContainText('every run is attested only');
+
+  await hosts.getByRole('button', { name: 'Register a host' }).click();
+  await page.getByLabel('Host name').fill('Sandboxed runner');
+  // The contract is readable before accepting it, including what it does not
+  // promise.
+  await page.getByText('The contract this host accepts').click();
+  await expect(hosts).toContainText('Still only asserted');
+  await page.getByLabel('I have read the contract').check();
+  await hosts.getByRole('button', { name: 'Register host' }).click();
+
+  // The credential is shown once, and the host appears with what it provides.
+  const credential = await page.getByLabel('New host credential').inputValue();
+  expect(credential).toMatch(/^trh_/);
+  await expect(hosts).toContainText('Shown once and stored only as a digest');
+  const row = hosts.locator('.member-row', { hasText: 'Sandboxed runner' });
+  await expect(row).toContainText('witnessed');
+  await expect(row).toContainText('sandbox gvisor');
+  await expect(row).toContainText('egress enforced');
+  await expect(row).toContainText('never used');
+
+  // A host that claims the witnessed level without implementing it is refused.
+  await hosts.getByRole('button', { name: 'Register a host' }).click();
+  await page.getByLabel('Host name').fill('Unenforced runner');
+  await page.getByLabel('An egress proxy is the only network path').uncheck();
+  await page.getByLabel('I have read the contract').check();
+  await hosts.getByRole('button', { name: 'Register host' }).click();
+  await expect(hosts).toContainText('must declare a sandbox');
+
+  await row.getByRole('button', { name: 'Revoke' }).click();
+  await expect(row).toContainText('revoked');
 });

@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { HostPanel } from './host-panel';
 import { api, field } from './live-types';
 
 type Access = {
@@ -190,6 +191,7 @@ export function AccessPanel({ base, userId }: { base: string; userId: string }) 
               <p className="section-description">No pending invitations.</p>
             )}
           </section>
+          <HostPanel base={base} />
           <section className="live-section">
             <h2>Access and change history</h2>
             <p className="section-description">

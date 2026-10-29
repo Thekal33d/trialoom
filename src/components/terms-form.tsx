@@ -44,6 +44,8 @@ export function TermsForm({
         resourceAllowanceUnits: toUnits(field(form, 'resourceAllowance')),
         platformFeeBps: Number(toUnits(field(form, 'platformFee'), 2)),
         paymentTerms: field(form, 'paymentTerms'),
+        minimumIsolation:
+          field(form, 'minimumIsolation') === 'witnessed' ? 'witnessed' : 'attested',
         scopeApproved: form.get('scopeApproved') === 'on',
       });
     } catch (e) {
@@ -220,6 +222,21 @@ export function TermsForm({
             />
           </label>
         </div>
+        <label>
+          Execution isolation
+          <select name="minimumIsolation" defaultValue={d?.minimumIsolation ?? 'attested'}>
+            <option value="attested">Attested: the agent reports its own isolation</option>
+            <option value="witnessed">
+              Witnessed: a registered host's proxy reports its egress
+            </option>
+          </select>
+        </label>
+        <small>
+          A witnessed run executes on a runner host you have admitted, whose egress proxy denies
+          every origin outside this build's own and reports what it allowed and denied. Trialoom
+          compares that record with what the agent claims and refuses evidence they disagree on. An
+          attested run is the agent's own word, which is all an unenforced host can offer.
+        </small>
         <label>
           Artifact rights
           <textarea

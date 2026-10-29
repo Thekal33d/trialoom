@@ -32,7 +32,7 @@ Rather than pretend enforcement exists everywhere, the gap is now explicit in th
 - **`attested`** — the agent's own word. What every run before this was, and all an unenforced host can honestly offer.
 - **`witnessed`** — a registered host with a sandbox, an ephemeral filesystem and an enforcing proxy that reports egress itself.
 
-Terms carry a `minimumIsolation`. A brief that requires `witnessed` refuses to start a run with no host (`ISOLATION_REQUIRED`) or with a host that only attests (`ISOLATION_INSUFFICIENT`). A brief written before this existed requires `attested`, which is what it meant. **A pilot campaign requires `witnessed`; the local harness stays `attested`.**
+Terms carry a `minimumIsolation`, chosen in the terms form, and hosts are admitted under Workspace access — because admitting one says where this workspace's customer code may run, which is an access decision. A brief that requires `witnessed` refuses to issue a grant with no host (`ISOLATION_REQUIRED`) or with a host that only attests (`ISOLATION_INSUFFICIENT`); the check runs when the grant is issued, not when the slot is claimed. A brief written before this existed requires `attested`, which is what it meant. **A pilot campaign requires `witnessed`; the local harness stays `attested`.**
 
 A table check refuses a host that claims the witnessed level without declaring a sandbox, an ephemeral filesystem and an enforcing proxy — so an incoherent claim cannot exist in the database to be trusted later.
 

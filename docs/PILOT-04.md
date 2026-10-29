@@ -69,3 +69,5 @@ The readiness view also shows the **stream's own coverage**, because a target re
 - **No cost rates anywhere.** Verification cost and human review time carry no money rate, so neither converts into margin even once measured.
 - **No instrumentation of the agent API's own health** — latency, error rates, rate-limit pressure — and no retention policy on the stream, which will grow without bound.
 - The metrics are computed on read, with no materialization. That is fine at pilot size and will not be at scale.
+
+The stream is now readable per campaign as well as in aggregate: a brief shows its own activity beside its evidence, which is the record the targets are computed from.

@@ -34,7 +34,9 @@ import {
   bootstrapWorkspace,
   createInvitation,
 } from '../src/server/invitations.ts';
+import { authenticateHost, recordEgress, registerHost } from '../src/server/isolation.ts';
 import { campaignAccounting, outstandingCommitment } from '../src/server/ledger.ts';
+import { pilotMetrics } from '../src/server/metrics.ts';
 import { migrate } from '../src/server/migrations.ts';
 import {
   createCredential,
@@ -120,6 +122,7 @@ const qualifications: Record<string, Record<string, unknown>> = {
 /** A provider with a durable journal: it never pays the same key twice. */
 function recordingSettlement(script: SettlementResult[]): SettlementAdapter & { sends: number } {
   const sent = new Map<string, string>();
+  const confirmed = new Map<string, number>();
   let index = 0;
   const adapter = {
     name: 'loop-fixture',
@@ -139,10 +142,14 @@ function recordingSettlement(script: SettlementResult[]): SettlementAdapter & { 
     async confirm(request: { operationKey: string }) {
       const hash = sent.get(request.operationKey);
       if (!hash) return { status: 'unknown' as const, detail: 'No record of that key.' };
+      // Inclusion before finality, so the loop exercises both states rather
+      // than skipping the one the ledger does not act on.
+      const seen = (confirmed.get(request.operationKey) ?? 0) + 1;
+      confirmed.set(request.operationKey, seen);
       return {
-        status: 'finalized' as const,
+        status: seen === 1 ? ('included' as const) : ('finalized' as const),
         transactionHash: hash,
-        detail: 'Reconciled the original payment.',
+        detail: seen === 1 ? 'In a block.' : 'Reconciled the original payment.',
       };
     },
   };
@@ -268,10 +275,15 @@ function termsFor(service: string, overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
-async function brief(name: string, service: string, slots = 3) {
+async function brief(
+  name: string,
+  service: string,
+  slots = 3,
+  terms: Record<string, unknown> = {},
+) {
   const campaign = await createCampaign(db.pool, owner, workspaceId, projectId, {
     name,
-    terms: termsFor(service),
+    terms: termsFor(service, terms),
   });
   return {
     campaign,
@@ -287,13 +299,13 @@ async function brief(name: string, service: string, slots = 3) {
   };
 }
 /** Claims a slot and opens a run grant against the revalidated target. */
-async function startWork(operator: Operator, campaignId: string) {
+async function startWork(operator: Operator, campaignId: string, hostId?: string) {
   const assignment = await claim(db.pool, operator.session, { campaignId });
   const run = await startRun(
     db.pool,
     operator.session,
     assignment.assignmentId,
-    { attemptToken: assignment.attemptToken },
+    { attemptToken: assignment.attemptToken, ...(hostId ? { hostId } : {}) },
     { resolver: publicDns, probe: settledProbe },
   );
   return { assignment, run, grant: await authenticateRun(db.pool, run.runToken) };
@@ -566,7 +578,7 @@ try {
     { status: 'finalized', transactionHash: hashFor('one'), detail: 'Final.' },
   ]);
   const beforeFinality = await campaignAccounting(db.pool, discovery.campaign.campaignId);
-  const states = await settle(fixture, discoveryPayable.operation_key, 3);
+  const states = await settle(fixture, discoveryPayable.operation_key, 4);
   const settledRow = (
     await db.pool.query('SELECT * FROM payables WHERE id=$1', [discoveryPayable.id])
   ).rows[0];
@@ -590,7 +602,7 @@ try {
   const lost = (await payablesFor(reports[1].work.assignment.assignmentId)).find(
     (row) => row.category === 'execution',
   );
-  const recovery = await settle(crashing, lost.operation_key, 3);
+  const recovery = await settle(crashing, lost.operation_key, 4);
   const recovered = (await db.pool.query('SELECT * FROM payables WHERE id=$1', [lost.id])).rows[0];
   assert.equal(crashing.sends, 1, 'the same key must never be sent twice');
   assert.equal(recovered.state, 'finalized');
@@ -978,7 +990,180 @@ try {
     'the settlement is unknown, so the purchase was not bought again and its 20000 base units stayed reserved through the release (R07)',
   );
 
-  heading('10. The builder sees what is waiting and exports the record');
+  heading('10. A witnessed run is held to what its egress proxy saw');
+  // Terms are immutable once written, so the requirement is part of the brief
+  // from the start rather than something set on it afterwards.
+  const witnessed = await brief('Witnessed invitation journey', 'bug_discovery', 2, {
+    minimumIsolation: 'witnessed',
+  });
+  // The brief demands a witness, so an unwitnessed run cannot satisfy it.
+  const host = await registerHost(db.pool, owner, workspaceId, {
+    name: 'Loop sandboxed host',
+    contractVersion: 'runner-host-v1',
+    sandbox: 'gvisor',
+    egressEnforced: true,
+    ephemeralFilesystem: true,
+    isolationLevel: 'witnessed',
+    contractAccepted: true,
+  });
+  await witnessed.publish();
+  note('host registered', `${host.isolationLevel} under ${host.contract.version}`);
+  const watched = await qualifiedOperator('loop-watched');
+  // The requirement is checked when the grant is issued, not when the slot is
+  // claimed, so one claim tries both ways.
+  const claimed = await claim(db.pool, watched.session, {
+    campaignId: witnessed.campaign.campaignId,
+  });
+  const openRun = (hostId?: string) =>
+    startRun(
+      db.pool,
+      watched.session,
+      claimed.assignmentId,
+      { attemptToken: claimed.attemptToken, ...(hostId ? { hostId } : {}) },
+      { resolver: publicDns, probe: settledProbe },
+    );
+  let unwitnessedRefusal = '';
+  await openRun().catch((error) => {
+    unwitnessedRefusal = (error as { code?: string }).code ?? '';
+  });
+  assert.equal(unwitnessedRefusal, 'ISOLATION_REQUIRED');
+  note(
+    'unwitnessed refused',
+    'a brief that requires a witness will not issue a grant that cannot provide one',
+  );
+  const run = await openRun(host.hostId);
+  const supervised = {
+    assignment: claimed,
+    run,
+    grant: await authenticateRun(db.pool, run.runToken),
+  };
+  assert.equal(run.isolationLevel, 'witnessed');
+  const proxy = await authenticateHost(db.pool, host.credential);
+  const seenAt = new Date().toISOString();
+  await recordEgress(db.pool, proxy, supervised.run.runId, {
+    batch: 1,
+    observations: [
+      {
+        origin: 'https://preview.example.com',
+        decision: 'allowed',
+        requests: 9,
+        firstSeenAt: seenAt,
+        lastSeenAt: seenAt,
+      },
+      {
+        origin: 'https://exfil.example.net',
+        decision: 'denied',
+        requests: 3,
+        firstSeenAt: seenAt,
+        lastSeenAt: seenAt,
+      },
+    ],
+  });
+  // A proxy that reports allowing what the manifest forbids is not enforcing.
+  let notEnforced = '';
+  await recordEgress(db.pool, proxy, supervised.run.runId, {
+    batch: 2,
+    observations: [
+      {
+        origin: 'https://exfil.example.net',
+        decision: 'allowed',
+        requests: 1,
+        firstSeenAt: seenAt,
+        lastSeenAt: seenAt,
+      },
+    ],
+  }).catch((error) => {
+    notEnforced = (error as { code?: string }).code ?? '';
+  });
+  assert.equal(notEnforced, 'EGRESS_NOT_ENFORCED');
+  const watchedTrace = archiveBytes();
+  const watchedAssertions = Buffer.from('{"invitationAccepted":false}', 'utf8');
+  for (const [name, kind, mediaType, bytes] of [
+    ['replay.trace.zip', 'trace', 'application/zip', watchedTrace],
+    ['assertions.json', 'assertions', 'application/json', watchedAssertions],
+  ] as const)
+    await storeArtifact(
+      db.pool,
+      supervised.grant,
+      { name, kind, sha256: digestOf(bytes) },
+      mediaType,
+      bytes,
+    );
+  const supervisedEvidence = envelope(supervised.assignment, witnessed.campaign.contentHash, {
+    steps: [
+      {
+        index: 1,
+        action: 'Invite teammate+qa@example.test',
+        expected: 'Invitation created',
+        actual: 'Rejected with 400',
+        status: 'failed',
+      },
+    ],
+    assertions: [
+      { name: 'invitation.witnessed', passed: false, detail: 'Expected 201, observed 400' },
+    ],
+    outcome: 'product_failed',
+    summary: 'The seeded validator rejects a plus alias on the pinned build.',
+    artifacts: [
+      { name: 'replay.trace.zip', sha256: digestOf(watchedTrace) },
+      { name: 'assertions.json', sha256: digestOf(watchedAssertions) },
+    ],
+  });
+  // A claim the proxy never saw does not describe this run.
+  let unseen = '';
+  await submitEvidence(db.pool, supervised.grant, {
+    ...supervisedEvidence,
+    observedOrigins: ['https://exfil.example.net'],
+  }).catch((error) => {
+    unseen = (error as { code?: string }).code ?? '';
+  });
+  assert.ok(['EGRESS_VIOLATION', 'EGRESS_UNWITNESSED'].includes(unseen));
+  const agreed = await submitEvidence(db.pool, supervised.grant, supervisedEvidence);
+  assert.equal(agreed.egress.witnessed, true);
+  assert.equal(agreed.egress.deniedAttempts, 3);
+  note(
+    'witnessed submission',
+    `the proxy saw ${agreed.egress.allowedOrigins.join(', ')} and denied ${agreed.egress.deniedAttempts} attempt(s) to leave the allowlist; the agent's claim had to agree`,
+  );
+
+  heading('11. The work instruments itself, and the targets say what they rest on');
+  const stream = (
+    await db.pool.query<{ topic: string; n: number }>(
+      'SELECT topic,count(*)::int AS n FROM events GROUP BY topic ORDER BY topic',
+    )
+  ).rows;
+  const topics = stream.map((row) => row.topic);
+  for (const expected of [
+    'campaign.published',
+    'assignment.claimed',
+    'run.started',
+    'evidence.submitted',
+    'reproduction.outcome',
+    'decision.accepted',
+    'resource.settled',
+    'payout.included',
+    'payout.finalized',
+  ])
+    assert.ok(topics.includes(expected), `${expected} was never recorded`);
+  note('events', `${stream.length} topics recorded: ${topics.join(', ')}`);
+  const leaked = await db.pool.query<{ n: number }>(
+    `SELECT count(*)::int AS n FROM events
+    WHERE payload::text ~* '(trun_|trh_|trp_|Bearer )'`,
+  );
+  assert.equal(leaked.rows[0].n, 0);
+  note('no credentials in the stream', 'no event payload carries a grant, a key or a bearer token');
+  const targets = await transaction(db.pool, (client) => pilotMetrics(client, workspaceId));
+  assert.equal(targets.length, 8);
+  for (const target of targets)
+    if (!target.complete) assert.ok(target.missing.length > 0, `${target.id} must say why`);
+  note(
+    'targets',
+    targets
+      .map((target) => `${target.id}=${target.complete ? (target.value ?? 'none') : 'no input'}`)
+      .join(', '),
+  );
+
+  heading('12. The builder sees what is waiting and exports the record');
   const queue = await workspaceAttention(db.pool, owner, workspaceId);
   const queued = queue.campaigns.find((row) => row.id === discovery.campaign.campaignId);
   note(
@@ -1012,7 +1197,7 @@ try {
     `${Object.keys(files).length} files, hash ${contentHash.slice(0, 12)} verified from the file itself, no raw archive and no leaked credential`,
   );
 
-  heading('11. The ledger still replays, and what is owed is visible');
+  heading('13. The ledger still replays, and what is owed is visible');
   const final = await campaignAccounting(db.pool, discovery.campaign.campaignId);
   assert.equal(final?.reconciled, true);
   const repairLedger = await campaignAccounting(db.pool, repair.campaign.campaignId);

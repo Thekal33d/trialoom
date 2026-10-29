@@ -1,6 +1,7 @@
 import type { Pool, PoolClient } from 'pg';
+import { AppError } from '../domain/errors.ts';
 import { uuid } from '../domain/schemas.ts';
-import { type Actor, requireRole } from './access.ts';
+import { type Actor, audit, requireRole } from './access.ts';
 import { transaction } from './database.ts';
 import { redactText } from './redaction.ts';
 
@@ -155,6 +156,36 @@ export async function noteReviewOpened(
       { role },
     );
     return { recorded: true };
+  });
+}
+
+/**
+ * One campaign's timeline for its builder: the instrumented stream is what the
+ * metrics are computed from, so the same record is worth reading directly.
+ */
+export async function campaignActivity(
+  pool: Pool,
+  actor: Actor,
+  workspaceId: string,
+  projectId: string,
+  campaignId: string,
+) {
+  const id = uuid.parse(campaignId);
+  return transaction(pool, async (db) => {
+    const role = await requireRole(db, actor, workspaceId, ['owner', 'member', 'reviewer']);
+    const campaign = (
+      await db.query(
+        `SELECT c.id FROM campaigns c JOIN projects p ON p.id=c.project_id
+        WHERE c.id=$1 AND c.project_id=$2 AND p.workspace_id=$3`,
+        [id, projectId, workspaceId],
+      )
+    ).rows[0];
+    if (!campaign) throw new AppError('NOT_FOUND', 'Work brief not found.', 404);
+    if (role === 'reviewer') await audit(db, workspaceId, actor.id, 'reviewer.activity_read', id);
+    return {
+      events: await campaignTimeline(db, id),
+      note: 'This is the stream the pilot metrics are computed from. It carries no credentials and no raw private artifacts.',
+    };
   });
 }
 

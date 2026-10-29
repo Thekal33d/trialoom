@@ -21,10 +21,12 @@ It runs against a disposable database and the **real server modules**, writes it
 | 7. Expired claim | A complete but lapsed attempt is fenced and its whole reservation returns |
 | 8. Repair | A confirmed defect is quoted and approved, delivered through the gate, refused acceptance until an independent verifier confirms it, then accepted |
 | 9. Resource | A capped purchase is reimbursed at its eligible actual cost, a retry returns the purchase it already started, and an uncertain purchase holds its reservation through a release |
-| 10. See and export | The queue names what is waiting, a reviewer reads the same queue, and the export's hash is verified from the file itself |
-| 11. Account | Every ledger entry replays to the stored balances, and what is owed is stated |
+| 10. Witnessed run | A brief demanding a witness refuses a grant that cannot provide one; the proxy's record and the agent's claim must agree, and a proxy allowing a forbidden origin is refused |
+| 11. Instrumentation | Ten event topics are recorded, no payload carries a credential, and every target either reads or says why it cannot |
+| 12. See and export | The queue names what is waiting, a reviewer reads the same queue, and the export's hash is verified from the file itself |
+| 13. Account | Every ledger entry replays to the stored balances, and what is owed is stated |
 
-Thirty steps are recorded in `transcript.json` alongside the final accounting, the open payables by state, and the limits below.
+Thirty-six steps are recorded in `transcript.json` alongside the final accounting, the open payables by state, and the limits below.
 
 ## Release scenarios it exercises
 
@@ -45,6 +47,8 @@ Three honest boundaries, printed in the transcript's own `limits` and not papere
 - **The evidence is produced by this harness, not by a hosted sandboxed runner.** Trialoom still neither hosts nor sandboxes execution, so the isolation profile in every submission is an attestation. The target revalidation it performs is real.
 - **No funded payment authority is configured.** The truthful end state is phase 4: an owed, blocked payable with its reason visible. Phases 5 and 6 use a recording fixture to exercise inclusion, finality and crash recovery, and they are labelled as a fixture in the transcript. **No value has moved on any network.**
 - **No resource wallet is configured.** The provider in phase 9 is a fixture and nothing was bought from buy.
+
+Once payments complete in the loop, five of the eight pilot targets read a value and three say why they cannot — which is the instrumentation working rather than a claim about it.
 
 Two further boundaries worth stating: the loop drives the server modules directly rather than HTTP, because the 50 browser checks already cover that surface and a sequence this long is more useful when it is deterministic; and it creates its own disposable database each run, so it proves repeatability of the sequence rather than of a long-lived installation.
 

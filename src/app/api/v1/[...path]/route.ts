@@ -18,7 +18,7 @@ import {
   operatorDecisions,
   resolveAppeal,
 } from '@/server/decisions';
-import { noteReviewOpened } from '@/server/events';
+import { campaignActivity, noteReviewOpened } from '@/server/events';
 import {
   campaignPayoutRecord,
   campaignRepairRecord,
@@ -255,6 +255,8 @@ async function handler(request: Request) {
                 201,
               );
             }
+            if (parts[6] === 'activity' && method === 'GET')
+              return json(await campaignActivity(pool, actor, workspaceId, projectId, campaignId));
             if (parts[6] === 'attention' && method === 'GET')
               return json(
                 await campaignAttentionRecord(pool, actor, workspaceId, projectId, campaignId),

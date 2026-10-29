@@ -124,6 +124,15 @@ export function CampaignPanel({
   const [ledger, setLedger] = useState<Ledger>();
   const [evidence, setEvidence] = useState<Submissions>();
   const [payouts, setPayouts] = useState<{ payouts: Payout[]; note: string }>();
+  const [activity, setActivity] = useState<{
+    events: {
+      topic: string;
+      handle: string | null;
+      payload: Record<string, unknown>;
+      occurred_at: string;
+    }[];
+    note: string;
+  }>();
   const [waiting, setWaiting] = useState<{
     attention: {
       awaiting_decision: number;
@@ -144,6 +153,7 @@ export function CampaignPanel({
     setEvidence(await api<Submissions>(`${campaignBase}/submissions`));
     setPayouts(await api<{ payouts: Payout[]; note: string }>(`${campaignBase}/payouts`));
     setWaiting(await api(`${campaignBase}/attention`));
+    setActivity(await api(`${campaignBase}/activity`));
   }, [campaignBase]);
   useEffect(() => {
     load().catch((e) => setError(e instanceof Error ? e.message : 'Ledger unavailable.'));
@@ -486,6 +496,31 @@ export function CampaignPanel({
                 </div>
               )}
               <ResourcePanel campaignBase={campaignBase} />
+              {Boolean(activity?.events.length) && activity && (
+                <section className="evidence-block">
+                  <h5>Activity</h5>
+                  <p className="section-description">{activity.note}</p>
+                  <ol className="audit-list">
+                    {activity.events.map((event) => (
+                      <li key={`${event.topic}-${event.occurred_at}`}>
+                        <div>
+                          <strong>{event.topic.replaceAll('.', ' · ').replaceAll('_', ' ')}</strong>
+                          <span>
+                            {event.handle ? `@${event.handle}` : 'Trialoom'}
+                            {typeof event.payload.outcome === 'string'
+                              ? ` · ${event.payload.outcome}`
+                              : ''}
+                            {typeof event.payload.reason === 'string'
+                              ? ` · ${event.payload.reason}`
+                              : ''}
+                          </span>
+                        </div>
+                        <time>{new Date(event.occurred_at).toLocaleString()}</time>
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              )}
               <ReviewPanel
                 campaignBase={campaignBase}
                 submissions={evidence.submissions.map((submission) => ({

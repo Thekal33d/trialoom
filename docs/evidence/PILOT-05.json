@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "task": "PILOT-05",
-  "verifiedAt": "2026-10-29T16:10:00.000Z",
+  "verifiedAt": "2026-10-29T17:40:00.000Z",
   "sourceRevision": "300f1c2",
   "sourceTreeDirty": true,
-  "scope": "A payout was recorded, queued and then blocked because no payment authority existed. Adds the live Remesso adapter and, more importantly, an account of what a payment authority can actually deliver: one token approval is shared by every policy the same wallet grants, so per-campaign budgets say nothing about solvency and two live briefs could each believe they were funded. Payout gas is read from each transaction\u2019s own receipt and reported in the currency it was paid in, which closes one of the economics target\u2019s holes without making it measurable",
+  "scope": "A payout was recorded, queued and then blocked because no payment authority existed. Adds the live Remesso adapter and, more importantly, an account of what a payment authority can actually deliver: one token approval is shared by every policy the same wallet grants, so per-campaign budgets say nothing about solvency and two live briefs could each believe they were funded. Payout gas is read from each transaction\u2019s own receipt and reported in the currency it was paid in, which closes one of the economics target\u2019s holes without making it measurable. Each approval is re-read on a timer that reschedules itself, and a read that failed is kept strictly apart from an approval that is genuinely short",
   "runtime": {
     "node": "v24.11.1",
     "postgres": "18.6",
@@ -55,11 +55,11 @@
     "lint": "biome check, 108 files",
     "types": "tsc --noEmit, strict",
     "capability": "28 spike checks",
-    "database": 177,
+    "database": 182,
     "browser": 58,
     "build": "next build succeeded",
     "loop": "14 phases, 42 steps, exit 0",
-    "fork": "18 checks against deployed contract code on a disposable Anvil fork of Celo, exit 0",
+    "fork": "19 checks against deployed contract code on a disposable Anvil fork of Celo, exit 0",
     "covered": [
       "two briefs cannot both promise one shared approval; the refusal leaves the first published and the second a draft, and what fits is still publishable to the last base unit",
       "a second authority on the same wallet resolves to one approval row and states the same amount rather than doubling it, while a different wallet has its own room",
@@ -76,7 +76,13 @@
       "a gas reading is immutable and undeletable, and a cost that is not gas used times the price paid is refused by the table",
       "gas paid in the settlement token is comparable with revenue, gas paid in CELO is not, and the two are never summed into one number",
       "the economics target stops reporting payout gas as missing, names the recorded cost in the currency it was paid in, and still prints no margin",
-      "on the fork: the agent\u2019s own CELO balance fell by exactly the recorded gas while the payee\u2019s USDC rose by exactly the amount owed"
+      "on the fork: the agent\u2019s own CELO balance fell by exactly the recorded gas while the payee\u2019s USDC rose by exactly the amount owed",
+      "registering an authority starts a recurring read that records the same evidence a person\u2019s read would leave, with no actor behind it, and puts itself back on the queue",
+      "a read that failed is recorded as unread without touching the previous reading or the approval\u2019s state, does not spend the attempts that would kill the job, and is cleared by a later success",
+      "a policy the chain says is inactive stops new claims and keeps the accepted obligation exactly as accepted, while a shortfall on an active policy pauses nothing",
+      "revoking an authority ends its recurring read rather than leaving it spinning, and no further observation arrives",
+      "the queue names an approval nobody has read, one whose reading has gone stale, and one that is short, and leaves a fresh covering reading alone",
+      "on the fork, the worker\u2019s own dispatch drove the recurring read against the real chain through verified, then inactive after the policy was revoked on chain, then revoked"
     ]
   },
   "ci": "configured; not run on GitHub",
@@ -88,7 +94,6 @@
   ],
   "limits": [
     "no mainnet transaction and no funded wallet, so nothing here establishes production behaviour or real finality timing",
-    "verification is a button, not a schedule: an approval drained elsewhere stays verified in the record until the next read or the next failed payout",
     "the agent key comes from the environment, with no rotation and no hardware signer; a compromised process can spend up to the policy caps",
     "one signer, serialized by the SDK coordinator, so payout throughput is one transaction at a time per agent address",
     "recoverPending is not wired to a schedule; recovery happens when the outbox retries a payable",
@@ -98,7 +103,9 @@
     "remesso-sdk 0.3.1 exists and is not adopted",
     "a CELO gas cost cannot be set against USDC revenue without a price feed, which does not exist here, so the economics target reports the two separately and prints no margin",
     "only payout gas is recorded: a resource purchase is also sent by a platform wallet and also costs gas, but no live resource adapter exists to read a receipt from",
-    "a receipt that cannot be read is not recorded and nothing retries it, because the job completes at finality"
+    "a receipt that cannot be read is not recorded and nothing retries it, because the job completes at finality",
+    "the re-read interval is fixed in code rather than per workspace: six hours suits a pilot, and a busy workspace on a shared wallet would want minutes",
+    "nothing notifies anybody: a short or unreadable approval appears in the queue and waits to be looked at, the same gap escalation has"
   ],
   "sourceFiles": [
     {
@@ -206,6 +213,10 @@
       "sha256": "31a0265a4cda55c5b517b70af94118a1bdaecb8b3d280c05ac05ec5767cd960e"
     },
     {
+      "path": "db/migrations/0016_authority_verification.sql",
+      "sha256": "196e28ab61762550e4ebb99143c229ddd72d72c06a44faf57d28beec1ee94873"
+    },
+    {
       "path": "docs/ALPHA-02.md",
       "sha256": "0bc89f1575bf80e4ba1eab387d4cc518b5b271d88d32693f6a8a720fee4247af"
     },
@@ -239,7 +250,7 @@
     },
     {
       "path": "docs/ALPHA-10.md",
-      "sha256": "964c53d7f8d6719b7c63a595f909586c667577f362aac2117552e3782e3afef9"
+      "sha256": "41f21845a4fba59b063766219f053e846de548871db4b441ffc7419983144a64"
     },
     {
       "path": "docs/ALPHA-11.md",
@@ -255,7 +266,7 @@
     },
     {
       "path": "docs/DEVELOPMENT.md",
-      "sha256": "a117c4576241fecdadf1c38f7eeef774e8f5d4e00a39e7d8f50764477ba9754f"
+      "sha256": "4bd8fb6ad82e1117ca777f0c056ab27d5992c2d98656ba685638abefb3c17b05"
     },
     {
       "path": "docs/HACKATHON.md",
@@ -271,7 +282,7 @@
     },
     {
       "path": "docs/PILOT-05.md",
-      "sha256": "793883c1b791a2eca92ef7e7dedd7b06849a9fa062be9f7302d459db3e387f2a"
+      "sha256": "87e32ed56d244b368d21d2ff46dd71baa08266547a4e982ecf504d7455b77f58"
     },
     {
       "path": "docs/PRD.md",
@@ -283,15 +294,15 @@
     },
     {
       "path": "docs/VALIDATION.md",
-      "sha256": "855fd701af9b865247ee74995a7c34e34eb67391cbe34fbf0b8936a0daba2680"
+      "sha256": "7ccf28c62270a907beaf6e854b68ee25d9145e1b561ffeb21d6e9d204ba928b1"
     },
     {
       "path": "memory/BUILD_LOG.md",
-      "sha256": "227379631cec1782fcddbe51224ba9bf46aa2f8bff3c31f971f54a7e4170f36b"
+      "sha256": "7ebbc1d761fb0a2fce121bfe188ea1e100e9f77deeda920a9fb364d232ab2f7f"
     },
     {
       "path": "memory/DECISIONS.md",
-      "sha256": "f1445e783c9bd82491e89d1814b184b62f1196a4ce521dcb0ca874fe4d103785"
+      "sha256": "a4cccea0e5cbf77c5b848d7befa01bf781c883d3b19d93285bee8a0d85181a41"
     },
     {
       "path": "memory/PROJECT.md",
@@ -299,7 +310,7 @@
     },
     {
       "path": "memory/STATUS.md",
-      "sha256": "97088907acb76d5341e4a609aad1eb63a9969aa8c5e01eb84e96984123ed58d1"
+      "sha256": "4de33f40936359b98c071011878000ec9091ce5e5770d335d8a09ce695f28d8b"
     },
     {
       "path": "next-env.d.ts",
@@ -339,7 +350,7 @@
     },
     {
       "path": "scripts/run-loop.ts",
-      "sha256": "3e3bda357d5bae35b2bc9987d4a8e59a3c86d76bb4e6d62c5cc6ca63ccc9fbbf"
+      "sha256": "52ee956672e5ebe586e3a0d7108d23c71789ed319d468ffaa3ffbe8446a50665"
     },
     {
       "path": "scripts/setup-auth.mjs",
@@ -355,7 +366,7 @@
     },
     {
       "path": "scripts/verify-payments.ts",
-      "sha256": "7ec87eb28fee77d8bc94137b9ffa97a4910cda52c886396590100b88997b633a"
+      "sha256": "6e504ebda97251ec476f1902834b8293a29b40a7f8ed27aebc9cfdfe372777bf"
     },
     {
       "path": "src/app/account.css",
@@ -443,7 +454,7 @@
     },
     {
       "path": "src/components/attention-panel.tsx",
-      "sha256": "593425d12434b64646d9ce32b7a875eb3ab309089f3560b2b34210de000c6601"
+      "sha256": "13afbc086366f1a239928bdd541455ecfda500655b36c90a6fef038ac060c71c"
     },
     {
       "path": "src/components/auth-form.tsx",
@@ -451,7 +462,7 @@
     },
     {
       "path": "src/components/authority-panel.tsx",
-      "sha256": "eb89f6995c58149e93071baf85f5cf61deb9dbdf5791305fca6c2bd0b16c22d3"
+      "sha256": "9fbc6fa5961561d29c52c83eeca4e0954c7e797ecb686e9a93eedfbd43c3c26c"
     },
     {
       "path": "src/components/campaign-panel.tsx",
@@ -535,7 +546,7 @@
     },
     {
       "path": "src/server/attention.ts",
-      "sha256": "369c9c1e2b77c2ba017ff54b2026cf90b5ce8dcb682b49a3235e67aa6451a382"
+      "sha256": "32201ec25fdf8501db24cf7eccc8fe47fab28f123d770e82b62643e336d166ff"
     },
     {
       "path": "src/server/auth/config.ts",
@@ -543,7 +554,7 @@
     },
     {
       "path": "src/server/authority.ts",
-      "sha256": "3d0c99d1bdc925c4619d71bf71ce1674ae56f3290f15e4a085e704d56c29d5fd"
+      "sha256": "58d288e026d89280532a17456ebcf129c354bcf0c66cc36366080ede041fb084"
     },
     {
       "path": "src/server/database.ts",
@@ -663,7 +674,7 @@
     },
     {
       "path": "tests/authority.test.ts",
-      "sha256": "81fedc56291276358cf58aac2fad0ad4579f5c0b985eed28bab476780c34e3f5"
+      "sha256": "d9348edf44fadecee08ac176a020f26b48d5f6bc6b98ea2d3b1d7d4b820aed4c"
     },
     {
       "path": "tests/backend.test.ts",
@@ -671,7 +682,7 @@
     },
     {
       "path": "tests/browser/accounts.spec.ts",
-      "sha256": "dcc470f3d16f7b67b269964eb9e68afab90d35b411db7ce6edd512a6b87d55ac"
+      "sha256": "46ac58f4ab16f96811de6adf14ca844d94429cfbf8a7bdc211861aa150150485"
     },
     {
       "path": "tests/browser/evidence.spec.ts",
@@ -739,7 +750,7 @@
     },
     {
       "path": "workers/main.ts",
-      "sha256": "e06192fa045d0625d7493bcf5497e1c8cd6107a5be1b2e4c0af7b8c220ffb433"
+      "sha256": "f8172cfa5b4adc75d1f266e7dfd927d3cf1b1eb0f21e10ea799116e1c6513fb3"
     }
   ],
   "gas": {
@@ -751,5 +762,24 @@
     "currenciesNeverConverted": "readings are grouped by the currency each was paid in, each stating whether it is the currency the fee is collected in; an unrecognised fee currency is recorded with no decimals rather than shifted by a guessed exponent",
     "economicsEffect": "the target names a real cost instead of an absence and still refuses to print a margin: compute, verification, human review and refunds remain unrecorded",
     "measuredOnTheFork": "the agent\u2019s CELO balance fell by exactly the recorded cost while the payee\u2019s USDC rose by exactly the amount owed"
+  },
+  "verification": {
+    "schedule": "enqueued on the same outbox in the transaction that registers the authority, so an approval cannot exist unchecked; each turn reschedules itself rather than depending on a cron, and revoking the authority ends the job",
+    "intervalHours": 6,
+    "stalenessHours": 24,
+    "failedReadIsNotAReading": "the attempt is recorded before the call and the error afterwards; the previous reading and the state are untouched, and a later success clears it. An RPC outage must not be indistinguishable from insolvency",
+    "failedReadIsAWait": "the retry is sooner than the interval and does not spend the attempts that would kill the job, because a recurring read that dies after five bad answers stops checking exactly when checking matters",
+    "queueReportsFourConditions": [
+      "never read",
+      "last read failed",
+      "reading stale",
+      "approval short"
+    ],
+    "whatAReadingMayDo": {
+      "policyInactive": "stops new claims on every brief it funds, because it is the same fact a failed payout would report later, and erases nothing accepted",
+      "approvalShort": "reported and nothing else: a moving number the builder can top up, and pausing live work on it would turn a temporary balance into a stopped campaign",
+      "readFailed": "reported as unread; the previous reading stands"
+    },
+    "workerCarriesTheLiveAdapter": "fixed here: configuredPayments was reached only by the verification route, so nothing would have paid through the adapter in production. The worker builds the adapter and reader once and says which it has at startup"
   }
 }

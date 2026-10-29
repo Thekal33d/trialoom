@@ -1,12 +1,26 @@
 import { setTimeout } from 'node:timers/promises';
 import { sweepExpiredAssignments } from '../src/server/assignments.ts';
+import { verifyScheduled } from '../src/server/authority.ts';
 import { createPool, databaseUrl } from '../src/server/database.ts';
 import { releaseSettledAssignments } from '../src/server/decisions.ts';
 import { processOne } from '../src/server/jobs.ts';
+import { configuredPayments } from '../src/server/remesso.ts';
 import { reconcilePurchase } from '../src/server/resources.ts';
 import { dispatchPayout } from '../src/server/settlement.ts';
 
 const pool = createPool(databaseUrl());
+// Built once rather than per job: the provider's journals, its signer lock and
+// its nonce floor belong to one client, and a fresh one per job would
+// re-initialize that storage every time.
+const payments = configuredPayments(pool);
+console.log(
+  JSON.stringify({
+    event: 'worker.payments',
+    // Absence is the state of this build, and it is said out loud rather than
+    // looking like a working payment path that happens to pay nobody.
+    adapter: payments ? 'remesso' : 'unconfigured',
+  }),
+);
 const controller = new AbortController();
 process.once('SIGINT', () => controller.abort());
 process.once('SIGTERM', () => controller.abort());
@@ -25,13 +39,16 @@ try {
       if (settled.assignments)
         console.log(JSON.stringify({ event: 'assignments.settled', count: settled.assignments }));
     }
-    // No funded payment authority is configured, so the default adapter blocks
+    // With no funded payment authority configured the default adapter blocks
     // every payout with a visible reason instead of pretending to pay it.
     const worked = await processOne(pool, {
-      'payout.dispatch': (client, lease) => dispatchPayout(client, lease),
+      'payout.dispatch': (client, lease) => dispatchPayout(client, lease, payments?.adapter),
       // A purchase holds its reservation until this answers. No resource wallet
       // is configured either, so nothing has been bought to reconcile.
       'resource.reconcile': (client, lease) => reconcilePurchase(client, lease),
+      // A declaration believed until somebody presses a button is not an
+      // account of what can be paid, so each approval is re-read on a timer.
+      'authority.verify': (client, lease) => verifyScheduled(client, lease, payments?.reader),
     });
     if (once) break;
     if (!worked) await setTimeout(1000, undefined, { signal: controller.signal });

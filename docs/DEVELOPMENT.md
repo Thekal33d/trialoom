@@ -78,7 +78,8 @@ Nothing here is mainnet evidence. See [the payment authority and its
 limits](PILOT-05.md).
 
 The worker supports the harmless database-local `system.ping` job, payout
-dispatch, and resource reconciliation:
+dispatch, resource reconciliation, and the recurring re-read of each payment
+authority's approval, which reschedules itself rather than needing a cron:
 
 ```sh
 npm run jobs:enqueue -- my-first-smoke-job

@@ -318,6 +318,9 @@ test('an owner registers a payment authority and sees one shared approval', asyn
   const wallet = `0x${'a1'.repeat(20)}`;
   await page.getByLabel('Payer address, whose approval pays').fill(wallet);
   await page.getByLabel('Agent address, which Trialoom signs with').fill(`0x${'b2'.repeat(20)}`);
+  // The form says what registering sets in motion before it is submitted.
+  await expect(panel).toContainText('re-read from the chain on a timer');
+  await expect(panel).toContainText('never cancels an obligation on its own');
   await page.getByLabel('This states an approval I granted on chain').check();
   await panel.getByRole('button', { name: 'Register authority' }).click();
 
@@ -346,7 +349,18 @@ test('an owner registers a payment authority and sees one shared approval', asyn
   await expect(second).toContainText('10.00 USDC declared');
   await expect(second).toContainText('10.00 USDC left to promise');
 
+  // The queue names what can pay, and an approval nobody has read yet is a
+  // declaration rather than a fact.
+  await page.getByRole('button', { name: "What's waiting" }).click();
+  const queue = page.locator('.attention-panel');
+  await expect(queue).toContainText('What can pay needs looking at');
+  await expect(queue).toContainText('None of this cancels an obligation');
+  const waiting = queue.locator('.member-row', { hasText: 'Treasury policy' });
+  await expect(waiting).toContainText('Never read from the chain');
+  await expect(waiting).toContainText('unverified');
+
   // Revoking says what it does and does not do.
+  await page.getByRole('button', { name: 'Workspace access' }).click();
   await row.getByRole('button', { name: 'Revoke' }).click();
   await expect(row).toContainText('Payouts already accepted stay owed');
   await row.getByLabel('Reason').fill('Rotating the policy for this check.');

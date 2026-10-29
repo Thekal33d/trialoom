@@ -87,6 +87,28 @@ The readings are therefore grouped by currency and never converted. Each group r
 
 This closes one of the economics target's holes and does not make it measurable. It now says "payout gas is recorded but not convertible: 2 transaction(s) cost 0.00085 CELO, and no CELO/USDC rate exists here" instead of "payout gas is not recorded", and it still refuses to print a margin, because platform compute, verification cost, human review and refunds remain unrecorded.
 
+## The approval is re-read on a timer
+
+A declaration believed until somebody presses a button is not an account of what can be paid. Registering an authority now puts its own recurring read on the same outbox every other durable job uses — leased, fenced, visible — in the same transaction that creates it, so an approval cannot exist without something checking on it. Each turn re-reads the approval and **reschedules itself**, rather than depending on a cron the deployment may not have. Revoking the authority ends the job instead of leaving it spinning.
+
+Two facts about the clock, in the same spirit as the review target: an approval is re-read every **6 hours**, and a reading older than **24 hours** is stale. Neither decides anything.
+
+**A read that failed is not a reading.** Without that distinction an RPC outage would be indistinguishable from an approval that is genuinely short, and the quiet version of that mistake is the dangerous one — the record would keep reporting `verified` from a reading taken days ago. So the attempt is recorded before the call, a failure is kept as an error on the approval without touching the previous reading or the state, and a later success clears it. The queue reports four separate things: an approval nobody has read, one whose last read failed, one whose reading has gone stale, and one that does not cover what it is funding.
+
+A failed read is treated as a **wait**, not a failure. A recurring job that died after five bad answers would stop checking exactly when checking matters most, so the retry is sooner than the normal interval and the attempts counter is not spent. The error being surfaced in the queue is what stops a permanently broken reader from being silent.
+
+### What a reading is allowed to do
+
+| Reading | Effect |
+| --- | --- |
+| The policy is inactive on chain | New claims stop on every brief it funds |
+| The approval is short of its commitments | Reported, and nothing else |
+| The read failed | Reported as unread; the previous reading stands |
+
+The first is a **fact the chain reported** — the same fact a failed payout would have reported later — so learning it early stops new work exactly as losing the authority does, and erases nothing already accepted. The second is a **moving number** the builder can top up at any moment; pausing live work on it would turn a temporary balance into a stopped campaign. That asymmetry is the whole of the policy.
+
+The worker now also carries the live adapter, which it did not when PILOT-05 landed: `configuredPayments` was reached only by the verification route, so nothing would ever have paid through the adapter in production. It says which adapter it has at startup, because absence is the state of this build and should not look like a working payment path that happens to pay nobody.
+
 ## What the fork check establishes
 
 `npm run payments:fork` drives the product's own path against deployed contract code on a disposable Anvil fork of Celo that the script starts and stops. Fourteen checks pass:
@@ -101,7 +123,8 @@ That is the first time value has moved through Trialoom's own code path. **It is
 - **A CELO gas cost cannot be set against USDC revenue.** Recording it was the achievable half; converting it needs a price feed, which would be a new external dependency and a new thing to be wrong about. Until there is one, the economics target reports the two separately and prints no margin.
 - **Only payout gas is recorded.** A resource purchase is also sent by a platform wallet and also costs gas; nothing records that, because no live resource adapter exists to read a receipt from. The PRD's economics definition names payout gas specifically, so this is a gap rather than a missed requirement.
 - **A receipt that cannot be read is simply not recorded.** The reader never throws into the settlement path — losing a cost record is far better than failing a payment that already settled — so a run of RPC failures at the moment of finality leaves gas unrecorded for that transaction with nothing to retry it, since the job completes at finality.
-- **A declaration is believed until someone reads it.** Verification is a button, not a schedule: nothing re-reads an approval periodically, so an approval drained elsewhere stays `verified` in the record until the next read or the next failed payout. A scheduled re-read belongs with the attention queue.
+- **The re-read interval is fixed in code, not per workspace.** Six hours suits a pilot; a busy workspace drawing on a shared wallet would want minutes, and nothing lets it ask for that.
+- **Nothing notifies anybody.** A short or unreadable approval appears in the queue and waits to be looked at. There is no email, no webhook and no platform-reviewer channel, which is the same gap escalation has.
 - **The agent key comes from the environment.** There is no key management, no rotation, and no hardware signer. A compromised process can spend the whole approval up to the policy's per-payment and per-day caps.
 - **One signer.** The SDK's coordinator serializes signing across workers, which is correct, but it also means payout throughput is one transaction at a time per agent address.
 - **Nothing reconciles on its own.** `recoverPending` exists in the SDK and is not wired to a schedule; recovery happens when the outbox retries a payable, which is adequate but not the provider's own recommendation.

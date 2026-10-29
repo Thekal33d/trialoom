@@ -43,9 +43,33 @@ type Queue = {
     owedUnits: string;
     pastReviewTarget: number;
     pastEscalation: number;
+    authoritiesNeverRead: number;
+    authoritiesUnreadable: number;
+    authoritiesStale: number;
+    authoritiesShort: number;
     longestWaitHours: number | null;
   };
-  policy: { reviewTargetHours: number; escalationHours: number; appealWindowHours: number };
+  authorities: {
+    id: string;
+    reference: string;
+    campaigns: number;
+    state: string;
+    declaredUnits: string;
+    committedUnits: string;
+    shortfallUnits: string | null;
+    readingAgeHours: number | null;
+    stale: boolean;
+    neverRead: boolean;
+    lastReadError: string | null;
+    needsAttention: boolean;
+  }[];
+  policy: {
+    reviewTargetHours: number;
+    escalationHours: number;
+    appealWindowHours: number;
+    verificationIntervalHours: number;
+    stalenessHours: number;
+  };
   note: string;
 };
 const money = (value: string) => `${formatUnits(value)} USDC`;
@@ -157,12 +181,61 @@ export function AttentionPanel({ base, role }: { base: string; role: string }) {
           Owed, unpaid<strong>{money(totals.owedUnits)}</strong>
         </span>
       </div>
+      {(totals.authoritiesShort > 0 ||
+        totals.authoritiesStale > 0 ||
+        totals.authoritiesUnreadable > 0) && (
+        <p className="form-error" role="status">
+          What can pay needs looking at: {totals.authoritiesShort} approval(s) short of their
+          commitments, {totals.authoritiesStale} with a reading older than {policy.stalenessHours}{' '}
+          hours, {totals.authoritiesUnreadable} that could not be read at all. None of this cancels
+          an obligation or blocks a payment by itself.
+        </p>
+      )}
       {totals.pastEscalation > 0 && (
         <p className="section-description" role="status">
           {totals.pastEscalation === 1 ? 'One brief has' : `${totals.pastEscalation} briefs have`}{' '}
           waited past {policy.escalationHours} hours. A platform reviewer takes these up; the work
           is neither accepted nor refused by the delay.
         </p>
+      )}
+      {queue.authorities.length > 0 && (
+        <div className="record-list">
+          {queue.authorities.map((authority) => (
+            <div className="member-row" key={authority.id}>
+              <div>
+                <strong>
+                  {authority.reference} · {money(authority.committedUnits)} committed across{' '}
+                  {authority.campaigns === 1 ? '1 brief' : `${authority.campaigns} briefs`}
+                </strong>
+                <p>
+                  {authority.neverRead
+                    ? 'Never read from the chain, so what it can pay is only a declaration.'
+                    : `Last read ${authority.readingAgeHours === 0 ? 'under an hour' : `${authority.readingAgeHours} hour(s)`} ago. Re-read every ${policy.verificationIntervalHours} hours; a reading older than ${policy.stalenessHours} is stale.`}
+                </p>
+                {authority.lastReadError && (
+                  <p className="subtle">The last attempt failed: {authority.lastReadError}</p>
+                )}
+                {authority.shortfallUnits && (
+                  <p className="subtle">
+                    {money(authority.shortfallUnits)} short of what the briefs drawing on it have
+                    committed. Nothing is cancelled; those payouts will block as owed.
+                  </p>
+                )}
+              </div>
+              <span className="neutral-label">
+                {authority.neverRead
+                  ? 'unverified'
+                  : authority.lastReadError
+                    ? 'unreadable'
+                    : authority.shortfallUnits
+                      ? 'short'
+                      : authority.stale
+                        ? 'stale'
+                        : authority.state}
+              </span>
+            </div>
+          ))}
+        </div>
       )}
       {!queue.campaigns.length && (
         <p className="section-description">

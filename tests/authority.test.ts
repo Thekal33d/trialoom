@@ -7,14 +7,18 @@ import test, { after, before } from 'node:test';
 import type { Actor } from '../src/server/access.ts';
 import { authenticateAgent } from '../src/server/agents.ts';
 import { claim, publishCampaign, setCampaignStatus } from '../src/server/assignments.ts';
+import { workspaceAttention } from '../src/server/attention.ts';
 import {
   type AuthorityReader,
   registerAuthority,
   replayApproval,
   revokeAuthority,
+  stalenessHours,
   topUpAuthority,
   unreadableAuthority,
+  verificationIntervalHours,
   verifyAuthority,
+  verifyScheduled,
   workspaceAuthorities,
 } from '../src/server/authority.ts';
 import { decideExecution } from '../src/server/decisions.ts';
@@ -708,4 +712,210 @@ test('the listing names the shared approval and what is left to promise', async 
   assert.equal(entry.approval.uncommittedUnits, '1000000');
   assert.equal(entry.campaigns, 1);
   assert.match(listing.note, /one shared remainder/);
+});
+
+/** Leases this authority's own recurring job and runs one turn of it. */
+async function runVerification(authorityId: string, reader: AuthorityReader) {
+  const lease = (
+    await db.pool.query(
+      `UPDATE outbox_jobs SET state='leased',attempts=attempts+1,lease_token=gen_random_uuid(),
+      lease_until=clock_timestamp()+interval '30 seconds',available_at=clock_timestamp()
+      WHERE dedupe_key=$1 AND state IN ('pending','leased')
+      RETURNING id,topic,lease_token,attempts,payload`,
+      [`authority:${authorityId}`],
+    )
+  ).rows[0];
+  if (!lease) return { outcome: 'no-job', job: null };
+  const outcome = await verifyScheduled(db.pool, lease, reader);
+  const job = (
+    await db.pool.query(
+      `SELECT state,attempts,available_at>clock_timestamp() AS deferred,
+      EXTRACT(EPOCH FROM available_at-clock_timestamp())::int AS wait
+      FROM outbox_jobs WHERE dedupe_key=$1`,
+      [`authority:${authorityId}`],
+    )
+  ).rows[0];
+  return { outcome, job };
+}
+const failingReader = (message: string): AuthorityReader => ({
+  name: 'failing',
+  async read() {
+    throw new Error(message);
+  },
+});
+
+test('registering an authority starts a recurring read that reschedules itself', async () => {
+  const live = await authority('Scheduled', '10000000');
+  const queued = (
+    await db.pool.query(`SELECT topic,state,payload FROM outbox_jobs WHERE dedupe_key=$1`, [
+      `authority:${live.authorityId}`,
+    ])
+  ).rows[0];
+  assert.equal(queued.topic, 'authority.verify');
+  assert.equal(queued.state, 'pending');
+  assert.equal(queued.payload.authorityId, live.authorityId);
+
+  const first = await runVerification(live.authorityId, reading('10000000', '10000000'));
+  assert.equal(first.outcome, 'verified');
+  // The reading is the same evidence a person's read would have left, recorded
+  // with no actor behind it.
+  const observation = (
+    await db.pool.query(
+      `SELECT reader,allowance_units FROM payment_approval_observations WHERE approval_id=$1`,
+      [live.approval.approvalId],
+    )
+  ).rows;
+  assert.equal(observation.length, 1);
+  assert.equal(observation[0].allowance_units, '10000000');
+  const audited = (
+    await db.pool.query(
+      `SELECT action,actor_id FROM audit_events WHERE subject_id=$1 AND action LIKE 'payment_authority.%'
+      ORDER BY created_at DESC LIMIT 1`,
+      [live.authorityId],
+    )
+  ).rows[0];
+  assert.equal(audited.action, 'payment_authority.verified');
+  assert.equal(audited.actor_id, null);
+  // It put itself back on the queue rather than needing a cron.
+  assert.equal(first.job?.state, 'pending');
+  assert.equal(first.job?.deferred, true);
+  assert.ok(first.job?.wait > 3600 * (verificationIntervalHours - 1));
+  const approval = await approvalOf(live.approval.approvalId);
+  assert.equal(approval.state, 'verified');
+  assert.equal(approval.last_read_error, null);
+  assert.ok(approval.last_read_attempted_at);
+});
+
+test('a read that failed is recorded as unread, not as a shortfall', async () => {
+  const live = await authority('Unreadable', '10000000');
+  await newCampaign('Unreadable brief', {
+    authorityId: live.authorityId,
+    ceilingUnits: '8000000',
+  });
+  await runVerification(live.authorityId, reading('10000000', '10000000'));
+  assert.equal((await approvalOf(live.approval.approvalId)).state, 'verified');
+
+  const failed = await runVerification(live.authorityId, failingReader('forno is unreachable'));
+  assert.match(String(failed.outcome), /^unread/);
+  const approval = await approvalOf(live.approval.approvalId);
+  // The failure is visible, the old reading is untouched, and the approval is
+  // emphatically not called short on the strength of an outage.
+  assert.match(approval.last_read_error, /forno is unreachable/);
+  assert.equal(approval.state, 'verified');
+  assert.equal(approval.observed_allowance_units, '10000000');
+  assert.equal(
+    (
+      await db.pool.query(
+        'SELECT count(*)::int AS n FROM payment_approval_observations WHERE approval_id=$1',
+        [live.approval.approvalId],
+      )
+    ).rows[0].n,
+    1,
+  );
+  // A recurring read that died after five bad answers would stop checking
+  // exactly when checking matters, so a failure is a wait and the retry is
+  // sooner than the normal interval.
+  assert.equal(failed.job?.state, 'pending');
+  assert.equal(failed.job?.attempts, 0);
+  assert.ok(failed.job?.wait < 3600 * verificationIntervalHours);
+  // A later successful read clears the error.
+  await runVerification(live.authorityId, reading('10000000', '10000000'));
+  assert.equal((await approvalOf(live.approval.approvalId)).last_read_error, null);
+});
+
+test('a policy the chain says is inactive stops new claims and keeps the debt', async () => {
+  const live = await authority('Inactive', '40000000');
+  const work = await acceptedWork('inactive-policy', {
+    publication: { authorityId: live.authorityId, ceilingUnits: '40000000' },
+  });
+  const accounting = await campaignAccounting(db.pool, work.campaign.campaignId);
+  const outcome = await runVerification(live.authorityId, reading('40000000', '40000000', false));
+  assert.equal(outcome.outcome, 'inactive:1');
+  assert.equal(
+    (await db.pool.query('SELECT status FROM campaigns WHERE id=$1', [work.campaign.campaignId]))
+      .rows[0].status,
+    'paused',
+  );
+  // Learning it early is the same fact a failed payout would have reported, so
+  // it stops new work and erases nothing that was accepted.
+  const after = await campaignAccounting(db.pool, work.campaign.campaignId);
+  assert.equal(after?.acceptedUnits, accounting?.acceptedUnits);
+  assert.equal((await approvalOf(live.approval.approvalId)).state, 'short');
+  const audited = (
+    await db.pool.query(
+      `SELECT action FROM audit_events WHERE subject_id=$1 ORDER BY created_at DESC LIMIT 1`,
+      [live.authorityId],
+    )
+  ).rows[0];
+  assert.equal(audited.action, 'payment_authority.inactive');
+  // A shortfall on an active policy pauses nothing: it is a number the builder
+  // can top up, not a fact about the policy.
+  await db.pool.query(`UPDATE campaigns SET status='open' WHERE id=$1`, [work.campaign.campaignId]);
+  await runVerification(live.authorityId, reading('40000000', '1000000'));
+  assert.equal(
+    (await db.pool.query('SELECT status FROM campaigns WHERE id=$1', [work.campaign.campaignId]))
+      .rows[0].status,
+    'open',
+  );
+  assert.equal((await approvalOf(live.approval.approvalId)).state, 'short');
+});
+
+test('revoking an authority ends its recurring read', async () => {
+  const live = await authority('Retired', '5000000');
+  await runVerification(live.authorityId, reading('5000000', '5000000'));
+  await revokeAuthority(db.pool, owner, workspaceId, live.authorityId, {
+    reason: 'Rotating the policy.',
+  });
+  const stopped = await runVerification(live.authorityId, reading('5000000', '5000000'));
+  assert.equal(stopped.outcome, 'revoked');
+  assert.equal(stopped.job?.state, 'done');
+  // Nothing re-reads it, so no second observation arrives.
+  assert.equal(
+    (
+      await db.pool.query(
+        'SELECT count(*)::int AS n FROM payment_approval_observations WHERE approval_id=$1',
+        [live.approval.approvalId],
+      )
+    ).rows[0].n,
+    1,
+  );
+});
+
+test('the queue names an approval nobody has read, one gone stale, and one that is short', async () => {
+  const unread = await authority('Never read', '9000000');
+  await newCampaign('Never read brief', {
+    authorityId: unread.authorityId,
+    ceilingUnits: '4000000',
+  });
+  let queue = await workspaceAttention(db.pool, owner, workspaceId);
+  let entry = queue.authorities.find((row) => row.id === unread.authorityId);
+  assert.equal(entry?.neverRead, true);
+  assert.equal(entry?.readingAgeHours, null);
+  assert.equal(entry?.needsAttention, true);
+  assert.ok(queue.totals.authoritiesNeverRead >= 1);
+  assert.equal(queue.policy.verificationIntervalHours, verificationIntervalHours);
+
+  // A fresh covering reading takes it out of the queue's way.
+  await runVerification(unread.authorityId, reading('9000000', '9000000'));
+  queue = await workspaceAttention(db.pool, owner, workspaceId);
+  entry = queue.authorities.find((row) => row.id === unread.authorityId);
+  assert.equal(entry?.neverRead, false);
+  assert.equal(entry?.stale, false);
+  assert.equal(entry?.needsAttention, false);
+
+  // Age that reading past the staleness threshold and the queue says so,
+  // without anything about the approval itself having changed.
+  await db.pool.query(
+    `UPDATE payment_approvals SET observed_at=clock_timestamp()-make_interval(hours=>$2)
+    WHERE id=$1`,
+    [unread.approval.approvalId, stalenessHours + 1],
+  );
+  queue = await workspaceAttention(db.pool, owner, workspaceId);
+  entry = queue.authorities.find((row) => row.id === unread.authorityId);
+  assert.equal(entry?.stale, true);
+  assert.equal(entry?.needsAttention, true);
+  assert.ok(queue.totals.authoritiesStale >= 1);
+  assert.equal(entry?.shortfallUnits, null);
+  assert.equal(queue.policy.stalenessHours, stalenessHours);
+  assert.match(queue.policy.staleReadings, /never cancels an obligation/);
 });

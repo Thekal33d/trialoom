@@ -3,6 +3,7 @@ import { AppError } from '../domain/errors.ts';
 import { uuid } from '../domain/schemas.ts';
 import { settlementCurrency } from '../domain/values.ts';
 import { type Actor, audit, requireRole } from './access.ts';
+import { authorityListing, stalenessHours, verificationIntervalHours } from './authority.ts';
 import { transaction } from './database.ts';
 import { appealWindowHours } from './decisions.ts';
 
@@ -110,6 +111,29 @@ export async function workspaceAttention(pool: Pool, actor: Actor, workspaceId: 
             Number(attention.resources_unreconciled);
       rows.push({ ...campaign, attention, pending });
     }
+    // What can actually pay, and how lately anyone checked. An approval is in
+    // this queue when nobody has read it, when the last read failed, when the
+    // reading has gone stale, or when it does not cover what it is funding.
+    const authorities = (await authorityListing(db, id)).authorities
+      .filter((authority) => !authority.revokedAt)
+      .map((authority) => {
+        const approval = authority.approval;
+        const short = approval.shortfallUnits !== null && approval.shortfallUnits !== '0';
+        return {
+          id: authority.id,
+          reference: authority.reference,
+          campaigns: authority.campaigns,
+          state: approval.state,
+          declaredUnits: approval.declaredUnits,
+          committedUnits: approval.committedUnits,
+          shortfallUnits: short ? approval.shortfallUnits : null,
+          readingAgeHours: approval.readingAgeHours,
+          stale: approval.stale,
+          neverRead: approval.observedAt === null,
+          lastReadError: approval.lastReadError,
+          needsAttention: short || approval.stale || approval.observedAt === null,
+        };
+      });
     if (role === 'reviewer') await audit(db, id, actor.id, 'reviewer.attention_read', id);
     const waiting = rows
       .map((row) => row.attention?.waitingHours)
@@ -133,12 +157,21 @@ export async function workspaceAttention(pool: Pool, actor: Actor, workspaceId: 
         pastReviewTarget: rows.filter((row) => row.attention?.pastReviewTarget).length,
         pastEscalation: rows.filter((row) => row.attention?.pastEscalation).length,
         longestWaitHours: waiting.length ? Math.max(...waiting) : null,
+        authoritiesNeverRead: authorities.filter((row) => row.neverRead).length,
+        authoritiesUnreadable: authorities.filter((row) => row.lastReadError !== null).length,
+        authoritiesStale: authorities.filter((row) => row.stale).length,
+        authoritiesShort: authorities.filter((row) => row.shortfallUnits !== null).length,
       },
+      authorities: authorities.sort((a, b) => Number(b.needsAttention) - Number(a.needsAttention)),
       policy: {
         reviewTargetHours,
         escalationHours,
         appealWindowHours,
         escalates: 'to a platform reviewer; silence never accepts or rejects the work',
+        verificationIntervalHours,
+        stalenessHours,
+        staleReadings:
+          'an approval is re-read on a timer; a stale or short reading is reported and never cancels an obligation or blocks a payment by itself',
       },
       currency: settlementCurrency,
       note: 'Work state and money state are separate. An accepted amount can still have a blocked payment, and nothing here decides anything.',

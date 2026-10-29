@@ -15,6 +15,10 @@ type Approval = {
   observedAt: string | null;
   shortfallUnits: string | null;
   state: 'declared' | 'verified' | 'short' | 'revoked';
+  lastReadAttemptedAt: string | null;
+  lastReadError: string | null;
+  readingAgeHours: number | null;
+  stale: boolean;
 };
 type Authority = {
   id: string;
@@ -149,6 +153,11 @@ export function AuthorityPanel({ base }: { base: string }) {
             This states an approval I granted on chain. Trialoom holds no funds, and I can revoke it
             at any time without cancelling what has already been accepted.
           </label>
+          <small>
+            Once registered, the approval is re-read from the chain on a timer as well as whenever
+            you ask. A reading that no longer covers what your briefs have committed is reported to
+            you; it never cancels an obligation on its own.
+          </small>
           <button type="submit" className="button primary" disabled={busy}>
             Register authority
           </button>
@@ -179,7 +188,15 @@ export function AuthorityPanel({ base }: { base: string }) {
                     authority.approval.observedAllowanceUnits ?? '0',
                   )}, balance ${money(authority.approval.observedBalanceUnits ?? '0')}`
                 : ''}
+              {authority.approval.stale ? ' · that reading is stale' : ''}
             </p>
+            {authority.approval.lastReadError && !authority.revokedAt && (
+              <p className="section-description" role="status">
+                The last scheduled read failed: {authority.approval.lastReadError} An approval
+                nobody can read is not the same as one that is short, so nothing has changed about
+                what is committed against it.
+              </p>
+            )}
             {authority.approval.shortfallUnits &&
               authority.approval.shortfallUnits !== '0' &&
               !authority.revokedAt && (

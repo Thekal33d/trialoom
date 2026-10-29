@@ -29,6 +29,7 @@ import {
   registerAuthority,
   revokeAuthority,
   verifyAuthority,
+  verifyScheduled,
   workspaceAuthorities,
 } from '../src/server/authority.ts';
 import { decideExecution } from '../src/server/decisions.ts';
@@ -39,6 +40,7 @@ import {
   bootstrapWorkspace,
   createInvitation,
 } from '../src/server/invitations.ts';
+import { processOne } from '../src/server/jobs.ts';
 import { pilotMetrics } from '../src/server/metrics.ts';
 import { migrate } from '../src/server/migrations.ts';
 import {
@@ -542,28 +544,70 @@ try {
     unseen.status === 'unknown',
   );
 
-  // 7. Revoking the policy on chain is read as a shortfall, and nothing is
-  //    cancelled by the bad news.
+  // 7. The recurring read, driven the way the worker drives it: through the
+  //    outbox, with the real reader, against the real chain.
+  const scheduled = async () =>
+    processOne(db.pool, {
+      'authority.verify': (client, lease) => verifyScheduled(client, lease, reader),
+    });
+  const observationsNow = async () =>
+    Number(
+      (
+        await db.pool.query(
+          'SELECT count(*)::int AS n FROM payment_approval_observations WHERE approval_id=$1',
+          [authority.approval.approvalId],
+        )
+      ).rows[0].n,
+    );
+  const seenBefore = await observationsNow();
+  check('the worker picked the recurring read off the outbox', await scheduled());
+  const jobAfter = (
+    await db.pool.query(
+      `SELECT state,available_at>clock_timestamp() AS deferred FROM outbox_jobs
+      WHERE dedupe_key=$1`,
+      [`authority:${authority.authorityId}`],
+    )
+  ).rows[0];
+  check(
+    'it read the live approval again and put itself back on the queue',
+    (await observationsNow()) === seenBefore + 1 &&
+      jobAfter.state === 'pending' &&
+      jobAfter.deferred === true,
+  );
+
+  // 8. A policy revoked on chain is a fact, so the scheduled read finds it and
+  //    stops new claims without cancelling anything already accepted.
   await env.clients.treasury.policies.revoke(policy.id);
   await mine(1);
-  const short = await verifyAuthority(db.pool, owner, workspaceId, authority.authorityId, reader);
-  check(
-    'a policy revoked on chain reads as short while the commitment stands',
-    short.approval.state === 'short' && short.policyActive === false,
-  );
+  await db.pool.query(`UPDATE outbox_jobs SET available_at=clock_timestamp() WHERE dedupe_key=$1`, [
+    `authority:${authority.authorityId}`,
+  ]);
+  await scheduled();
   const listing = await workspaceAuthorities(db.pool, owner, workspaceId);
+  const owed = (await db.pool.query('SELECT state FROM payables WHERE id=$1', [payable.id]))
+    .rows[0];
   check(
-    'the workspace listing reports the same standing',
+    'the scheduled read found the revoked policy, paused the brief and left the record intact',
     listing.authorities[0].approval.state === 'short' &&
-      listing.authorities[0].approval.settledUnits === '2000000',
+      listing.authorities[0].approval.settledUnits === '2000000' &&
+      (await db.pool.query('SELECT status FROM campaigns WHERE id=$1', [campaign.campaignId]))
+        .rows[0].status === 'paused' &&
+      owed.state === 'finalized',
   );
   await revokeAuthority(db.pool, owner, workspaceId, authority.authorityId, {
     reason: 'The policy was revoked on chain during the fork check.',
   });
+  await db.pool.query(`UPDATE outbox_jobs SET available_at=clock_timestamp() WHERE dedupe_key=$1`, [
+    `authority:${authority.authorityId}`,
+  ]);
+  await scheduled();
   check(
-    'revoking the authority pauses the brief without erasing the record',
-    (await db.pool.query('SELECT status FROM campaigns WHERE id=$1', [campaign.campaignId])).rows[0]
-      .status === 'paused',
+    'revoking the authority ends its recurring read rather than leaving it spinning',
+    (
+      await db.pool.query('SELECT state FROM outbox_jobs WHERE dedupe_key=$1', [
+        `authority:${authority.authorityId}`,
+      ])
+    ).rows[0].state === 'done',
   );
 
   console.log(

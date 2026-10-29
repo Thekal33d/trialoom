@@ -25,7 +25,12 @@ import {
   sweepExpiredAssignments,
 } from '../src/server/assignments.ts';
 import { workspaceAttention } from '../src/server/attention.ts';
-import { registerAuthority, verifyAuthority } from '../src/server/authority.ts';
+import {
+  type AuthorityReader,
+  registerAuthority,
+  verificationIntervalHours,
+  verifyScheduled,
+} from '../src/server/authority.ts';
 import { transaction } from '../src/server/database.ts';
 import { decideDiscovery, decideExecution } from '../src/server/decisions.ts';
 import { storeArtifact, submitEvidence } from '../src/server/evidence.ts';
@@ -726,9 +731,11 @@ try {
     'shared approval',
     'the second brief is refused rather than published against money the first one already promised; the first is untouched',
   );
-  // Verification is what turns a declaration into a fact. A reading below the
+  // Verification is what turns a declaration into a fact, and it happens on a
+  // timer rather than when somebody remembers: registering the authority put
+  // its own read on the outbox, and this is one turn of it. A reading below the
   // commitments is reported, and nothing is cancelled by the bad news.
-  const read = await verifyAuthority(db.pool, owner, workspaceId, tight.authorityId, {
+  const drained: AuthorityReader = {
     name: 'loop-fixture',
     async read() {
       return {
@@ -738,13 +745,31 @@ try {
         detail: 'The wallet has been drained elsewhere.',
       };
     },
-  });
-  assert.equal(read.approval.state, 'short');
-  assert.equal(read.approval.shortfallUnits, '3000000');
+  };
+  // Leased by its own key, because every authority in this workspace has a
+  // read waiting on this one queue and the phase means to run this one.
+  const due = await leaseFor(`authority:${tight.authorityId}`);
+  assert.ok(due, 'the recurring read must already be on the queue, enqueued by registration');
+  assert.equal(await verifyScheduled(db.pool, due, drained), 'short');
+  assert.equal((await approvalStanding(tight.approval.approvalId)).state, 'short');
+  // The reservation is untouched: a shortfall is news, not a decision.
   assert.equal((await approvalStanding(tight.approval.approvalId)).committed_units, '4000000');
+  const requeued = (
+    await db.pool.query(
+      `SELECT state,available_at>clock_timestamp() AS deferred FROM outbox_jobs
+      WHERE dedupe_key=$1`,
+      [`authority:${tight.authorityId}`],
+    )
+  ).rows[0];
+  assert.equal(requeued.state, 'pending');
+  assert.equal(requeued.deferred, true);
+  const waitingOn = await workspaceAttention(db.pool, owner, workspaceId);
+  const flagged = waitingOn.authorities.find((row) => row.id === tight.authorityId);
+  assert.ok(flagged?.shortfallUnits === '3000000' && flagged.needsAttention);
+  assert.ok(waitingOn.totals.authoritiesShort >= 1);
   note(
-    'verification',
-    `the chain read reports ${read.approval.shortfallUnits} base units short of what is committed; the obligation stands and the builder is told`,
+    'scheduled verification',
+    `the recurring read found the wallet ${flagged.shortfallUnits} base units short of what is committed, put itself back on the queue for ${verificationIntervalHours} hours' time, and the queue now names it; the obligation stands and nothing was cancelled`,
   );
 
   heading('7. Recovery: a crash after broadcast pays once, not twice');

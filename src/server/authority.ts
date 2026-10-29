@@ -8,6 +8,7 @@ import {
 import { settlementCurrency } from '../domain/values.ts';
 import { type Actor, audit, requireRole } from './access.ts';
 import { transaction } from './database.ts';
+import { completeJob, enqueueJob, type JobLease, rescheduleJob } from './jobs.ts';
 
 /**
  * A payment authority is what makes a payout possible, and it is deliberately
@@ -44,6 +45,14 @@ export type ApprovalStanding = {
   /** How far the last reading falls short of the live commitments. */
   shortfallUnits: string | null;
   state: 'declared' | 'verified' | 'short' | 'revoked';
+  /** When a read was last attempted, whether or not it produced a reading. */
+  lastReadAttemptedAt: string | null;
+  /** Why the last attempt produced nothing. Not the same as being short. */
+  lastReadError: string | null;
+  /** How old the last reading is. A reading is the only thing that ages. */
+  readingAgeHours: number | null;
+  /** Whether that reading is too old to rely on. It decides nothing. */
+  stale: boolean;
 };
 
 type ApprovalRow = {
@@ -58,6 +67,8 @@ type ApprovalRow = {
   observed_balance_units: string | null;
   observed_at: Date | null;
   state: ApprovalStanding['state'];
+  last_read_attempted_at: Date | null;
+  last_read_error: string | null;
 };
 
 export type AuthorityHandle = {
@@ -104,7 +115,11 @@ export const unreadableAuthority: AuthorityReader = {
  */
 const least = (a: bigint, b: bigint) => (a < b ? a : b);
 
+const hoursSince = (value: Date | null) =>
+  value === null ? null : Math.floor((Date.now() - value.getTime()) / 3_600_000);
+
 function standing(row: ApprovalRow): ApprovalStanding {
+  const age = hoursSince(row.observed_at);
   const declared = BigInt(row.declared_units);
   const committed = BigInt(row.committed_units);
   const reachable =
@@ -126,6 +141,12 @@ function standing(row: ApprovalRow): ApprovalStanding {
     shortfallUnits:
       reachable === null ? null : (committed > reachable ? committed - reachable : 0n).toString(),
     state: row.state,
+    lastReadAttemptedAt: row.last_read_attempted_at?.toISOString() ?? null,
+    lastReadError: row.last_read_error,
+    readingAgeHours: age,
+    // An approval nobody has read is not stale, it is unverified: those are
+    // different problems and the queue names them separately.
+    stale: age !== null && age >= stalenessHours,
   };
 }
 
@@ -238,6 +259,9 @@ export async function registerAuthority(
       )
     ).rows[0];
     await declare(db, approval, authority.id, BigInt(data.declaredUnits), actor.id);
+    // The recurring read starts with the authority, in the same transaction, so
+    // an approval cannot exist without something checking on it.
+    await scheduleVerification(db, authority.id);
     await audit(db, workspaceId, actor.id, 'payment_authority.registered', authority.id);
     return {
       authorityId: authority.id,
@@ -508,25 +532,86 @@ export async function verifyAuthority(
   authorityId: string,
   reader: AuthorityReader = unreadableAuthority,
 ) {
-  const handle = await transaction(pool, async (db) => {
+  const workspace = await transaction(pool, async (db) => {
     await requireRole(db, actor, workspaceId, ['owner', 'reviewer']);
-    const authority = await liveAuthority(db, workspaceId, authorityId);
-    const approval = await lockApproval(db, authority.approval_id);
+    await liveAuthority(db, workspaceId, authorityId);
+    return workspaceId;
+  });
+  return observeAuthority(pool, authorityId, reader, { actorId: actor.id, workspaceId: workspace });
+}
+
+type ObservationOutcome = {
+  reader: string;
+  policyActive: boolean;
+  detail: string;
+  approval: ApprovalStanding;
+  /** Campaigns this reading stopped taking new claims on. */
+  pausedCampaigns: number;
+};
+
+/**
+ * Reads one authority's approval and records what the reader said. Shared by
+ * the owner pressing the button and by the scheduled job, because a reading
+ * taken on a timer has to be exactly the reading a person would have taken:
+ * same evidence row, same solvency test, same audit trail with no actor.
+ */
+export async function observeAuthority(
+  pool: Pool,
+  authorityId: string,
+  reader: AuthorityReader = unreadableAuthority,
+  by: { actorId: string | null; workspaceId?: string } = { actorId: null },
+): Promise<ObservationOutcome> {
+  const handle = await transaction(pool, async (db) => {
+    const { rows } = await db.query<
+      AuthorityRow & {
+        workspace_id: string;
+        payer_address: string;
+        token_address: string;
+        chain_id: number;
+      }
+    >(
+      `SELECT a.id,a.approval_id,a.reference,a.provider,a.policy_id,a.agent_address,a.revoked_at,
+      a.workspace_id,p.payer_address,p.token_address,p.chain_id
+      FROM payment_authorities a JOIN payment_approvals p ON p.id=a.approval_id WHERE a.id=$1`,
+      [authorityId],
+    );
+    const authority = rows[0];
+    if (!authority) throw new AppError('NOT_FOUND', 'Payment authority not found.', 404);
     return {
       id: authority.id,
       provider: authority.provider,
       policyId: authority.policy_id,
-      payerAddress: approval.payer_address,
+      payerAddress: authority.payer_address,
       agentAddress: authority.agent_address,
-      tokenAddress: approval.token_address,
-      chainId: approval.chain_id,
-      approvalId: approval.id,
+      tokenAddress: authority.token_address,
+      chainId: authority.chain_id,
+      approvalId: authority.approval_id,
+      workspaceId: authority.workspace_id,
     };
   });
+  // Every attempt is recorded before the call, so a reader that never answers
+  // leaves a trace rather than looking like no attempt was made.
+  await pool.query(
+    `UPDATE payment_approvals SET last_read_attempted_at=clock_timestamp(),
+    updated_at=clock_timestamp() WHERE id=$1`,
+    [handle.approvalId],
+  );
   // The provider call runs outside the transaction: it is network work, and a
   // reader that hangs must not hold a lock on the approval everything commits
   // against.
-  const reading = await reader.read(handle);
+  let reading: AuthorityReading;
+  try {
+    reading = await reader.read(handle);
+  } catch (error) {
+    // A read that failed is not a reading. The error is kept so the queue can
+    // say the approval has not been checked lately, which is a different thing
+    // from saying it is short.
+    await pool.query(
+      `UPDATE payment_approvals SET last_read_error=$2,updated_at=clock_timestamp() WHERE id=$1`,
+      [handle.approvalId, `${(error as Error).message}`.slice(0, 300)],
+    );
+    throw error;
+  }
   return transaction(pool, async (db) => {
     const approval = await lockApproval(db, handle.approvalId);
     const committed = BigInt(approval.committed_units);
@@ -549,28 +634,109 @@ export async function verifyAuthority(
     const short = !reading.policyActive || reachable < committed;
     await db.query(
       `UPDATE payment_approvals SET observed_allowance_units=$2,observed_balance_units=$3,
-      observed_at=clock_timestamp(),state=$4,updated_at=clock_timestamp() WHERE id=$1`,
+      observed_at=clock_timestamp(),state=$4,last_read_error=NULL,
+      updated_at=clock_timestamp() WHERE id=$1`,
       [approval.id, reading.allowanceUnits, reading.balanceUnits, short ? 'short' : 'verified'],
     );
-    await audit(db, workspaceId, actor.id, 'payment_authority.verified', handle.id);
+    // An inactive policy is a fact the chain reported, not a prediction: the
+    // same fact a failed payout would have reported later. Learning it early
+    // stops new claims, exactly as losing the authority does, and erases
+    // nothing that has already been accepted.
+    //
+    // A shortfall does not pause anything. It is a moving number the builder
+    // can top up at any moment, and pausing live work on it would turn a
+    // temporary balance into a stopped campaign.
+    let paused = 0;
+    if (!reading.policyActive)
+      paused =
+        (
+          await db.query(
+            `UPDATE campaigns SET status='paused' WHERE authority_id=$1 AND status='open'
+            RETURNING id`,
+            [handle.id],
+          )
+        ).rowCount ?? 0;
+    await audit(
+      db,
+      by.workspaceId ?? handle.workspaceId,
+      by.actorId,
+      paused ? 'payment_authority.inactive' : 'payment_authority.verified',
+      handle.id,
+    );
     return {
       reader: reader.name,
       policyActive: reading.policyActive,
       detail: reading.detail,
       approval: standing(await lockApproval(db, approval.id)),
+      pausedCampaigns: paused,
     };
   });
 }
 
+/**
+ * How often an approval is re-read, and when a reading stops being worth
+ * anything. Both are facts about the clock: nothing here decides, and a stale
+ * reading never cancels an obligation or blocks a payment on its own.
+ */
+export const verificationIntervalHours = 6;
+export const stalenessHours = 24;
+const retrySeconds = 900;
+
+/** Puts one authority on the recurring read. Repeating this is harmless. */
+export async function scheduleVerification(db: PoolClient, authorityId: string) {
+  await enqueueJob(db, 'authority.verify', `authority:${authorityId}`, {
+    authorityId,
+    version: 1,
+  });
+}
+
+/**
+ * One turn of the recurring read. It reschedules itself rather than relying on
+ * a cron the deployment may not have, and a failed read is a wait rather than a
+ * failure, because a recurring job that dies after five bad reads would stop
+ * checking exactly when checking matters. The failure is recorded instead, and
+ * the queue reports an approval nobody has managed to read.
+ */
+export async function verifyScheduled(
+  pool: Pool,
+  lease: JobLease,
+  reader: AuthorityReader = unreadableAuthority,
+): Promise<string> {
+  const authorityId = (lease.payload as { authorityId?: string }).authorityId;
+  if (!authorityId) {
+    await completeJob(pool, lease);
+    return 'malformed';
+  }
+  const { rows } = await pool.query<{ revoked_at: Date | null }>(
+    'SELECT revoked_at FROM payment_authorities WHERE id=$1',
+    [authorityId],
+  );
+  // A revoked authority is not re-read: it funds nothing new, and what it
+  // already owes is a payable's problem rather than an approval's.
+  if (!rows[0] || rows[0].revoked_at) {
+    await completeJob(pool, lease);
+    return rows[0] ? 'revoked' : 'missing';
+  }
+  try {
+    const outcome = await observeAuthority(pool, authorityId, reader);
+    await rescheduleJob(pool, lease, verificationIntervalHours * 3600);
+    if (!outcome.policyActive) return `inactive:${outcome.pausedCampaigns}`;
+    return outcome.approval.state;
+  } catch (error) {
+    await rescheduleJob(pool, lease, retrySeconds);
+    return `unread:${(error as { code?: string }).code ?? 'failed'}`;
+  }
+}
+
 /** Every authority a workspace holds, with the approval each one draws on. */
-async function authorityListing(db: Pool | PoolClient, workspaceId: string) {
+export async function authorityListing(db: Pool | PoolClient, workspaceId: string) {
   const { rows } = await db.query<
     AuthorityRow & ApprovalRow & { revoked_reason: string | null; campaigns: number }
   >(
     `SELECT a.id,a.reference,a.provider,a.policy_id,a.agent_address,a.revoked_at,
     a.revoked_reason,p.id AS approval_id,p.chain_id,p.token_address,p.payer_address,
     p.declared_units,p.committed_units,p.settled_units,p.observed_allowance_units,
-    p.observed_balance_units,p.observed_at,p.state,
+    p.observed_balance_units,p.observed_at,p.state,p.last_read_attempted_at,p.last_read_error,
     (SELECT count(*)::int FROM campaigns c WHERE c.authority_id=a.id) AS campaigns
     FROM payment_authorities a JOIN payment_approvals p ON p.id=a.approval_id
     WHERE a.workspace_id=$1 ORDER BY a.created_at DESC`,

@@ -43,6 +43,8 @@ Exporting is a **builder** capability: an owner or a project member. A reviewer 
 
 Every count is **derived**, so the queue cannot disagree with the records it reads: a submission is awaiting review exactly when no execution decision exists for its assignment, and it leaves the queue the moment one does. Briefs are ordered busiest first.
 
+The queue also names **what can pay**, added in PILOT-05: each live payment authority with how lately its approval was read, whether that reading is stale, whether the read failed, and whether the approval still covers what the briefs drawing on it have committed. Like the clock facts below, none of it decides anything — a short or stale approval is reported, and no obligation is cancelled and no payment blocked on the strength of a reading.
+
 The PRD's review promise appears here as two facts about the clock: a submission is late after **24 hours** and escalates to a platform reviewer after **48**. Escalation changes nothing about the work — the assignment stays submitted, no decision exists, and silence neither accepts nor rejects. Reviewers see the same queue under its own name, and that read is recorded like every other reviewer read.
 
 The campaign panel carries the same facts for the one brief a builder is looking at, so "awaiting a decision", "blocked and still owed" and "holding a reservation" are visible where the builder acts rather than only in a roll-up.

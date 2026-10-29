@@ -13,6 +13,7 @@ import { type Actor, audit, requireRole } from './access.ts';
 import { transaction } from './database.ts';
 import { campaignDecisions } from './decisions.ts';
 import { campaignFindings, noteConsistentPass, recordFinding } from './findings.ts';
+import { verifyEgress } from './isolation.ts';
 import { campaignPayouts } from './payables.ts';
 import { decodeUtf8, redactionPolicy, redactText, scanText } from './redaction.ts';
 import { campaignRepairs, recordRepair, recordVerification, repairRole } from './repairs.ts';
@@ -268,20 +269,20 @@ export async function submitEvidence(pool: Pool, session: RunSession, input: unk
         `This run reports ${Math.round((finished - started) / 1000)} seconds of execution; its limit was ${manifest.limits.wallClockSeconds}.`,
         409,
       );
-    for (const value of data.observedOrigins) {
-      let origin: string;
-      try {
-        origin = new URL(value).origin;
-      } catch {
-        throw new AppError('EGRESS_VIOLATION', `${value} is not a usable origin.`);
-      }
-      if (!manifest.egressAllowlist.includes(origin))
-        throw new AppError(
-          'EGRESS_VIOLATION',
-          `This run reached ${origin}, which is outside its allowed ${manifest.egressAllowlist.join(', ')}.`,
-          409,
-        );
-    }
+    // The origins the agent declares are checked against the allowlist and then
+    // against what the host's egress proxy actually saw. On a witnessed run the
+    // witness decides: a claim the proxy never saw, traffic the agent did not
+    // declare, and a missing witness are each refused.
+    const egress = await verifyEgress(
+      db,
+      {
+        id: run.id,
+        host_id: run.host_id,
+        isolation_level: run.isolation_level,
+      },
+      data.observedOrigins,
+      manifest.egressAllowlist,
+    );
     const stored = (
       await db.query<{ name: string; sha256: string; kind: string; bytes: string }>(
         'SELECT name,sha256,kind,bytes FROM evidence_artifacts WHERE run_id=$1',
@@ -344,8 +345,8 @@ export async function submitEvidence(pool: Pool, session: RunSession, input: unk
       await db.query<{ id: string; submitted_at: string }>(
         `INSERT INTO evidence_submissions (run_id,assignment_id,campaign_id,terms_version_id,
         build_id,operator_id,outcome,blocked_reason,document,content_hash,artifact_count,
-        total_bytes,started_at,finished_at)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id,submitted_at`,
+        total_bytes,started_at,finished_at,egress_verification)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id,submitted_at`,
         [
           run.id,
           assignment.id,
@@ -361,6 +362,7 @@ export async function submitEvidence(pool: Pool, session: RunSession, input: unk
           totalBytes.toString(),
           data.startedAt,
           data.finishedAt,
+          JSON.stringify(egress),
         ],
       )
     ).rows[0];
@@ -431,6 +433,8 @@ export async function submitEvidence(pool: Pool, session: RunSession, input: unk
         independenceReason: finding.independenceReason,
       },
       contradictedDefects: contradicted,
+      // What the platform checked rather than accepted.
+      egress,
       repairRole: role,
       // The gate is not an acceptance: a passed gate means the evidence may be
       // reviewed, and a repair is delivered for the builder to review, never

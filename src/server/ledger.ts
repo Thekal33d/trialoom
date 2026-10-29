@@ -17,6 +17,9 @@ export type TermsDocument = TermsPricing & {
   allowedActions: string[];
   exclusions: string[];
   deadline: string;
+  // Absent in every brief written before isolation levels existed, which is
+  // read as the attested level they meant.
+  minimumIsolation?: 'attested' | 'witnessed';
 };
 export type Account = {
   campaign_id: string;

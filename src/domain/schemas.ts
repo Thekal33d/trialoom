@@ -38,6 +38,8 @@ const units = z
   .regex(/^(0|[1-9][0-9]{0,77})$/)
   .refine((value) => BigInt(value) <= 2n ** 256n - 1n, 'Amount exceeds uint256');
 const paragraph = z.string().trim().min(3).max(4000);
+// What a run must prove about its isolation, weakest first.
+export const isolationLevels = ['attested', 'witnessed'] as const;
 export const termsSchema = z
   .object({
     buildId: uuid,
@@ -56,6 +58,9 @@ export const termsSchema = z
     resourceAllowanceUnits: units,
     platformFeeBps: z.number().int().min(0).max(10000),
     paymentTerms: paragraph,
+    // What a run under these terms must prove about its isolation. Absent means
+    // 'attested', which is what every brief written before this existed meant.
+    minimumIsolation: z.enum(isolationLevels).optional(),
     scopeApproved: z.literal(true),
   })
   .strict();
@@ -129,7 +134,43 @@ export const campaignStatusSchema = z
 export const attemptTokenSchema = z.object({ attemptToken: uuid }).strict();
 export const claimSchema = z.object({ campaignId: uuid }).strict();
 
-export const runStartSchema = attemptTokenSchema;
+// A run may name the registered host that will execute it. Without one the run
+// is attested only: nobody but the agent reports where it went.
+export const runStartSchema = attemptTokenSchema.extend({ hostId: uuid.optional() }).strict();
+export const runnerHostSchema = z
+  .object({
+    name: z.string().trim().min(1).max(80),
+    contractVersion: z.literal('runner-host-v1'),
+    sandbox: z.enum(['gvisor', 'firecracker', 'none']),
+    egressEnforced: z.boolean(),
+    ephemeralFilesystem: z.boolean(),
+    isolationLevel: z.enum(isolationLevels),
+    // Registering a host that runs an operator's own work is a declaration by
+    // the person registering it, which is why it is confirmed explicitly.
+    operatorId: uuid.optional(),
+    contractAccepted: z.literal(true),
+  })
+  .strict();
+/** One batch of what the egress proxy allowed or denied, reported by the proxy. */
+export const egressReportSchema = z
+  .object({
+    batch: z.number().int().min(1).max(10000),
+    observations: z
+      .array(
+        z
+          .object({
+            origin: z.string().trim().min(1).max(2048),
+            decision: z.enum(['allowed', 'denied']),
+            requests: z.number().int().min(1).max(100000),
+            firstSeenAt: z.iso.datetime(),
+            lastSeenAt: z.iso.datetime(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(100),
+  })
+  .strict();
 export const artifactKinds = [
   'trace',
   'assertions',

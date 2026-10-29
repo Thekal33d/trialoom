@@ -42,6 +42,7 @@ import {
   removeMember,
   revokeInvitation,
 } from '@/server/invitations';
+import { registerHost, revokeHost, workspaceHosts } from '@/server/isolation';
 import {
   createCredential,
   issueWalletChallenge,
@@ -313,6 +314,13 @@ async function handler(request: Request) {
         return json(await workspaceAccess(pool, actor, workspaceId));
       if (parts.length === 3 && parts[2] === 'attention' && method === 'GET')
         return json(await workspaceAttention(pool, actor, workspaceId));
+      if (parts.length === 3 && parts[2] === 'runner-hosts') {
+        if (method === 'GET') return json(await workspaceHosts(pool, actor, workspaceId));
+        if (method === 'POST')
+          return json(await registerHost(pool, actor, workspaceId, await readJson(request)), 201);
+      }
+      if (parts.length === 4 && parts[2] === 'runner-hosts' && method === 'DELETE')
+        return json(await revokeHost(pool, actor, workspaceId, parts[3]));
       if (parts.length === 3 && parts[2] === 'invitations' && method === 'POST') {
         const invite = await createInvitation(pool, actor, workspaceId, await readJson(request));
         return json(

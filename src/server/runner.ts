@@ -5,6 +5,7 @@ import { runStartSchema, uuid } from '../domain/schemas.ts';
 import type { AgentSession } from './agents.ts';
 import { liveAssignment } from './assignments.ts';
 import { transaction } from './database.ts';
+import { bindHost, hostContract, requiredIsolation } from './isolation.ts';
 import type { TermsDocument } from './ledger.ts';
 import { type ResolveTarget, validateTarget } from './targets.ts';
 
@@ -17,7 +18,12 @@ export const runLimits = {
   maxRedirectHops: 3,
   minimumLeaseSeconds: 60,
 } as const;
-/** The runner must prove this state, and ingestion refuses a different claim. */
+/**
+ * The state a runner attests to. This is the agent's own word about itself: it
+ * is checked for agreement with what was issued, and nothing more. What a run
+ * cannot talk its way out of is the egress witness, which comes from the host's
+ * proxy under a credential the agent never holds.
+ */
 export const isolationProfile = {
   freshBrowserContext: true,
   ephemeralProfile: true,
@@ -215,6 +221,7 @@ async function runContext(
 export type PreparedRun = {
   assignmentId: string;
   attemptToken: string;
+  hostId?: string;
   secret: string;
   targetCheck: TargetCheck;
   document: TermsDocument;
@@ -231,7 +238,7 @@ export async function prepareRun(
   input: unknown,
   deps: { resolver?: ResolveTarget; probe?: ProbeTarget } = {},
 ): Promise<PreparedRun> {
-  const { attemptToken } = runStartSchema.parse(input);
+  const { attemptToken, hostId } = runStartSchema.parse(input);
   const id = uuid.parse(assignmentId);
   const context = await runContext(pool, session, id, attemptToken);
   const remaining = context.leaseExpiresAt.getTime() - Date.now();
@@ -244,6 +251,7 @@ export async function prepareRun(
   return {
     assignmentId: id,
     attemptToken,
+    hostId,
     secret: `trun_${randomBytes(32).toString('base64url')}`,
     targetCheck: await revalidateTarget(context.build, context.project, deps),
     document: context.document,
@@ -254,8 +262,12 @@ export async function prepareRun(
  * Issues the grant inside the caller's transaction, so an idempotency
  * reservation and the run it covers commit or roll back together. The token is
  * returned once, expires with the claim lease, and can submit evidence for this
- * one run and nothing else. Trialoom does not host the runner in this step, so
- * the isolation profile is issued and attested rather than imposed here.
+ * one run and nothing else.
+ *
+ * The isolation level is decided here, by binding a registered host, so it is a
+ * property of the run rather than a claim the evidence makes later. Trialoom
+ * does not run the host, so the sandbox itself stays an assertion; the egress
+ * record does not, because the host's proxy reports it under its own credential.
  */
 export async function issueRun(db: PoolClient, session: AgentSession, prepared: PreparedRun) {
   const assignment = await liveAssignment(
@@ -265,6 +277,8 @@ export async function issueRun(db: PoolClient, session: AgentSession, prepared: 
     prepared.attemptToken,
   );
   const { document, targetCheck } = prepared;
+  const required = requiredIsolation(document);
+  const bound = await bindHost(db, prepared.hostId, required);
   const wallClockSeconds = Math.floor(
     (new Date(assignment.lease_expires_at).getTime() - Date.now()) / 1000,
   );
@@ -291,6 +305,18 @@ export async function issueRun(db: PoolClient, session: AgentSession, prepared: 
       maxNavigations: runLimits.maxNavigations,
     },
     isolation: isolationProfile,
+    // What the host must do, what the platform checks itself, and what is still
+    // only asserted. Published so the runner and the builder read one contract.
+    isolationLevel: bound.level,
+    requiredIsolation: required,
+    host: bound.host && {
+      id: bound.host.id,
+      name: bound.host.name,
+      sandbox: bound.host.sandbox,
+      egressEnforced: bound.host.egress_enforced,
+      contractVersion: bound.host.contract_version,
+    },
+    hostContract,
     grant: { scope: 'evidence:submit', expiresAt: assignment.lease_expires_at },
     // FR07: no run grant, and no agent scope, can sign or move a payout.
     payoutSigning: 'never_delegated',
@@ -300,8 +326,9 @@ export async function issueRun(db: PoolClient, session: AgentSession, prepared: 
     run = (
       await db.query<{ id: string; grant_expires_at: string }>(
         `INSERT INTO runs (assignment_id,campaign_id,project_id,build_id,operator_id,attempt_token,
-        terms_version_id,state,grant_hash,grant_scope,grant_expires_at,manifest,target_check)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,'issued',$8,'evidence:submit',$9,$10,$11)
+        terms_version_id,state,grant_hash,grant_scope,grant_expires_at,manifest,target_check,
+        host_id,isolation_level)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,'issued',$8,'evidence:submit',$9,$10,$11,$12,$13)
         RETURNING id,grant_expires_at`,
         [
           assignment.id,
@@ -315,6 +342,8 @@ export async function issueRun(db: PoolClient, session: AgentSession, prepared: 
           assignment.lease_expires_at,
           JSON.stringify(manifest),
           JSON.stringify(targetCheck),
+          bound.host?.id ?? null,
+          bound.level,
         ],
       )
     ).rows[0];
@@ -334,6 +363,7 @@ export async function issueRun(db: PoolClient, session: AgentSession, prepared: 
     // Shown once. The isolated runner holds this instead of the agent credential.
     runToken: prepared.secret,
     grantExpiresAt: run.grant_expires_at,
+    isolationLevel: bound.level,
     manifest,
     targetCheck,
   };
@@ -361,6 +391,8 @@ export type RunSession = {
     terms_version_id: string;
     operator_id: string;
     attempt_token: string;
+    host_id: string | null;
+    isolation_level: 'attested' | 'witnessed';
     state: string;
     grant_scope: string;
     manifest: Record<string, unknown>;
@@ -430,6 +462,7 @@ export function runView(run: RunSession['run']) {
     runId: run.id,
     assignmentId: run.assignment_id,
     state: run.state,
+    isolationLevel: run.isolation_level,
     manifest: run.manifest,
     targetCheck: run.target_check,
     usage: {

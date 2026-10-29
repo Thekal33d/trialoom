@@ -31,6 +31,11 @@ type Fixture = {
   resourceCampaignId: string;
   resourceRunId: string;
   resourceCredential: string;
+  hostId: string;
+  hostCredential: string;
+  witnessedRunId: string;
+  witnessedRunToken: string;
+  witnessedCredential: string;
   reconciledPurchaseId: string;
   uncertainPurchaseId: string;
 };
@@ -602,4 +607,105 @@ test('a builder exports the brief as a file and the queue names what is waiting'
   expect(refused.status()).toBe(403);
   expect((await refused.json()).error.code).toBe('ACCESS_DENIED');
   await reviewerContext.close();
+});
+
+test('the egress witness is the host, and no agent credential can speak for it', async ({
+  request,
+}, info) => {
+  const fixture = fixtures[info.project.name];
+  const asHost = { Authorization: `Bearer ${fixture.hostCredential}` };
+  const runBase = `/api/host/v1/runs/${fixture.witnessedRunId}`;
+
+  // The contract a host accepts is public: a runner reads it before registering.
+  const contract = await request.get('/api/host/v1/contract');
+  expect(contract.status()).toBe(200);
+  const published = (await contract.json()).contract;
+  expect(published.version).toBe('runner-host-v1');
+  expect(published.requirements.length).toBeGreaterThanOrEqual(6);
+  // What stays an assertion is named rather than quietly implied.
+  expect(published.stillAttested.length).toBeGreaterThanOrEqual(1);
+
+  // The host reads the allowlist its proxy must enforce from Trialoom, not from
+  // the runner it is supposed to be constraining.
+  const view = await request.get(runBase, { headers: asHost });
+  expect(view.status()).toBe(200);
+  const run = await view.json();
+  expect(run.isolationLevel).toBe('witnessed');
+  expect(run.egressAllowlist).toEqual(['https://example.com']);
+
+  const now = new Date().toISOString();
+  const reported = await request.post(`${runBase}/egress`, {
+    headers: asHost,
+    data: {
+      batch: 1,
+      observations: [
+        {
+          origin: 'https://example.com',
+          decision: 'allowed',
+          requests: 4,
+          firstSeenAt: now,
+          lastSeenAt: now,
+        },
+        {
+          origin: 'https://exfil.example.net',
+          decision: 'denied',
+          requests: 2,
+          firstSeenAt: now,
+          lastSeenAt: now,
+        },
+      ],
+    },
+  });
+  expect(reported.status()).toBe(201);
+  expect((await reported.json()).recorded).toBe(2);
+
+  // A proxy that reports allowing what the manifest forbids is not enforcing it.
+  const leak = await request.post(`${runBase}/egress`, {
+    headers: asHost,
+    data: {
+      batch: 2,
+      observations: [
+        {
+          origin: 'https://exfil.example.net',
+          decision: 'allowed',
+          requests: 1,
+          firstSeenAt: now,
+          lastSeenAt: now,
+        },
+      ],
+    },
+  });
+  expect(leak.status()).toBe(409);
+  expect((await leak.json()).error.code).toBe('EGRESS_NOT_ENFORCED');
+
+  // The point of the separate credential: an agent taken over inside the
+  // sandbox cannot write its own alibi. Neither the run grant it holds nor the
+  // operator's own credential is a host.
+  for (const token of [fixture.witnessedRunToken, fixture.witnessedCredential]) {
+    const forged = await request.post(`${runBase}/egress`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: {
+        batch: 3,
+        observations: [
+          {
+            origin: 'https://example.com',
+            decision: 'allowed',
+            requests: 1,
+            firstSeenAt: now,
+            lastSeenAt: now,
+          },
+        ],
+      },
+    });
+    expect(forged.status()).toBe(401);
+    expect((await forged.json()).error.code).toBe('HOST_CREDENTIAL_INVALID');
+    expect(
+      (await request.get(runBase, { headers: { Authorization: `Bearer ${token}` } })).status(),
+    ).toBe(401);
+  }
+  // And the host credential reaches nothing on the agent API.
+  const asAgent = await request.get(`/api/agent/v1/runs/${fixture.witnessedRunId}`, {
+    headers: asHost,
+  });
+  expect(asAgent.status()).toBe(401);
 });

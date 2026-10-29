@@ -10,6 +10,7 @@ import {
   bootstrapWorkspace,
   createInvitation,
 } from '../src/server/invitations.ts';
+import { registerHost } from '../src/server/isolation.ts';
 import { migrate } from '../src/server/migrations.ts';
 import { createCredential, registerOperator } from '../src/server/operators.ts';
 import { addBuild, createCampaign, createProject } from '../src/server/projects.ts';
@@ -274,7 +275,11 @@ try {
     );
     async function runningOperator(
       handle: string,
-      options: { campaignId?: string; tasks?: Record<string, Record<string, unknown>> } = {},
+      options: {
+        campaignId?: string;
+        tasks?: Record<string, Record<string, unknown>>;
+        hostId?: string;
+      } = {},
     ) {
       const email = `${viewport}-${handle}@example.test`;
       const invite = await createInvitation(db.pool, evidenceOwner, second.workspaceId, {
@@ -312,7 +317,10 @@ try {
         db.pool,
         session,
         assignment.assignmentId,
-        { attemptToken: assignment.attemptToken },
+        {
+          attemptToken: assignment.attemptToken,
+          ...(options.hostId ? { hostId: options.hostId } : {}),
+        },
         { resolver: publicDns, probe: seededProbe },
       );
       return { operator, credential, session, assignment, run };
@@ -713,6 +721,47 @@ try {
       ],
     });
 
+    // A registered host and one witnessed run, in their own brief, so the
+    // witness API and its credential boundary can be driven over real HTTP.
+    const host = await registerHost(db.pool, evidenceOwner, second.workspaceId, {
+      name: `${viewport} sandboxed host`,
+      contractVersion: 'runner-host-v1',
+      sandbox: 'gvisor',
+      egressEnforced: true,
+      ephemeralFilesystem: true,
+      isolationLevel: 'witnessed',
+      contractAccepted: true,
+    });
+    const witnessedCampaign = await createCampaign(
+      db.pool,
+      evidenceOwner,
+      second.workspaceId,
+      evidenceProject.id,
+      {
+        name: 'Witnessed fixture campaign',
+        terms: { ...evidenceTerms, minimumIsolation: 'witnessed' },
+      },
+    );
+    await publishCampaign(
+      db.pool,
+      evidenceOwner,
+      second.workspaceId,
+      evidenceProject.id,
+      witnessedCampaign.campaignId,
+      {
+        termsVersionId: witnessedCampaign.id,
+        slots: 1,
+        maxConcurrent: 1,
+        authorizeUnits: '20000000',
+        spendingAuthorization: 'remesso-policy-browser-fixture',
+        authorizationConfirmed: true,
+      },
+    );
+    const witnessed = await runningOperator('witnessed', {
+      campaignId: witnessedCampaign.campaignId,
+      hostId: host.hostId,
+    });
+
     // One live run grant for the agent API checks.
     const live = await runningOperator('runner');
     // Two capped resource purchases, in their own brief so the evidence fixture
@@ -823,6 +872,11 @@ try {
       resourceCampaignId: resourceCampaign.campaignId,
       resourceRunId: buyer.run.runId,
       resourceCredential: buyer.credential.secret,
+      hostId: host.hostId,
+      hostCredential: host.credential,
+      witnessedRunId: witnessed.run.runId,
+      witnessedRunToken: witnessed.run.runToken,
+      witnessedCredential: witnessed.credential.secret,
       reconciledPurchaseId: bought.purchase.id,
       uncertainPurchaseId: unresolved.purchase.id,
     };

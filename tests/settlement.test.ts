@@ -16,7 +16,7 @@ import {
   bootstrapWorkspace,
   createInvitation,
 } from '../src/server/invitations.ts';
-import { claimJob, processOne } from '../src/server/jobs.ts';
+import { attemptLimit, claimJob, processOne } from '../src/server/jobs.ts';
 import { campaignAccounting } from '../src/server/ledger.ts';
 import { pilotMetrics } from '../src/server/metrics.ts';
 import { migrate } from '../src/server/migrations.ts';
@@ -812,4 +812,112 @@ test('gas paid in the settlement token is comparable with revenue; gas in CELO i
     'CELO',
     settlementCurrency.symbol,
   ]);
+});
+
+/**
+ * Whether the worker can never claim this job again, by its own predicate: the
+ * attempts are spent, or it has left the queue. A job merely waiting out its
+ * backoff is not retired, which is the distinction the defect blurred.
+ */
+const retiredFromTheQueue = async (key: string) =>
+  Number(
+    (
+      await db.pool.query(
+        `SELECT count(*)::int AS n FROM outbox_jobs
+        WHERE dedupe_key=$1 AND (attempts>=$2 OR state IN ('dead','done'))`,
+        [key, attemptLimit],
+      )
+    ).rows[0].n,
+  ) > 0;
+
+test('a payout waiting on a slow finality is still polled after five rounds', async () => {
+  const work = await acceptedWork('slow-finality');
+  const payable = (await payablesOf(work.assignment.assignmentId)).rows.find(
+    (row) => row.kind === 'operator',
+  );
+  // A chain whose finalized tag lags: the provider keeps answering, and the
+  // answer keeps being "included". That is a wait, not a failure.
+  const slow: SettlementAdapter = {
+    name: 'slow-finality',
+    async send(request) {
+      return {
+        status: 'submitted',
+        transactionHash: hashFor(request.operationKey),
+        detail: 'Broadcast.',
+      };
+    },
+    async confirm({ operationKey }) {
+      return {
+        status: 'included',
+        transactionHash: hashFor(operationKey),
+        detail: 'Still waiting for the finalized tag.',
+      };
+    },
+  };
+  await settle(slow, payable.operation_key, attemptLimit + 2);
+  // Counting each poll as a failed attempt retired the job at five and left it
+  // unclaimable, so the payout stuck at included and the ledger never moved.
+  assert.equal(await retiredFromTheQueue(payable.operation_key), false);
+  const job = (
+    await db.pool.query(`SELECT state,attempts FROM outbox_jobs WHERE dedupe_key=$1`, [
+      payable.operation_key,
+    ])
+  ).rows[0];
+  assert.equal(job.state, 'pending');
+  assert.equal(job.attempts, 0);
+  assert.equal(
+    (await payablesOf(work.assignment.assignmentId)).rows.find((row) => row.kind === 'operator')
+      .state,
+    'included',
+  );
+  // It finalizes whenever the chain gets there, however long that took.
+  const arrived: SettlementAdapter = {
+    ...slow,
+    async confirm({ operationKey, transactionHash }) {
+      return {
+        status: 'finalized',
+        transactionHash: transactionHash ?? hashFor(operationKey),
+        detail: 'The finalized tag passed it.',
+      };
+    },
+  };
+  await settle(arrived, payable.operation_key, 1);
+  assert.equal(
+    (await payablesOf(work.assignment.assignmentId)).rows.find((row) => row.kind === 'operator')
+      .state,
+    'finalized',
+  );
+});
+
+test('a payout the provider keeps refusing is retired visibly, and stays owed', async () => {
+  const work = await acceptedWork('refused-payout');
+  const payable = (await payablesOf(work.assignment.assignmentId)).rows.find(
+    (row) => row.kind === 'operator',
+  );
+  const refusing: SettlementAdapter = {
+    name: 'refusing',
+    async send() {
+      return { status: 'failed', reason: 'insufficient_balance', detail: 'Not enough balance.' };
+    },
+    async confirm() {
+      return { status: 'failed', reason: 'insufficient_balance', detail: 'Not enough balance.' };
+    },
+  };
+  await settle(refusing, payable.operation_key, attemptLimit + 1);
+  const job = (
+    await db.pool.query(`SELECT state,attempts FROM outbox_jobs WHERE dedupe_key=$1`, [
+      payable.operation_key,
+    ])
+  ).rows[0];
+  // A refusal is a real failure, so it spends the limit — but exhaustion is
+  // recorded as dead rather than left looking live and never claimed again.
+  assert.equal(job.state, 'dead');
+  assert.ok(job.attempts >= attemptLimit);
+  assert.equal(await retiredFromTheQueue(payable.operation_key), true);
+  const blocked = (await payablesOf(work.assignment.assignmentId)).rows.find(
+    (row) => row.kind === 'operator',
+  );
+  assert.equal(blocked.state, 'blocked');
+  assert.equal(blocked.blocked_reason, 'insufficient_balance');
+  assert.equal(blocked.amount_units, '2000000');
 });

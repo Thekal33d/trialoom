@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "task": "PILOT-05",
-  "verifiedAt": "2026-10-29T19:40:00.000Z",
+  "verifiedAt": "2026-10-29T20:20:00.000Z",
   "sourceRevision": "300f1c2",
   "sourceTreeDirty": true,
   "scope": "A payout was recorded, queued and then blocked because no payment authority existed. Adds the live Remesso adapter and, more importantly, an account of what a payment authority can actually deliver: one token approval is shared by every policy the same wallet grants, so per-campaign budgets say nothing about solvency and two live briefs could each believe they were funded. Payout gas is read from each transaction\u2019s own receipt and reported in the currency it was paid in, which closes one of the economics target\u2019s holes without making it measurable. Each approval is re-read on a timer that reschedules itself, and a read that failed is kept strictly apart from an approval that is genuinely short. What that read finds is raised once as a notice, resolved when it stops, and delivered as a signed POST that records whether anyone was told",
@@ -55,7 +55,7 @@
     "lint": "biome check, 110 files",
     "types": "tsc --noEmit, strict",
     "capability": "28 spike checks",
-    "database": 189,
+    "database": 193,
     "browser": 58,
     "build": "next build succeeded",
     "loop": "14 phases, 44 steps, exit 0",
@@ -90,7 +90,11 @@
       "a condition that cleared before delivery is suppressed rather than sent",
       "one real signed POST was verified by a loopback receiver that checked the signature itself; the same body under a different timestamp or a different key does not verify",
       "a destination in private space and a second live destination are both refused",
-      "the table refuses a notice carrying a credential at three different depths"
+      "the table refuses a notice carrying a credential at three different depths",
+      "cancelling a brief holds the approval for an assignment that is still live, releasing only the genuine remainder, and the next brief cannot promise what that work will owe",
+      "a payout whose provider keeps answering \"included\" is still polled after the attempt limit and finalizes whenever the chain gets there",
+      "a payout the provider keeps refusing spends the limit and is retired as dead rather than left pending and unclaimable, while the payable stays blocked and owed",
+      "replacing a notice destination revives the finished delivery job rather than reporting a requeue that did nothing"
     ]
   },
   "ci": "configured; not run on GitHub",
@@ -116,7 +120,8 @@
     "a notice goes to a URL rather than to a person: there is still no email and no platform-reviewer channel, and a workspace that registers no destination is back to reading the queue, with the difference that the platform records that nobody was told",
     "review escalation could use this channel and does not yet; that belongs with PILOT-01",
     "no reminders: an open notice is delivered once and then waits for the condition to clear, so a shortfall nobody acts on for a week is not raised again",
-    "a real HTTPS delivery from a registered row is untested, because registration refuses a loopback URL by design; the transport is tested against a loopback server and the orchestration against the database"
+    "a real HTTPS delivery from a registered row is untested, because registration refuses a loopback URL by design; the transport is tested against a loopback server and the orchestration against the database",
+    "pressing Verify with no payment provider configured still raises an authority.unreadable notice, which conflates an unreachable chain with an unconfigured deployment for an approval that was never confirmed"
   ],
   "sourceFiles": [
     {
@@ -257,7 +262,7 @@
     },
     {
       "path": "docs/ALPHA-08.md",
-      "sha256": "d6550404bd1ae9aabaa0957261cd0c23ab92354fa118a74bc75378c16693a36e"
+      "sha256": "770b3bd7616d8e5031b8c1e8af8a29a94e1b2152c6f22deb87328ea6b02ed69f"
     },
     {
       "path": "docs/ALPHA-09.md",
@@ -269,7 +274,7 @@
     },
     {
       "path": "docs/ALPHA-11.md",
-      "sha256": "c8db6ff5df90f91a79d0bd9adb5a8b9abffdcddaf8e645ed737daff55b4a307a"
+      "sha256": "75a44c6194b95a570e359cc22fa78a438474f35a4581d300a985ee78d3dc860d"
     },
     {
       "path": "docs/ARCHITECTURE.md",
@@ -281,7 +286,7 @@
     },
     {
       "path": "docs/DEVELOPMENT.md",
-      "sha256": "22b111fd554aeac63fb5c6a7b92936eac68c07e2082b08851deb91c15df237da"
+      "sha256": "457da8c5ce4dfa49cdb7d409b617d6bdf46cf0ee9fcb8548ab1a7cfc1b2f0283"
     },
     {
       "path": "docs/HACKATHON.md",
@@ -297,7 +302,7 @@
     },
     {
       "path": "docs/PILOT-05.md",
-      "sha256": "b1e2e1de8ef4a994cfdd6779a5694b37e201938fe8b77eb53e1c78e2b3558370"
+      "sha256": "4d2cf4b5f1182f2c13e6e7bfd2b5a1b4d89e026871ebdf80531fba06c41c9073"
     },
     {
       "path": "docs/PRD.md",
@@ -313,7 +318,7 @@
     },
     {
       "path": "memory/BUILD_LOG.md",
-      "sha256": "f2eecef6813fe3eae817176a3f0003b11b42e587f636cced73b0bfe3b5c91f77"
+      "sha256": "ca117528e5bf8955aab5eb6eb4723eaa033f926b441bf7dcc4e4167d8cfcd5c8"
     },
     {
       "path": "memory/DECISIONS.md",
@@ -325,7 +330,7 @@
     },
     {
       "path": "memory/STATUS.md",
-      "sha256": "dcf88b38c104e2aeb6faf7e6b84cf6e88513f4576e2a19ebaa18a2b7788f9055"
+      "sha256": "c6528f3862dae68a10abcf3e7ef0c028aefbcf10c0e8dd04bcf5a68a3474460b"
     },
     {
       "path": "next-env.d.ts",
@@ -573,7 +578,7 @@
     },
     {
       "path": "src/server/authority.ts",
-      "sha256": "eb932da6106298ce1430ab655f8584c279ffbe0312116c5b185f329f5ee6db62"
+      "sha256": "0481901a98b495669283aa908f3d7c724e83979d75226024331e7edf8703ba2e"
     },
     {
       "path": "src/server/database.ts",
@@ -617,7 +622,7 @@
     },
     {
       "path": "src/server/jobs.ts",
-      "sha256": "ecafa85acc758519452a3630f41c3451dc40ec40de30f7bf001d74a09da673ed"
+      "sha256": "af4fa93271f9cc612a193e98f6467fdabe5175eb45a0628ec4002591f2453f4b"
     },
     {
       "path": "src/server/ledger.ts",
@@ -633,7 +638,7 @@
     },
     {
       "path": "src/server/notices.ts",
-      "sha256": "e12b5109841d41c9b89b7fe2e8e4a7b52dfb9f50cfa016e18d2ee064dd260833"
+      "sha256": "f9d2a7eca827cf053da1669e7673c799e848c4d6fc8ab1c29b6bf4333d6f8530"
     },
     {
       "path": "src/server/operators.ts",
@@ -665,7 +670,7 @@
     },
     {
       "path": "src/server/resources.ts",
-      "sha256": "61d40ddb6ce693f11dc7987ab77ba18ce267265c0e5a326a2975510ebf96ca42"
+      "sha256": "ccf145d6c1a591c4b3e6a2c5390077e5817c63c42c5693115dd38e6522e5ca41"
     },
     {
       "path": "src/server/runner.ts",
@@ -673,7 +678,7 @@
     },
     {
       "path": "src/server/settlement.ts",
-      "sha256": "48ced2f36406d080b0cb197c2d6e7f762fd90d0ac41736a5a1bff6dd26124770"
+      "sha256": "a0ddebc5f0414b33e4390a9bc4ce1d177675a26c328ee39f128b12a3c92f772f"
     },
     {
       "path": "src/server/storage.ts",
@@ -697,7 +702,7 @@
     },
     {
       "path": "tests/authority.test.ts",
-      "sha256": "4dbe6dce7c1c03d5270598d22d3c051d480dcbb240076d7ad5c6df2d54475ebf"
+      "sha256": "48537222063424004253f46c89ae6e8aba4c73e3c3f7786cf7e333acac8a39e3"
     },
     {
       "path": "tests/backend.test.ts",
@@ -765,7 +770,7 @@
     },
     {
       "path": "tests/settlement.test.ts",
-      "sha256": "3264a400902ad32cf0a4d475a9ef9d7c40a4b33a022e3c5cb9d5dc3be9a4dd60"
+      "sha256": "362778c28d176a18a13efb49985bbe968d9ebdc0e17311fa81b8c04a2dc0725f"
     },
     {
       "path": "tsconfig.json",
@@ -824,5 +829,12 @@
     "secretAtRest": "stored rather than digested, because the platform presents a signature rather than recognising one. Shown once, never returned, never selected by a read path, never travels in a notice",
     "nothingLeavesWithACredential": "the body is composed from the platform\u2019s own records, never from operator prose, and the detail column reuses event_payload_is_clean so a key or grant is refused at any depth by the table",
     "decidesNothing": true
-  }
+  },
+  "corrections": [
+    "releaseOnClose counted only the payables, so cancelling a brief with a live assignment returned that assignment\u2019s reservation to the approval where another brief could promise it. It now holds the larger of the payables owed and what the campaign account still holds as committed plus accepted. Fixing it exposed the same under-reservation in the already-accepted case, where the undecided discovery reserve stays committed.",
+    "a job rescheduled to its attempt limit was left pending, and the claim query will not take a job at the limit, so an exhausted job looked live and was never claimed again. rescheduleJob now retires it as dead and the reaper covers pending rows too.",
+    "polling a payout counted as a failed attempt, so a chain whose finalized tag lagged more than four polls retired the job and left the payout stuck at included with the ledger never moving. Only a refusal spends an attempt now.",
+    "registerEndpoint reported requeuing notices whose delivery job was already finished; enqueueJob deliberately will not revive a completed job, because a dedupe key is a payment\u2019s permanent identity, so reviving one is an explicit requeueJob.",
+    "the claim in this document that a notice retry did not spend the attempt limit was false when written; the code now matches it and four checks hold the distinction between a wait and a failure."
+  ]
 }

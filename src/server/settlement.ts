@@ -276,7 +276,18 @@ export async function dispatchPayout(
     await completeJob(pool, lease);
     return 'finalized';
   }
-  await rescheduleJob(pool, lease, result.status === 'failed' ? 300 : 30, true);
+  // A provider that answered is a wait, not a failure, so polling does not
+  // spend the attempts that retire the job. Treating `included` as an attempt
+  // meant a payout on a chain whose finalized tag lags more than four polls
+  // stopped being asked: it stuck at included with the ledger never moving and
+  // nothing saying so. Only a refusal counts against the limit, and five of
+  // those retire the job visibly while the payable stays blocked and owed.
+  await rescheduleJob(
+    pool,
+    lease,
+    result.status === 'failed' ? 300 : 30,
+    result.status === 'failed',
+  );
   return result.status;
 }
 

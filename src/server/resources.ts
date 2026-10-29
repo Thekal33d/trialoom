@@ -548,7 +548,11 @@ export async function reconcilePurchase(
       attempts=attempts+1,updated_at=clock_timestamp() WHERE id=$1 AND state<>'failed'`,
       [purchaseId],
     );
-    await rescheduleJob(pool, lease, 600, true);
+    // Asking again can change this answer, so it is a wait: spending the
+    // attempt limit here would stop reconciliation while the purchase still
+    // holds its reservation, with nothing left to free it. The purchase's own
+    // attempt count is the visible record of a provider that never answers.
+    await rescheduleJob(pool, lease, 600);
     return 'unresolved';
   }
   const result = await transaction(pool, async (db) => {
@@ -680,8 +684,9 @@ export async function reconcilePurchase(
       'uncertain',
       'The settled cost is above the limit this purchase was authorized under. It is not charged to the builder and its reservation is held.',
     );
-    // The answer will not change by asking again, so the job is left to its
-    // attempt limit rather than rescheduled indefinitely.
+    // The answer will not change by asking again, so this one really is spent
+    // rather than waiting: the job runs down its attempt limit and is then
+    // retired as dead, which is where a person has to pick it up.
     await rescheduleJob(pool, lease, 3600, true);
     return result;
   }

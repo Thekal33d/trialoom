@@ -115,6 +115,7 @@ export const unreadableAuthority: AuthorityReader = {
  * here is BigInt, so this is the comparison rather than a style choice.
  */
 const least = (a: bigint, b: bigint) => (a < b ? a : b);
+const most = (a: bigint, b: bigint) => (a > b ? a : b);
 
 const hoursSince = (value: Date | null) =>
   value === null ? null : Math.floor((Date.now() - value.getTime()) / 3_600_000);
@@ -459,17 +460,34 @@ export async function settleOnAuthority(
 }
 
 /**
- * What a campaign still needs from its approval: everything owed on a payable
- * that has not finalized or been cancelled. Releasing down to this and no
- * further is what keeps an accepted obligation funded after the brief closes.
+ * What a campaign still needs from its approval, measured from both sides and
+ * reconciled upwards.
+ *
+ * The payment side is everything owed on a payable that has not finalized or
+ * been cancelled. The ledger side is what the campaign account still holds:
+ * `committed` for assignments that are live, and `accepted` for liabilities a
+ * decision has accepted but no payout has finalized. The two are the same
+ * obligation seen from two directions — acceptance reclassifies committed into
+ * accepted and writes the payable in one transaction, and finality moves
+ * accepted to finalized and settles the approval — so the larger of them is
+ * what releasing has to stay above.
+ *
+ * Counting only the payables was a real defect: cancelling a brief stops new
+ * claims but lets live assignments drain under their pinned terms, and a live
+ * assignment has no payable yet. Its reservation was handed back to the
+ * approval, where another brief could promise it, and the operator's work was
+ * still going to be accepted.
  */
 async function owedOnCampaign(db: PoolClient, campaignId: string): Promise<bigint> {
-  const { rows } = await db.query<{ amount: string }>(
-    `SELECT COALESCE(SUM(amount_units),0)::text AS amount FROM payables
-    WHERE campaign_id=$1 AND state NOT IN ('finalized','cancelled')`,
+  const { rows } = await db.query<{ payables: string; ledger: string }>(
+    `SELECT
+      (SELECT COALESCE(SUM(amount_units),0) FROM payables
+        WHERE campaign_id=$1 AND state NOT IN ('finalized','cancelled'))::text AS payables,
+      (SELECT COALESCE(committed_units,0)+COALESCE(accepted_units,0) FROM campaign_accounts
+        WHERE campaign_id=$1)::text AS ledger`,
     [campaignId],
   );
-  return BigInt(rows[0].amount);
+  return most(BigInt(rows[0]?.payables ?? '0'), BigInt(rows[0]?.ledger ?? '0'));
 }
 
 /**

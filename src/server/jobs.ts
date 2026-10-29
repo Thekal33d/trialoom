@@ -28,6 +28,24 @@ export async function enqueueJob(
   return result.rows[0].id;
 }
 
+/**
+ * Puts a finished job's identity back to work. Deliberately not what
+ * `enqueueJob` does: a dedupe key is a payment's permanent identity, and a
+ * repeated acceptance event must never revive a completed payout, so reviving
+ * one is an explicit act at the few places where re-delivery is the point.
+ *
+ * Returns false when there was nothing under that key, so the caller can
+ * enqueue instead of reporting a requeue that did not happen.
+ */
+export async function requeueJob(db: Pool | PoolClient, key: string): Promise<boolean> {
+  const { rowCount } = await db.query(
+    `UPDATE outbox_jobs SET state='pending',attempts=0,lease_token=NULL,lease_until=NULL,
+    completed_at=NULL,available_at=clock_timestamp() WHERE dedupe_key=$1`,
+    [key],
+  );
+  return (rowCount ?? 0) > 0;
+}
+
 export async function enqueuePing(db: Pool | PoolClient, key: string): Promise<string> {
   return enqueueJob(db, 'system.ping', key, { version: 1 });
 }
@@ -42,10 +60,22 @@ export async function completeJob(pool: Pool, lease: JobLease): Promise<boolean>
   return (rowCount ?? 0) > 0;
 }
 
+/** A job is retired after this many failed attempts, and never claimed again. */
+export const attemptLimit = 5;
+
 /**
  * Returns a job to the queue after a wait that is not a failure, such as a
  * payout whose recipient or payment authority does not exist yet. Waiting must
- * not exhaust the attempts that protect against a genuinely failing handler.
+ * not exhaust the attempts that protect against a genuinely failing handler,
+ * which is what `keepAttempts` is for: pass it only when the attempt really
+ * did fail.
+ *
+ * A job that has spent its attempts is retired as `dead` here rather than left
+ * `pending`. The claim below will not take a job at the limit, so leaving it
+ * pending made an exhausted job invisible: it sat in the queue looking live,
+ * was never picked up again, and nothing said so. A payout waiting on a slow
+ * `finalized` tag was the case that mattered — it stuck at `included` with the
+ * ledger never moving.
  */
 export async function rescheduleJob(
   pool: Pool,
@@ -54,11 +84,13 @@ export async function rescheduleJob(
   keepAttempts = false,
 ): Promise<void> {
   await pool.query(
-    `UPDATE outbox_jobs SET state='pending',lease_token=NULL,lease_until=NULL,
+    `UPDATE outbox_jobs SET
+    state=CASE WHEN $3 AND attempts>=$4 THEN 'dead' ELSE 'pending' END,
+    lease_token=NULL,lease_until=NULL,
     attempts=CASE WHEN $3 THEN attempts ELSE 0 END,
     available_at=clock_timestamp()+make_interval(secs=>$2)
     WHERE id=$1 AND state='leased'`,
-    [lease.id, seconds, keepAttempts],
+    [lease.id, seconds, keepAttempts, attemptLimit],
   );
 }
 
@@ -66,16 +98,23 @@ export async function claimJob(pool: Pool, leaseSeconds = 30): Promise<JobLease 
   if (!Number.isInteger(leaseSeconds) || leaseSeconds < 1 || leaseSeconds > 300)
     throw new Error('Invalid job lease');
   return transaction(pool, async (client) => {
-    await client.query(`UPDATE outbox_jobs SET state = 'dead', lease_token = NULL, lease_until = NULL
-      WHERE state = 'leased' AND lease_until <= clock_timestamp() AND attempts >= 5`);
+    // Retires anything that has spent its attempts, whether it was abandoned
+    // under a lost lease or handed back pending. A job at the limit can never
+    // be claimed again, so `dead` is the only truthful state for it.
+    await client.query(
+      `UPDATE outbox_jobs SET state='dead',lease_token=NULL,lease_until=NULL
+      WHERE attempts >= $1 AND (state='pending'
+        OR (state='leased' AND lease_until <= clock_timestamp()))`,
+      [attemptLimit],
+    );
     const result = await client.query<JobLease>(
       `UPDATE outbox_jobs SET state = 'leased', attempts = attempts + 1,
       lease_token = gen_random_uuid(), lease_until = clock_timestamp() + ($1 * interval '1 second')
-      WHERE id = (SELECT id FROM outbox_jobs WHERE attempts < 5 AND available_at <= clock_timestamp()
+      WHERE id = (SELECT id FROM outbox_jobs WHERE attempts < $2 AND available_at <= clock_timestamp()
         AND (state = 'pending' OR (state = 'leased' AND lease_until <= clock_timestamp()))
         ORDER BY created_at, id FOR UPDATE SKIP LOCKED LIMIT 1)
       RETURNING id, topic, lease_token, attempts, payload`,
-      [leaseSeconds],
+      [leaseSeconds, attemptLimit],
     );
     return result.rows[0] ?? null;
   });

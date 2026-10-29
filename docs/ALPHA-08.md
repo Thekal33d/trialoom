@@ -27,7 +27,7 @@ The worker sends only on a payable with no previous attempt. The attempt is comm
 - `unknown` — the provider has no record of the key — is the one answer that makes sending again safe, and it is still sent under the **same** key. This matches the SDK's own rule that a new key may pay again only once the failure is certain.
 - An error around the call is treated as uncertainty, never as failure.
 
-The outbox gives at-most-once enqueueing, and a wait that is not a failure (no recipient yet, fee awaiting its operator payment) returns the job to the queue without consuming the attempts that protect against a genuinely failing handler.
+The outbox gives at-most-once enqueueing, and a wait that is not a failure returns the job to the queue without consuming the attempts that protect against a genuinely failing handler. A provider that answers is such a wait: polling a payout from `submitted` through `included` does not count against the limit, which was a real defect until PILOT-05 found it — a chain whose `finalized` tag lagged more than four polls retired the job silently and left the payout stuck at `included`. Only a refusal spends an attempt, and exhaustion is recorded as `dead` rather than leaving a job that looks live and will never be claimed.
 
 ## Inclusion is not finality
 

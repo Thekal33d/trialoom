@@ -89,7 +89,7 @@ npm run worker -- --once
 
 Enqueuing the same identity again returns the original job. Completion inserts one `worker_effects` row and acknowledges the job in one transaction. `npm run worker` continuously polls; stop it with Ctrl-C. A process supervisor must restart a worker after an unhandled job/database failure.
 
-Claims use short transactions, `SKIP LOCKED`, a 30-second lease, and a fresh fencing token. An expired lease can be reclaimed; an old token cannot complete it. After five failed attempts, the expired job is retained as `dead`. This validates queue mechanics, **not exactly-once external payments**. Payment reconciliation and the financial ledger remain ALPHA-04/08 work.
+Claims use short transactions, `SKIP LOCKED`, a 30-second lease, and a fresh fencing token. An expired lease can be reclaimed; an old token cannot complete it. After five failed attempts a job is retired as `dead`, whether it was abandoned under a lost lease or handed back to the queue, because a job at the limit is never claimed again and `pending` would make it look live. This validates queue mechanics, **not exactly-once external payments**. Payment reconciliation and the financial ledger remain ALPHA-04/08 work.
 
 ## Checks
 

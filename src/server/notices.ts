@@ -5,7 +5,7 @@ import { noticeEndpointSchema, uuid } from '../domain/schemas.ts';
 import { canonicalJson } from '../domain/values.ts';
 import { type Actor, audit, requireRole } from './access.ts';
 import { transaction } from './database.ts';
-import { completeJob, enqueueJob, type JobLease, rescheduleJob } from './jobs.ts';
+import { completeJob, enqueueJob, type JobLease, requeueJob, rescheduleJob } from './jobs.ts';
 import { type ResolveTarget, validateTarget } from './targets.ts';
 
 /**
@@ -154,17 +154,23 @@ export async function registerEndpoint(
         [workspaceId, data.name, targetUrl, secret, actor.id],
       )
     ).rows[0];
-    // Anything raised while there was nowhere to send it can go now.
+    // Anything raised while there was nowhere to send it can go now. A notice
+    // raised with no destination was never queued, while one whose delivery
+    // found the destination revoked has a finished job under its key — and
+    // `enqueueJob` deliberately will not revive that, because a dedupe key is
+    // a payment's permanent identity elsewhere. So reviving it is explicit,
+    // and anything with no job at all is enqueued fresh.
     const waiting = await db.query<{ id: string }>(
       `UPDATE notices SET delivery='pending',endpoint_id=$2 WHERE workspace_id=$1
-      AND resolved_at IS NULL AND delivery='undeliverable' RETURNING id`,
+      AND resolved_at IS NULL AND delivery IN ('undeliverable','failed') RETURNING id`,
       [workspaceId, endpoint.id],
     );
     for (const notice of waiting.rows)
-      await enqueueJob(db, 'notice.deliver', `notice:${notice.id}`, {
-        noticeId: notice.id,
-        version: 1,
-      });
+      if (!(await requeueJob(db, `notice:${notice.id}`)))
+        await enqueueJob(db, 'notice.deliver', `notice:${notice.id}`, {
+          noticeId: notice.id,
+          version: 1,
+        });
     await audit(db, workspaceId, actor.id, 'notice_endpoint.registered', endpoint.id);
     return {
       endpointId: endpoint.id,
@@ -346,9 +352,11 @@ export async function deliverNotice(
     result.detail.slice(0, 300),
   ]);
   // A destination that is down is not a failing handler, so retrying does not
-  // spend the attempts that would kill the job. An endpoint that never answers
-  // shows up as a notice nobody was told, which is the thing worth seeing.
-  await rescheduleJob(pool, lease, 300, true);
+  // spend the attempts that would retire the job: an endpoint that comes back
+  // after an hour should still get the notice. The visible record of a
+  // destination that never answers is the notice itself, which carries its own
+  // attempt count and sits in the queue as undelivered.
+  await rescheduleJob(pool, lease, 900);
   return 'undelivered';
 }
 

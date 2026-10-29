@@ -27,7 +27,7 @@ It runs against a disposable database and the **real server modules**, writes it
 | 13. See and export | The queue names what is waiting, a reviewer reads the same queue, and the export's hash is verified from the file itself |
 | 14. Account | Every ledger entry replays to the stored balances, and what is owed is stated |
 
-Forty steps are recorded in `transcript.json` alongside the final accounting, the open payables by state, and the limits below.
+Forty-four steps are recorded in `transcript.json` alongside the final accounting, the open payables by state, and the limits below.
 
 ## Release scenarios it exercises
 

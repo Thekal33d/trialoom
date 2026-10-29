@@ -586,9 +586,16 @@ test('closing a brief returns its remainder but keeps what is still owed reserve
       reason: 'Closing with an accepted obligation still unpaid.',
     },
   );
-  assert.equal(closed.approvalReleasedUnits, (40000000n - total).toString());
+  // What stays reserved is what the campaign still holds, which is more than
+  // its payables: accepting the execution left the undecided discovery reserve
+  // committed, and awarding it later would owe another payable.
+  const held =
+    BigInt((await campaignAccounting(db.pool, work.campaign.campaignId))?.committedUnits ?? '0') +
+    BigInt((await campaignAccounting(db.pool, work.campaign.campaignId))?.acceptedUnits ?? '0');
+  assert.ok(held > total, 'the ledger holds more than the payables already written');
+  assert.equal(closed.approvalReleasedUnits, (40000000n - held).toString());
   const approval = await approvalOf(live.approval.approvalId);
-  assert.equal(approval.committed_units, total.toString());
+  assert.equal(approval.committed_units, held.toString());
   // Closing twice releases nothing the second time: the release is derived
   // from the entries, not from the status change that triggered it.
   await assert.rejects(
@@ -1141,7 +1148,10 @@ test('a destination that refuses leaves the notice undelivered and keeps retryin
   ).rows[0];
   assert.equal(job.state, 'pending');
   assert.equal(job.deferred, true);
-  assert.equal(job.attempts, 1);
+  // The attempt is counted on the notice, which is the visible record, and not
+  // against the limit that would retire the job: an endpoint back in an hour
+  // should still get it.
+  assert.equal(job.attempts, 0);
   const queue = await workspaceAttention(db.pool, owner, workspaceId);
   assert.ok(queue.totals.noticesUndelivered >= 1);
 
@@ -1247,4 +1257,101 @@ test('the table refuses a notice carrying a credential at any depth', async () =
       ),
       /notices_detail_clean/,
     );
+});
+
+test('cancelling a brief holds the approval for work that is still live', async () => {
+  const live = await authority('Draining', '8000000');
+  const campaign = await newCampaign('Draining brief', {
+    authorityId: live.authorityId,
+    ceilingUnits: '4000000',
+  });
+  const operator = await qualifiedOperator('still-working');
+  const assignment = await claim(db.pool, operator.session, { campaignId: campaign.campaignId });
+  // Cancelling stops new claims and lets this assignment drain under its
+  // pinned terms, so what it will owe cannot be promised to another brief.
+  const closed = await setCampaignStatus(
+    db.pool,
+    owner,
+    workspaceId,
+    projectId,
+    campaign.campaignId,
+    { status: 'cancelled', reason: 'Cancelled while an operator is still working.' },
+  );
+  assert.equal(closed.approvalReleasedUnits, '200000');
+  const approval = await approvalOf(live.approval.approvalId);
+  assert.equal(approval.committed_units, '3800000');
+  assert.equal(
+    (await db.pool.query('SELECT state FROM assignments WHERE id=$1', [assignment.assignmentId]))
+      .rows[0].state,
+    'claimed',
+  );
+  // And the approval has only the genuine remainder left to promise: what the
+  // live assignment will owe is not on offer to the next brief.
+  const listing = await workspaceAuthorities(db.pool, owner, workspaceId);
+  assert.equal(
+    listing.authorities.find((row) => row.id === live.authorityId)?.approval.uncommittedUnits,
+    '4200000',
+  );
+  const next = await draftCampaign('After cancelling');
+  await assert.rejects(
+    publish(next.campaignId, next.id, {
+      authorityId: live.authorityId,
+      ceilingUnits: '4300000',
+    }),
+    /has 4200000 left uncommitted/,
+  );
+});
+
+test('replacing a notice destination really requeues what was never delivered', async () => {
+  const live = await authority('Rotating', '10000000');
+  await newCampaign('Rotating brief', {
+    authorityId: live.authorityId,
+    ceilingUnits: '8000000',
+  });
+  const first = await registerEndpoint(
+    db.pool,
+    owner,
+    workspaceId,
+    { name: 'First', url: 'https://first.example.com/hook', acknowledged: true },
+    async () => ['93.184.215.14'],
+  );
+  await runVerification(live.authorityId, reading('10000000', '1000000'));
+  const notice = (
+    await db.pool.query(`SELECT * FROM notices WHERE subject_id=$1`, [live.authorityId])
+  ).rows[0];
+  // The builder rotates the destination before that notice went out, so the
+  // delivery finds nowhere to send it and finishes its job.
+  await revokeEndpoint(db.pool, owner, workspaceId, first.endpointId);
+  const { transport, sent } = capturingTransport();
+  assert.equal(await deliverFor(notice.id, transport), 'nowhere');
+  assert.equal(
+    (
+      await db.pool.query('SELECT state FROM outbox_jobs WHERE dedupe_key=$1', [
+        `notice:${notice.id}`,
+      ])
+    ).rows[0].state,
+    'done',
+  );
+  // A finished job under that key is exactly what `enqueueJob` refuses to
+  // revive, so registering the next destination has to do it explicitly.
+  const second = await registerEndpoint(
+    db.pool,
+    owner,
+    workspaceId,
+    { name: 'Second', url: 'https://second.example.com/hook', acknowledged: true },
+    async () => ['93.184.215.14'],
+  );
+  assert.equal(second.requeued, 1);
+  const revived = (
+    await db.pool.query(`SELECT state,attempts,completed_at FROM outbox_jobs WHERE dedupe_key=$1`, [
+      `notice:${notice.id}`,
+    ])
+  ).rows[0];
+  assert.equal(revived.state, 'pending');
+  assert.equal(revived.attempts, 0);
+  assert.equal(revived.completed_at, null);
+  assert.equal(await deliverFor(notice.id, transport), 'delivered');
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].url, 'https://second.example.com/hook');
+  await revokeEndpoint(db.pool, owner, workspaceId, second.endpointId);
 });

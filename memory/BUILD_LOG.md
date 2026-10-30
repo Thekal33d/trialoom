@@ -401,3 +401,15 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Verified the new check fails without the guard: it reported the false notice, summary and all. A browser check now also asserts that clicking Verify with nothing configured leaves no notice on the screen, which is where a builder would have seen the false alarm.
 - Validation: lint over 110 files, strict types, 28 capability checks, 194 database checks (1 new), 58 browser checks, `npm run loop` at 44 steps, `npm run payments:fork` at 19 checks, and a production build.
 - Commit subject: `fix: do not raise a notice when no provider was ever configured`.
+
+
+## 2026-10-30 — PRACTICE-01: prepared hands-on walkthrough
+
+- The user selected a prepared sample for their first test. Added `npm run playground`, reusing browser-test seeding in an isolated disposable database. It opens a visible Chromium window with a guide, an owned invitation fixture, and the real workspace signed in through the normal form. No authentication bypass or change to the user's owner account/invitation.
+- Named the sample workspace/project/brief explicitly. The guide distinguishes a real manually reproducible invitation bug from seeded evidence, operators, repairs, receipts, and money. The manual fixture is not automatically ingested; binary traces are withheld placeholders. No hosted agent, live payment, or independent human review is claimed.
+- Clears inherited payment signer/recipient settings, starts no worker, binds the servers to loopback, restricts browser requests to those servers, keeps credentials in ignored private files, and removes the disposable database/files on normal exit. Existing development records and `.env` are preserved. Added restart and test instructions in `docs/TRY-TRIALOOM.md`.
+- The first smoke attempt found that Playwright resolves its browser cache at import time. Moved the interactive helper import after setting the project browser path; the failed attempt still cleaned up its database and files. The subsequent smoke passed real 201/400 fixture responses, redacted report access, review acceptance persisting after reload, the blocked sample payable, and a downloaded ZIP with no raw artifacts or synthetic secret canary. Cleanup completed.
+- Validation: production build passed (three pre-existing dynamic-file tracing warnings in `src/server/storage.ts`); lint over 111 files and strict types passed; all 10 existing desktop evidence browser tests passed; `git diff --check` passed; original PRD SHA-256 unchanged. Opened and visually inspected a fresh headful practice session, leaving the execution decision pending for the user.
+- Corrected stale status/development claims that no code gates remained or decisions were unavailable. PILOT-01 and the real-world runner, deployment, independent-review, paid-resource, and hackathon gates remain open. D032 records the practice boundary. No deployment, funding, push, or email.
+- Next action: the user completes the walkthrough, then record and fix observed usability issues.
+- Commit subject: `feat: open a disposable hands-on Trialoom playground` (PRACTICE-01).

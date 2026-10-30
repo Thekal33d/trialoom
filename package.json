@@ -28,6 +28,7 @@
     "format": "biome format --write .",
     "test:db": "node --env-file-if-exists=.env --test tests/*.test.ts",
     "test:e2e": "node --env-file-if-exists=.env scripts/test-browser.ts",
+    "playground": "node --env-file-if-exists=.env scripts/test-browser.ts --playground",
     "check": "npm run lint && npm run typecheck && npm test",
     "setup:auth": "node scripts/setup-auth.mjs",
     "workspace:invite": "node --env-file-if-exists=.env scripts/invite.ts",

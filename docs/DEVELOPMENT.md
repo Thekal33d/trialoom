@@ -1,8 +1,10 @@
 # Local development
 
-The application includes invitation-only accounts, workspace roles, authorized projects, pinned builds, and versioned draft briefs ([ALPHA-02](ALPHA-02.md)), operator connection and qualification ([ALPHA-03](ALPHA-03.md)), and the campaign ledger with atomic claims and leases ([ALPHA-04](ALPHA-04.md)), plus a durable smoke worker. `/workspace` holds real local account/project data. `/demo` remains explicitly synthetic: Canopy is an example name, and its before/after results summarize the existing invitation fixture. A builder can publish a brief and operators can claim it, but no surface can accept work or make a payment yet.
+The application includes invitation-only accounts, workspace roles, authorized projects, pinned builds, and versioned draft briefs ([ALPHA-02](ALPHA-02.md)), operator connection and qualification ([ALPHA-03](ALPHA-03.md)), and the campaign ledger with atomic claims and leases ([ALPHA-04](ALPHA-04.md)), plus a durable smoke worker. `/workspace` holds real local account/project data. `/demo` remains explicitly synthetic: Canopy is an example name, and its before/after results summarize the existing invitation fixture. Builders can publish briefs, review submitted work, and export redacted evidence; operators can claim work through the API. Valid decisions create payables, but no live payment provider is configured locally.
 
 ## First run
+
+For the prepared sample after setup, see [Try Trialoom locally](TRY-TRIALOOM.md). Run `npm run build` and `npm run playground` to open the real workspace against disposable sample data, or `npm run playground -- --smoke` to check that walkthrough headlessly.
 
 Requirements: Node 24, npm, and a running Docker-compatible engine with Compose. The default database port is **55432**, bound only to `127.0.0.1`. Commands run from the repository root.
 

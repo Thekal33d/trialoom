@@ -1,6 +1,6 @@
 # Build backlog
 
-Last updated: 2026-10-27. Source: [PRD](PRD.md). Milestones: [ROADMAP.md](ROADMAP.md).
+Last updated: 2026-10-30. Source: [PRD](PRD.md). Milestones: [ROADMAP.md](ROADMAP.md).
 
 States: **Ready**, **In progress**, **Blocked**, **Not started**, **Done**, **Deferred**. Ready means dependencies permit work. Done requires acceptance evidence and a checkpoint commit. Dependencies identify tasks, not elapsed time.
 
@@ -19,6 +19,12 @@ States: **Ready**, **In progress**, **Blocked**, **Not started**, **Done**, **De
 VAL-03/VAL-04 start with documentation and controlled environments. A later paid experiment needs its concrete wallet, amount, and funding authority established; this planning request does not provide those details.
 
 The local execution baseline and observed provider constraints are sufficient for VAL-05 (D012). This sequencing decision does not close VAL-04 or waive the paid-resource, independent-review, alpha, or hackathon gates.
+
+## Hands-on trial
+
+| ID | Work | State | Depends on | Acceptance / evidence |
+| --- | --- | --- | --- | --- |
+| PRACTICE-01 | Prepared hands-on local walkthrough | Done | ALPHA-10 | Visible signed-in sample workspace, separate real invitation bug, persisted practice decision and redacted ZIP export, disposable data cleanup; [guide and checks](TRY-TRIALOOM.md). No hosted agent, independent human review, or live payment claimed. Commit subject: `feat: open a disposable hands-on Trialoom playground` |
 
 ## Internal alpha
 

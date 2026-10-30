@@ -25,9 +25,21 @@ import {
 import { authenticateRun, isolationProfile, startRun } from '../src/server/runner.ts';
 import { digestOf } from '../src/server/storage.ts';
 import { disposableDatabase } from '../tests/helpers/database.ts';
+import type { PlaygroundFixture } from './playground.ts';
 
+const playground = process.argv.includes('--playground');
+if (playground) {
+  process.env.PLAYWRIGHT_BROWSERS_PATH = resolve('.cache/ms-playwright');
+  // Practice records must never inherit a real signer or payment recipients.
+  process.env.TRIALOOM_REMESSO_AGENT_KEY = '';
+  process.env.TRIALOOM_FEE_RECIPIENT = '';
+  process.env.TRIALOOM_RESOURCE_RECIPIENT = '';
+}
 const db = await disposableDatabase();
-const directory = resolve('artifacts/browser-checks', randomBytes(8).toString('hex'));
+const directory = resolve(
+  playground ? 'artifacts/playground' : 'artifacts/browser-checks',
+  randomBytes(8).toString('hex'),
+);
 const publicDns = async () => ['93.184.215.14'];
 // The browser harness never reaches a real target: these checks cover the
 // routes, scoping, and views. Target revalidation itself is covered by the
@@ -116,7 +128,7 @@ try {
   process.env.TRIALOOM_EVIDENCE_DIR = resolve(directory, 'evidence');
   const password = randomBytes(24).toString('base64url');
   const fixtures: Record<string, unknown> = {};
-  for (const viewport of ['desktop', 'mobile']) {
+  for (const viewport of playground ? ['practice'] : ['desktop', 'mobile']) {
     const ownerEmail = `${viewport}-owner@example.test`;
     const first = await bootstrapWorkspace(db.pool, {
       email: ownerEmail,
@@ -187,7 +199,7 @@ try {
     // campaign cannot appear in the registration flow's work listing.
     const second = await bootstrapWorkspace(db.pool, {
       email: `${viewport}-evidence-owner@example.test`,
-      name: 'Evidence workspace',
+      name: playground ? 'Practice workspace — sample data' : 'Evidence workspace',
     });
     await acceptInvitation(
       db.pool,
@@ -213,7 +225,7 @@ try {
       evidenceOwner,
       second.workspaceId,
       {
-        name: 'Evidence fixture project',
+        name: playground ? 'Canopy — sample invitation app' : 'Evidence fixture project',
         targetUrl: 'https://example.com/',
         environment: 'preview',
         authorizationConfirmed: true,
@@ -256,7 +268,12 @@ try {
       evidenceOwner,
       second.workspaceId,
       evidenceProject.id,
-      { name: 'Evidence fixture campaign', terms: evidenceTerms },
+      {
+        name: playground
+          ? 'Test teammate invitations — sample findings'
+          : 'Evidence fixture campaign',
+        terms: evidenceTerms,
+      },
     );
     await publishCampaign(
       db.pool,
@@ -897,33 +914,44 @@ try {
   }
   const fixtureFile = resolve(directory, 'fixtures.json');
   await writeFile(fixtureFile, JSON.stringify(fixtures), { mode: 0o600 });
-  const child = spawn(
-    process.execPath,
-    ['node_modules/@playwright/test/cli.js', 'test', ...process.argv.slice(2)],
-    {
-      stdio: 'inherit',
-      env: {
-        ...process.env,
-        DATABASE_URL: db.url,
-        BETTER_AUTH_URL: 'http://127.0.0.1:3100',
-        BETTER_AUTH_SECRET: randomBytes(48).toString('base64url'),
-        PLAYWRIGHT_BROWSERS_PATH: '.cache/ms-playwright',
-        TRIALOOM_E2E_FIXTURE: fixtureFile,
-        TRIALOOM_EVIDENCE_DIR: resolve(directory, 'evidence'),
+  if (playground) {
+    const { openPlayground } = await import('./playground.ts');
+    await openPlayground({
+      databaseUrl: db.url,
+      directory,
+      fixture: fixtures.practice as PlaygroundFixture,
+      smoke: process.argv.includes('--smoke'),
+    });
+  } else {
+    const child = spawn(
+      process.execPath,
+      ['node_modules/@playwright/test/cli.js', 'test', ...process.argv.slice(2)],
+      {
+        stdio: 'inherit',
+        env: {
+          ...process.env,
+          DATABASE_URL: db.url,
+          BETTER_AUTH_URL: 'http://127.0.0.1:3100',
+          BETTER_AUTH_SECRET: randomBytes(48).toString('base64url'),
+          PLAYWRIGHT_BROWSERS_PATH: '.cache/ms-playwright',
+          TRIALOOM_E2E_FIXTURE: fixtureFile,
+          TRIALOOM_EVIDENCE_DIR: resolve(directory, 'evidence'),
+        },
       },
-    },
-  );
-  const stop = () => child.kill('SIGTERM');
-  process.once('SIGINT', stop);
-  process.once('SIGTERM', stop);
-  const result = await new Promise<number>((done, reject) => {
-    child.once('error', reject);
-    child.once('exit', (code) => done(code ?? 1));
-  });
-  process.removeListener('SIGINT', stop);
-  process.removeListener('SIGTERM', stop);
-  process.exitCode = result;
+    );
+    const stop = () => child.kill('SIGTERM');
+    process.once('SIGINT', stop);
+    process.once('SIGTERM', stop);
+    const result = await new Promise<number>((done, reject) => {
+      child.once('error', reject);
+      child.once('exit', (code) => done(code ?? 1));
+    });
+    process.removeListener('SIGINT', stop);
+    process.removeListener('SIGTERM', stop);
+    process.exitCode = result;
+  }
 } finally {
   await db.close();
   await rm(directory, { recursive: true, force: true });
+  if (playground) console.log('Practice database and temporary session files removed.');
 }

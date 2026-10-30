@@ -28,6 +28,8 @@ The local [browser/evidence experiment](spikes/browser-evidence/README.md) repro
 
 ## Run the application
 
+For a prepared hands-on sample, follow [Try Trialoom locally](docs/TRY-TRIALOOM.md). `npm run playground` opens a signed-in practice workspace, a sample app with a reproducible bug, and a short guide. It uses a disposable database and no real money.
+
 With Node 24 and a running Docker engine:
 
 ```sh
@@ -38,7 +40,7 @@ npm run db:migrate
 npm run dev
 ```
 
-Create your first local owner invitation with `npm run workspace:invite -- owner@example.com My workspace`, then open the private URL in the file printed by the command. It sends no email. [Your workspace](http://127.0.0.1:3000/workspace) lets you manage projects and draft work briefs. The separate [sample workspace](http://127.0.0.1:3000/demo) supports evidence comparison and a labelled report download. Claims and payments are not enabled. See the [development guide](docs/DEVELOPMENT.md) for setup, production builds, worker commands, checks, and troubleshooting.
+Create your first local owner invitation with `npm run workspace:invite -- owner@example.com My workspace`, then open the private URL in the file printed by the command. It sends no email. [Your workspace](http://127.0.0.1:3000/workspace) lets you manage projects and draft work briefs. The separate [sample workspace](http://127.0.0.1:3000/demo) supports evidence comparison and a labelled report download. Published work and review decisions are available locally; no live payments are configured. See the [development guide](docs/DEVELOPMENT.md) for setup, production builds, worker commands, checks, and troubleshooting.
 
 ## Capability experiments
 

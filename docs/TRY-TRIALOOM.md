@@ -43,3 +43,5 @@ npm run playground -- --smoke
 ```
 
 This uses the same launcher headlessly, verifies the actual invitation fixture's 201/400 responses, reads redacted evidence, records a practice execution decision, reloads to verify persistence, checks the blocked payable, downloads and inspects the ZIP, and removes its disposable database/files. On 2026-10-30 this passed; the existing desktop evidence suite also passed all ten checks. No production application routes were added for practice access.
+
+On 2026-10-31 the user reported completing the prepared walkthrough and that things worked. No specific failing steps were reported. This records user feedback on the sample; it does not establish real agent execution, independent verification, or payment readiness.

@@ -1,6 +1,6 @@
 # Build backlog
 
-Last updated: 2026-10-30. Source: [PRD](PRD.md). Milestones: [ROADMAP.md](ROADMAP.md).
+Last updated: 2026-10-31. Source: [PRD](PRD.md). Milestones: [ROADMAP.md](ROADMAP.md).
 
 States: **Ready**, **In progress**, **Blocked**, **Not started**, **Done**, **Deferred**. Ready means dependencies permit work. Done requires acceptance evidence and a checkpoint commit. Dependencies identify tasks, not elapsed time.
 
@@ -24,7 +24,8 @@ The local execution baseline and observed provider constraints are sufficient fo
 
 | ID | Work | State | Depends on | Acceptance / evidence |
 | --- | --- | --- | --- | --- |
-| PRACTICE-01 | Prepared hands-on local walkthrough | Done | ALPHA-10 | Visible signed-in sample workspace, separate real invitation bug, persisted practice decision and redacted ZIP export, disposable data cleanup; [guide and checks](TRY-TRIALOOM.md). No hosted agent, independent human review, or live payment claimed. Commit subject: `feat: open a disposable hands-on Trialoom playground` |
+| PRACTICE-01 | Prepared hands-on local walkthrough | Done | ALPHA-10 | Visible signed-in sample workspace, separate real invitation bug, persisted practice decision and redacted ZIP export, disposable data cleanup; [guide and checks](TRY-TRIALOOM.md). No hosted agent, independent human review, or live payment claimed. Commit `13245b7`; user reported the prepared test worked on 2026-10-31. This feedback does not close production release gates. |
+| RUN-01 | Connect controlled browser execution to the workspace (proposed next build) | Not started | ALPHA-05, PILOT-03 | A real browser journey on an owned test application generates fresh build-bound results, submits them through scoped HTTP ingestion, and appears for builder review/export. Evidence comes from execution rather than seeded results. Verify expiry/cancellation and failure reporting; customer targets remain gated on operated and verified isolation. Sequence proposed after user walkthrough, not yet confirmed. |
 
 ## Internal alpha
 

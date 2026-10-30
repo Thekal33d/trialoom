@@ -413,3 +413,12 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Corrected stale status/development claims that no code gates remained or decisions were unavailable. PILOT-01 and the real-world runner, deployment, independent-review, paid-resource, and hackathon gates remain open. D032 records the practice boundary. No deployment, funding, push, or email.
 - Next action: the user completes the walkthrough, then record and fix observed usability issues.
 - Commit subject: `feat: open a disposable hands-on Trialoom playground` (PRACTICE-01).
+
+
+## 2026-10-31 — PRACTICE-01: user feedback and proposed next build
+
+- After restarting the prepared sample, the user reported: “i am done with the testing and things work”. Recorded this as user-reported success of the local sample; no detailed step-by-step certification or production readiness inferred.
+- Reviewed the remaining roadmap and the ALPHA-11/PILOT-03 boundaries. The standalone browser experiment executes a real fixture, while the workspace examples and loop use harness-produced evidence; the platform does not yet operate the runner host.
+- Proposed RUN-01 as the next implementation step: connect a bounded real browser journey on an owned test application to scoped HTTP evidence ingestion and the builder workspace. This sequencing remains a proposal until selected; no implementation, deployment, spending, or customer target execution performed. PILOT-01 security/operations/privacy, independent verification, actual payment, and hackathon gates remain open.
+- Updated status, backlog, and walkthrough feedback. Validation: documentation links and `git diff --check`; no application code changed, so the prior application checks were not rerun.
+- Commit subject: `docs: record successful sample test and proposed runner integration`.

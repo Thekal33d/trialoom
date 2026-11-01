@@ -4,7 +4,7 @@ The application includes invitation-only accounts, workspace roles, authorized p
 
 ## First run
 
-For actual Chromium execution submitted to the workspace, see [RUN-01](RUN-01.md). After building, `npm run browser:demo` runs the owned invitation fixture and opens its fresh result; `npm run browser:demo -- --smoke` checks execution, HTTP ingestion, review/export, and interruption behavior. It uses disposable local data and clears payment configuration.
+For actual Chromium execution submitted to the workspace, see [RUN-01](RUN-01.md). After building, `npm run browser:demo` runs the owned invitation fixture and opens its fresh result with [recorded replay](RUN-02.md); `npm run browser:demo -- --smoke` checks execution, HTTP ingestion, review/export, and interruption behavior. It uses disposable local data and clears payment configuration.
 
 For the prepared sample after setup, see [Try Trialoom locally](TRY-TRIALOOM.md). Run `npm run build` and `npm run playground` to open the real workspace against disposable sample data, or `npm run playground -- --smoke` to check that walkthrough headlessly.
 

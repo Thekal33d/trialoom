@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test, { after, before } from 'node:test';
+import { unzipSync } from 'fflate';
 import { AppError } from '../src/domain/errors.ts';
 import type { Actor } from '../src/server/access.ts';
 import { type AgentSession, authenticateAgent } from '../src/server/agents.ts';
@@ -16,9 +17,11 @@ import {
 import {
   campaignSubmissions,
   readArtifact,
+  readReplay,
   storeArtifact,
   submitEvidence,
 } from '../src/server/evidence.ts';
+import { campaignExport } from '../src/server/exports.ts';
 import {
   acceptInvitation,
   bootstrapWorkspace,
@@ -648,6 +651,83 @@ test('a supported trace is stored separately and only its verified derivative is
   // A valid-looking text blob labelled as a trace cannot bypass the archive policy.
   const fake = await upload(grant, 'fake.zip', 'trace', 'application/zip', '{"hello":"world"}');
   assert.equal(fake.reviewable, false);
+  await upload(grant, 'assertions.json', 'assertions', 'application/json', '{"passed":false}');
+  const submission = await submitEvidence(
+    db.pool,
+    grant,
+    await declared(grant, evidenceFor(assignment)),
+  );
+  const replay = await readReplay(
+    db.pool,
+    owner,
+    workspaceId,
+    projectId,
+    assignment.campaignId,
+    submission.submissionId,
+  );
+  assert.equal(replay.trace?.requests[0].status, 400);
+  assert.equal(replay.steps[0].action, 'Invite [REDACTED:email]');
+  assert.equal(replay.trace?.sha256, artifact.redacted_sha256);
+  assert.equal(replay.traceReason, null);
+  const exported = await campaignExport(
+    db.pool,
+    owner,
+    workspaceId,
+    projectId,
+    assignment.campaignId,
+  );
+  const exportedFiles = unzipSync(exported.bytes);
+  assert.equal(digestOf(exportedFiles['artifacts/browser.trace.zip']), artifact.redacted_sha256);
+  const replayExport = JSON.parse(new TextDecoder().decode(exportedFiles['replay.json']));
+  assert.equal(replayExport.replays[0].artifacts[0].redactedSha256, artifact.redacted_sha256);
+  assert(exported.manifest.redaction.artifactPolicies.includes('playwright-metadata-v1'));
+  await assert.rejects(
+    readReplay(
+      db.pool,
+      { id: crypto.randomUUID(), email: 'outsider@example.test', name: 'Outsider' },
+      workspaceId,
+      projectId,
+      assignment.campaignId,
+      submission.submissionId,
+    ),
+    code('ACCESS_DENIED'),
+  );
+  const other = await runFor('runner-other-brief');
+  await assert.rejects(
+    readReplay(
+      db.pool,
+      owner,
+      workspaceId,
+      projectId,
+      other.assignment.campaignId,
+      submission.submissionId,
+    ),
+    code('NOT_FOUND'),
+  );
+  // A changed derivative must be refused by replay, direct download and campaign export.
+  await writeFile(
+    join(evidenceDir, artifact.redacted_key.slice(0, 2), artifact.redacted_key),
+    'corrupt',
+  );
+  await assert.rejects(
+    readReplay(
+      db.pool,
+      owner,
+      workspaceId,
+      projectId,
+      assignment.campaignId,
+      submission.submissionId,
+    ),
+    code('ARTIFACT_CORRUPT'),
+  );
+  await assert.rejects(
+    readArtifact(db.pool, owner, workspaceId, projectId, assignment.campaignId, artifact.id),
+    code('ARTIFACT_CORRUPT'),
+  );
+  await assert.rejects(
+    campaignExport(db.pool, owner, workspaceId, projectId, assignment.campaignId),
+    code('ARTIFACT_CORRUPT'),
+  );
 });
 
 test('archived evidence is stored private and refused to readers', async () => {
@@ -884,6 +964,17 @@ test('builders and reviewers read submissions, and a reviewer read is audited', 
   );
   assert.equal(view.submissions.length, 1);
   const submission = view.submissions[0];
+  const replay = await readReplay(
+    db.pool,
+    reviewer,
+    workspaceId,
+    projectId,
+    assignment.campaignId,
+    submission.id,
+  );
+  assert.equal(replay.trace, null);
+  assert(replay.traceReason?.includes('private'));
+  assert.equal(replay.steps[0].status, 'failed');
   assert.equal(submission.outcome, 'product_failed');
   assert.equal(submission.decisions, null);
   assert.equal(submission.artifacts.length, 2);

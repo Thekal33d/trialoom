@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { formatUnits, toUnits } from '@/domain/values';
 import { api, type CampaignRecord, field, type TermsRecord } from './live-types';
 import { RepairPanel } from './repair-panel';
+import { ReplayPanel } from './replay-panel';
 import { ResourcePanel } from './resource-panel';
 import { ReviewPanel } from './review-panel';
 
@@ -50,7 +51,7 @@ type Artifact = {
   bytes: string;
   sha256: string;
   reviewable: boolean;
-  redaction: { mode?: string; decision?: string; reason?: string };
+  redaction: { policy?: string; mode?: string; decision?: string; reason?: string };
 };
 type Payout = {
   id: string;
@@ -134,6 +135,13 @@ export function CampaignPanel({
   const workspaceBase = base.replace(/\/projects\/[^/]+$/, '');
   const [ledger, setLedger] = useState<Ledger>();
   const [evidence, setEvidence] = useState<Submissions>();
+  const [openReplay, setOpenReplay] = useState('');
+  useEffect(() => {
+    if (openReplay)
+      document
+        .getElementById(`replay-${openReplay}`)
+        ?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+  }, [openReplay]);
   const [payouts, setPayouts] = useState<{ payouts: Payout[]; note: string }>();
   const [authorities, setAuthorities] = useState<LiveAuthority[]>();
   const [activity, setActivity] = useState<{
@@ -459,6 +467,15 @@ export function CampaignPanel({
                     </span>
                   </div>
                   <p>{submission.document.summary}</p>
+                  <button
+                    type="button"
+                    className="button secondary"
+                    aria-expanded={openReplay === submission.id}
+                    aria-controls={`replay-${submission.id}`}
+                    onClick={() => setOpenReplay(openReplay === submission.id ? '' : submission.id)}
+                  >
+                    {openReplay === submission.id ? 'Close replay' : 'View replay'}
+                  </button>
                   <p className="section-description">
                     {submission.document.steps.length} recorded step
                     {submission.document.steps.length === 1 ? '' : 's'} ·{' '}
@@ -478,7 +495,9 @@ export function CampaignPanel({
                             className="text-button"
                             href={`${campaignBase}/artifacts/${artifact.id}`}
                           >
-                            Open redacted copy
+                            {artifact.kind === 'trace'
+                              ? 'Download sanitized trace'
+                              : 'Open redacted copy'}
                           </a>
                         ) : (
                           <span className="subtle">
@@ -488,6 +507,11 @@ export function CampaignPanel({
                       </li>
                     ))}
                   </ul>
+                  <div id={`replay-${submission.id}`}>
+                    {openReplay === submission.id && (
+                      <ReplayPanel campaignBase={campaignBase} submissionId={submission.id} />
+                    )}
+                  </div>
                 </div>
               ))}
               {Boolean(payouts?.payouts.length) && payouts && (
@@ -557,6 +581,12 @@ export function CampaignPanel({
               )}
               <ReviewPanel
                 campaignBase={campaignBase}
+                onViewReplay={(submissionId) => {
+                  setOpenReplay(submissionId);
+                  const panel = document.getElementById(`replay-${submissionId}`);
+                  panel?.scrollIntoView({ block: 'start', behavior: 'instant' });
+                  panel?.querySelector('h3')?.focus({ preventScroll: true });
+                }}
                 submissions={evidence.submissions.map((submission) => ({
                   id: submission.id,
                   assignment_id: submission.assignment_id,

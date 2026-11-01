@@ -2,7 +2,7 @@
 
 PRACTICE-01 · 2026-10-30 · Prepared sample, real workspace screens.
 
-For actual browser-generated evidence automatically submitted to the workspace, use the newer [real browser walkthrough](RUN-01.md) with `npm run browser:demo`. The playground below retains its separate manual fixture and prepared reports.
+For actual browser-generated evidence automatically submitted to the workspace, use the newer [real browser walkthrough](RUN-01.md) with `npm run browser:demo`. [Recorded replay and sanitized trace downloads](RUN-02.md) are available for fresh browser runs. The playground below retains its separate manual fixture and prepared reports.
 
 ## Open the sample
 

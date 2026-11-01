@@ -62,11 +62,13 @@ export function ReviewPanel({
   submissions,
   canDecide,
   reload,
+  onViewReplay,
 }: {
   campaignBase: string;
   submissions: Submission[];
   canDecide: boolean;
   reload: () => Promise<void>;
+  onViewReplay: (submissionId: string) => void;
 }) {
   const [review, setReview] = useState<Review>();
   const [error, setError] = useState('');
@@ -155,6 +157,13 @@ export function ReviewPanel({
                 : ''}
               {finding.awarded_finding_id === finding.id ? ' · discovery reward awarded' : ''}
             </p>
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => onViewReplay(finding.submission_id)}
+            >
+              View replay
+            </button>
             {finding.independence_reason && (
               <p className="section-description">{finding.independence_reason}</p>
             )}

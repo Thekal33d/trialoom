@@ -120,11 +120,21 @@ try {
       directory,
     });
   } else {
-    await brief.getByText('Execution and evidence', { exact: true }).scrollIntoViewIfNeeded();
+    await brief.getByRole('button', { name: 'View replay', exact: true }).first().click();
+    const replay = brief.getByRole('region', { name: 'Recorded replay' });
+    await expect(replay.locator('.replay-result')).toContainText('HTTP 400');
+    await replay.scrollIntoViewIfNeeded();
     await page.bringToFront();
     await page.screenshot({ path: resolve(directory, 'workspace.png') });
+    await replay.screenshot({ path: resolve(directory, 'replay-desktop.png') });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await replay.getByRole('heading', { name: 'Recorded replay' }).focus();
+    await replay.locator('.replay-result').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: resolve(directory, 'replay-mobile.png') });
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await replay.scrollIntoViewIfNeeded();
     console.log(
-      `Fresh browser evidence is ready at ${app.origin}/workspace. The opened window is signed in. Review the pending result and export the brief. No acceptance or payment was performed.`,
+      `Recorded replay is open at ${app.origin}/workspace. The opened window is signed in. Step through the result, download the sanitized trace or export the brief. No acceptance or payment was performed.`,
     );
     console.log(
       `Private run files: ${directory}. Close the browser or press Ctrl-C to end the disposable session.`,

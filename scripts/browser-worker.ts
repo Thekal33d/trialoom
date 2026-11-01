@@ -270,7 +270,9 @@ export async function executeInvitationRun(options: {
           (await page.getByRole('status').getAttribute('data-outcome')) === 'invited';
         steps.push({
           index: steps.length + 1,
-          action: `Invite ${email}`,
+          action: email.includes('+')
+            ? 'Invite a teammate using a plus alias'
+            : 'Invite a teammate using a standard email',
           expected: 'HTTP 201; invitation created',
           actual: `HTTP ${status}; ${displayed}`,
           status: passed ? 'passed' : 'failed',

@@ -348,7 +348,7 @@ test('an export redacts operator prose and withholds what it cannot clean', asyn
   const withheld = read(files, 'withheld.json');
   assert.equal(withheld.artifacts.length, 1);
   assert.equal(withheld.artifacts[0].name, 'replay.trace.zip');
-  assert.match(withheld.artifacts[0].reason, /cannot redact/i);
+  assert.match(withheld.artifacts[0].reason, /original stays private/i);
   const included = Object.keys(files).filter((name) => name.startsWith('artifacts/'));
   assert.deepEqual(included.sort(), ['artifacts/assertions.json', 'artifacts/report.json']);
   // What is included is the verified redacted copy, not the stored bytes.

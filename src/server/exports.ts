@@ -13,7 +13,7 @@ import { campaignPayouts } from './payables.ts';
 import { redactionPolicy, redactText } from './redaction.ts';
 import { campaignRepairs } from './repairs.ts';
 import { campaignResources } from './resources.ts';
-import { getObject } from './storage.ts';
+import { digestOf, getObject } from './storage.ts';
 
 export const exportSchemaVersion = 1;
 export const exportLimits = {
@@ -53,7 +53,7 @@ type Withheld = { name: string; kind: string; sha256: string; reason: string };
  * evidence that has a verified redacted copy.
  *
  * Raw artifact bytes never leave. An artifact this platform's redaction policy
- * cannot clean — an archive or an image — is named in `withheld.json` with the
+ * cannot clean is named in `withheld.json` with the
  * reason instead of being included unchecked.
  */
 export async function campaignExport(
@@ -129,6 +129,16 @@ export async function campaignExport(
     const payouts = await campaignPayouts(db, id);
     const purchases = await campaignResources(db, id);
     const accounting = await campaignAccounting(db, id);
+    const names = new Set<string>();
+    const exportedNames = new Map<string, string>();
+    for (const artifact of artifacts) {
+      if (!artifact.reviewable || !artifact.redacted_key) continue;
+      let name = fileName(artifact.name);
+      let suffix = 0;
+      while (names.has(name)) name = `${artifact.id}-${suffix++}-${fileName(artifact.name)}`;
+      names.add(name);
+      exportedNames.set(artifact.id, `artifacts/${name}`);
+    }
 
     // Replay instructions: what was pinned, what the run attested, and what it
     // observed, so the same journey can be run again against the same build.
@@ -163,7 +173,9 @@ export async function campaignExport(
             name: artifact.name,
             kind: artifact.kind,
             sha256: artifact.sha256,
-            includedAs: artifact.reviewable ? `artifacts/${fileName(artifact.name)}` : null,
+            includedAs: exportedNames.get(artifact.id) ?? null,
+            redactedSha256: artifact.redacted_sha256,
+            redaction: artifact.redaction,
           })),
       };
     });
@@ -171,7 +183,6 @@ export async function campaignExport(
     const withheld: Withheld[] = [];
     const files: Record<string, Uint8Array> = {};
     let bytes = 0;
-    const names = new Set<string>();
     for (const artifact of artifacts) {
       if (!artifact.reviewable || !artifact.redacted_key) {
         withheld.push({
@@ -184,11 +195,13 @@ export async function campaignExport(
         });
         continue;
       }
-      let name = fileName(artifact.name);
-      // Two runs may upload the same filename; the digest keeps them apart.
-      if (names.has(name)) name = `${artifact.sha256.slice(0, 8)}-${name}`;
-      names.add(name);
       const content = await getObject(artifact.redacted_key as string);
+      if (digestOf(content) !== artifact.redacted_sha256)
+        throw new AppError(
+          'ARTIFACT_CORRUPT',
+          'A redacted artifact failed its integrity check.',
+          503,
+        );
       bytes += content.length;
       if (bytes > exportLimits.maxTotalBytes)
         throw new AppError(
@@ -196,7 +209,7 @@ export async function campaignExport(
           `This export exceeds ${exportLimits.maxTotalBytes} bytes of evidence.`,
           413,
         );
-      files[`artifacts/${name}`] = new Uint8Array(content);
+      files[exportedNames.get(artifact.id) as string] = new Uint8Array(content);
     }
 
     const body = {
@@ -235,9 +248,24 @@ export async function campaignExport(
       currency: settlementCurrency,
       redaction: {
         policy: redactionPolicy,
-        appliedTo: 'every artifact included here and every operator-supplied text field',
+        artifactPolicies: [
+          ...new Set(
+            artifacts
+              .filter((artifact) => artifact.reviewable)
+              .map((artifact) => artifact.redaction.policy),
+          ),
+        ],
+        appliedTo:
+          'Operator prose uses the text policy; each artifact records its own policy in replay.json.',
         rawBytesIncluded: false,
       },
+      artifacts: artifacts.map((artifact) => ({
+        id: artifact.id,
+        originalSha256: artifact.sha256,
+        includedAs: exportedNames.get(artifact.id) ?? null,
+        redactedSha256: artifact.redacted_sha256,
+        policy: artifact.redaction.policy,
+      })),
       counts: {
         submissions: submissions.length,
         findings: findings.length,
@@ -257,7 +285,7 @@ export async function campaignExport(
         'withheld.json',
         'artifacts/',
       ],
-      note: 'Raw artifact bytes are never exported. An archive or image has no verified redacted copy, so it is named in withheld.json instead. Accepted amounts are owed until a payout reaches finality.',
+      note: 'Raw artifact bytes are never exported. Supported browser traces contain only sanitized action/request metadata; page contents and input values are omitted. Other unsupported artifacts are named in withheld.json. Accepted amounts remain owed until finality.',
       verify:
         'Parse manifest.json, remove contentHash, serialize the rest with sorted keys, and take its SHA-256. It must equal contentHash.',
     };

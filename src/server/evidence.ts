@@ -1,10 +1,12 @@
 import { createHash } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import { AppError } from '../domain/errors.ts';
+import type { ReplayRecord, TraceReplay } from '../domain/replay.ts';
 import {
   type ArtifactKind,
   artifactMediaTypes,
   artifactUploadSchema,
+  type EvidenceInput,
   evidenceSchema,
   uuid,
 } from '../domain/schemas.ts';
@@ -21,6 +23,7 @@ import { campaignRepairs, recordRepair, recordVerification, repairRole } from '.
 import { campaignResources } from './resources.ts';
 import { isolationProfile, type RunSession, runLimits } from './runner.ts';
 import { digestOf, getObject, putObject } from './storage.ts';
+import { readTraceArchive } from './trace-archive.ts';
 import { sanitizeBrowserTrace, tracePolicy } from './trace-redaction.ts';
 
 const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -617,6 +620,81 @@ export async function readArtifact(
     redaction: artifact.redaction as Record<string, unknown>,
     sha256: artifact.redacted_sha256 as string,
     bytes,
+  };
+}
+
+/** Recorded evidence inspection only: this never visits or re-executes a target. */
+export async function readReplay(
+  pool: Pool,
+  actor: Actor,
+  workspaceId: string,
+  projectId: string,
+  campaignId: string,
+  submissionId: string,
+): Promise<ReplayRecord> {
+  const id = uuid.parse(submissionId);
+  const record = await transaction(pool, async (db) => {
+    await campaignForReader(db, actor, workspaceId, projectId, campaignId);
+    const submission = (
+      await db.query(
+        'SELECT document,run_id FROM evidence_submissions WHERE id=$1 AND campaign_id=$2',
+        [id, campaignId],
+      )
+    ).rows[0];
+    if (!submission) throw new AppError('NOT_FOUND', 'Recorded replay not found.', 404);
+    const artifacts = (
+      await db.query(
+        "SELECT id,reviewable,redaction FROM evidence_artifacts WHERE run_id=$1 AND kind='trace' ORDER BY created_at",
+        [submission.run_id],
+      )
+    ).rows;
+    await audit(db, workspaceId, actor.id, 'evidence.replay_read', id);
+    return { document: submission.document as EvidenceInput, artifacts };
+  });
+  const artifact = record.artifacts.find(
+    (item) => item.reviewable && item.redaction.policy === tracePolicy,
+  );
+  let trace: ReplayRecord['trace'] = null;
+  if (artifact) {
+    const derivative = await readArtifact(
+      pool,
+      actor,
+      workspaceId,
+      projectId,
+      campaignId,
+      artifact.id,
+    );
+    const bytes = readTraceArchive(derivative.bytes).get('replay.json');
+    if (!bytes)
+      throw new AppError('ARTIFACT_CORRUPT', 'The sanitized trace has no replay record.', 503);
+    const replay = JSON.parse(new TextDecoder().decode(bytes)) as TraceReplay;
+    trace = { ...replay, artifactId: artifact.id, sha256: derivative.sha256, policy: tracePolicy };
+  }
+  const clean = (text: string) => redactText(text).text;
+  const document = record.document;
+  return {
+    submissionId: id,
+    outcome: document.outcome,
+    summary: clean(document.summary),
+    build: {
+      revision: clean(document.build.revision),
+      fixtureVersion: document.build.fixtureVersion ? clean(document.build.fixtureVersion) : null,
+    },
+    steps: document.steps.map((step) => ({
+      ...step,
+      action: clean(step.action),
+      expected: clean(step.expected),
+      actual: clean(step.actual),
+    })),
+    assertions: document.assertions.map((assertion) => ({
+      ...assertion,
+      name: clean(assertion.name),
+      detail: clean(assertion.detail),
+    })),
+    trace,
+    traceReason: trace
+      ? null
+      : 'The original trace stays private because no supported sanitized copy exists. These are the submitted steps and assertions; browser actions are unavailable. A new supported browser run can supply a replayable trace.',
   };
 }
 

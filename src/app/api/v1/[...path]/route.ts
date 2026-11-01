@@ -34,6 +34,7 @@ import {
   campaignReview,
   campaignSubmissions,
   readArtifact,
+  readReplay,
 } from '@/server/evidence';
 import { campaignExport } from '@/server/exports';
 import {
@@ -171,7 +172,22 @@ async function handler(request: Request) {
               ),
               201,
             );
-          if (parts.length === 8 && parts[4] === 'campaigns' && parts[6] === 'artifacts') {
+          if (
+            parts.length === 9 &&
+            parts[4] === 'campaigns' &&
+            parts[6] === 'submissions' &&
+            parts[8] === 'replay' &&
+            method === 'GET'
+          )
+            return json(
+              await readReplay(pool, actor, workspaceId, projectId, uuid.parse(parts[5]), parts[7]),
+            );
+          if (
+            parts.length === 8 &&
+            parts[4] === 'campaigns' &&
+            parts[6] === 'artifacts' &&
+            method === 'GET'
+          ) {
             const artifact = await readArtifact(
               pool,
               actor,
@@ -188,7 +204,8 @@ async function handler(request: Request) {
                 'Content-Type': artifact.mediaType,
                 'Content-Disposition': `attachment; filename="redacted-${artifact.name}"`,
                 'X-Content-Type-Options': 'nosniff',
-                'X-Trialoom-Redaction': redactionPolicy,
+                'X-Trialoom-Redaction': String(artifact.redaction.policy),
+                'X-Trialoom-Artifact-Hash': artifact.sha256,
               },
             });
           }

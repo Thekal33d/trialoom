@@ -77,7 +77,11 @@ test('a builder reads redacted evidence and sees that nothing has been decided',
   // Both claims still reserve their maximum liability: nothing has been paid.
   await expect(brief).toContainText('7.60 USDC');
   await expect(brief).toContainText('owed and queued for payment');
-  await expect(brief).toContainText('This policy cannot redact archived or binary evidence.');
+  await expect(brief).toContainText('The original stays private.');
+  await brief.getByRole('button', { name: 'View replay', exact: true }).first().click();
+  const replay = brief.getByRole('region', { name: 'Recorded replay' });
+  await expect(replay).toContainText('browser actions are unavailable');
+  await expect(replay.getByRole('link', { name: 'Download sanitized trace' })).toHaveCount(0);
   await expect(brief.getByRole('link', { name: 'Open redacted copy' })).toHaveCount(2);
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])

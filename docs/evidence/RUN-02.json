@@ -1,0 +1,77 @@
+{
+  "task": "RUN-02",
+  "verifiedOn": "2026-11-01",
+  "timezone": "Africa/Lagos",
+  "result": "passed locally",
+  "scope": "Recorded step replay with authenticated metadata-only Playwright v10 trace derivatives, downloads and campaign exports.",
+  "policy": "playwright-metadata-v1",
+  "checkpoints": [
+    {
+      "commit": "6ae7c4a",
+      "step": "bounded archive reader, metadata projection and ingestion"
+    },
+    {
+      "commitSubject": "feat: add recorded replay and sanitized trace downloads",
+      "step": "replay UI, reader, downloads, exports and fresh browser verification"
+    }
+  ],
+  "checks": [
+    {
+      "command": "node --env-file-if-exists=.env --test tests/runner.test.ts tests/trace-redaction.test.ts tests/exports.test.ts",
+      "result": "39 passed"
+    },
+    {
+      "command": "npm run test:e2e -- tests/browser/evidence.spec.ts",
+      "result": "20 passed across desktop and mobile"
+    },
+    {
+      "command": "npm run browser:demo -- --smoke",
+      "result": "passed; real 201/400, replay navigation and retry, sanitized hashes/download/export, auth refusal, mobile/desktop accessibility, local Playwright viewer, and RUN-01 interruption/repaired fixture scenarios"
+    },
+    {
+      "command": "npm run lint",
+      "result": "123 files passed"
+    },
+    {
+      "command": "npm run typecheck",
+      "result": "passed"
+    },
+    {
+      "command": "npm run build",
+      "result": "passed; three pre-existing dynamic filesystem tracing warnings in src/server/storage.ts"
+    },
+    {
+      "command": "npm run browser:demo",
+      "result": "fresh visible replay opened at failed step; desktop/mobile inspected"
+    }
+  ],
+  "boundaries": [
+    "No raw trace bytes or arbitrary trace strings are shared.",
+    "Page snapshots, images, input values, sources, URLs, headers, bodies, cookies, console and error details are omitted.",
+    "Submitted prose uses the existing known-secret text policy, not a universal PII classifier.",
+    "Unsupported/invalid/excessive archives and legacy private traces stay private.",
+    "Recorded inspection does not re-execute targets, independently verify, accept work or authorize payment.",
+    "This is not a comprehensive security audit or operated customer isolation; no deployment, push, email or mainnet payment."
+  ],
+  "sourceSha256": {
+    "src/server/trace-archive.ts": "210d96d0d8113c53a8cdeb3d832490bed204b5d3b8454251a87b29f4d17c9769",
+    "src/server/trace-redaction.ts": "0385def7bd25d6cf4b1f02633b9e5002d2e3e5d051ec45fd8972237257916b96",
+    "src/server/evidence.ts": "55698d384ec17a38fde58ea8d0110fd930911c257029089dfb09be09c0119a42",
+    "src/server/exports.ts": "4d92e1cf0c5c57cf06ef1ad11d2ed199bb7e6c13fa4202e946e410fa3e5e271c",
+    "src/domain/replay.ts": "78907f1f3f8c250f6d5e0a395927605fb291504117399659c7fe962faf2a269f",
+    "src/app/api/v1/[...path]/route.ts": "d2bebf0002734bb20fb3b89218fd517d762f88dd9c89d3ffa60c53970a687414",
+    "src/components/replay-panel.tsx": "e55bc826c11558755ae6ed119e670b1bd85b8b687971381d58d191481eae772e",
+    "src/components/campaign-panel.tsx": "ae46d8d4392c071d881d72ba24914559cde8190e3f0778ec454a59d2a0f9bff3",
+    "src/components/review-panel.tsx": "9c29ffb1a773436b0870ff4eb2e42983016d4650b60fa3d5a400f1f4c92d5ef9",
+    "src/app/globals.css": "bd41699c95fde232754806ff5a0fd33e062c06804bd60f860fe3bbe6f571c691",
+    "scripts/browser-demo.ts": "3b0ee5bf85c4d01340bcbfd4621198f3bb99d54096181ddca812d983632314cc",
+    "scripts/browser-worker.ts": "9d426a76036fdaebb9a11de45b23676f6a621ba78511e6d2906edb7639360adb",
+    "scripts/browser-checks.ts": "e855f9282d888c88b275afb512b3b4a39e8a20e62253faf7b84b73bd22a8d9a3",
+    "scripts/trace-viewer-check.ts": "3c6177110b826f659fe4fecbcab436d37084b90866e635bda028c2310669adc4",
+    "tests/trace-redaction.test.ts": "f1bb456f0fcb9ef7fbc69fe9003c0b8c009523d95ae10fc189a22f20064d4ca4",
+    "tests/helpers/trace.ts": "a13d817ac2a09364cb54c3b92ad50cdaf1db0ea0213ffe9f2adbe555a5a300ec",
+    "tests/runner.test.ts": "e82f63c8751193c33ba25cf1faa1c342a3d8ad1555db03f9690c58cdd55dbe46",
+    "tests/exports.test.ts": "3c454ebcb2f864f8dbb919a6656d13a0ab8a90fcf0eeaf6a92390c1b1e287fbd",
+    "tests/browser/evidence.spec.ts": "5d6a590cedf81fbf32faa93220a3be0b4d67622068520287f7e7a47b90c13d43"
+  }
+}

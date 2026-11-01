@@ -28,7 +28,7 @@ The local [browser/evidence experiment](spikes/browser-evidence/README.md) repro
 
 ## Run the application
 
-For fresh evidence from an actual browser execution, follow [the real browser walkthrough](docs/RUN-01.md): `npm run browser:demo` tests the owned invitation app and opens its newly submitted result in Trialoom for review.
+For fresh evidence from an actual browser execution, follow [the real browser walkthrough](docs/RUN-01.md): `npm run browser:demo` tests the owned invitation app and opens its newly submitted result with [recorded replay and a sanitized trace download](docs/RUN-02.md).
 
 For a prepared hands-on sample, follow [Try Trialoom locally](docs/TRY-TRIALOOM.md). `npm run playground` opens a signed-in practice workspace, a sample app with a reproducible bug, and a short guide. It uses a disposable database and no real money.
 

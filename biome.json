@@ -12,7 +12,9 @@
       "playwright.config.ts",
       "biome.json",
       "runners/offline-*.ts",
-      "runners/gvisor-check/*.mjs"
+      "runners/preview-*.ts",
+      "runners/gvisor-check/*.mjs",
+      "runners/preview-check/*.ts"
     ],
     "ignoreUnknown": true
   },

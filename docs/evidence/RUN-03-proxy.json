@@ -1,0 +1,158 @@
+{
+  "task": "RUN-03",
+  "checkpoint": "enforced socket and HTTPS preview proxy",
+  "verifiedOn": "2026-11-01",
+  "timezone": "Africa/Lagos",
+  "result": "isolated local policy/browser/proxy-loss checks passed; live assignment integration remains gated",
+  "commitSubject": "feat: enforce isolated preview access through an HTTPS proxy",
+  "runtime": {
+    "browser": "runsc-preview",
+    "flags": [
+      "--host-uds=open",
+      "--network=none"
+    ],
+    "gvisor": "release-20261026.0",
+    "broker": "runc with network=none",
+    "unitChecks": "runsc with network=none",
+    "machine": "trialoom-runner"
+  },
+  "images": {
+    "base": "sha256:748a26205404b83ccc6a62da04a72ae42a63a5110de2f342ae1a47a4a47d0da9",
+    "verified": "sha256:f525bb483f0d622c0905c337e1fa79138076e6b2a78d375db4d17b540daea7cb",
+    "builtWithoutNetwork": true
+  },
+  "scope": {
+    "origin": "https://preview.example.com",
+    "resolver": "controlled fixture, no external DNS",
+    "upstream": "owned HTTPS loopback fixture in the separate broker namespace",
+    "publicIpConnectionOptionsAsserted": true,
+    "browser": "Chromium 156.0.8078.4",
+    "channel": "one fresh 1 MiB tmpfs volume, read-only in browser, socket and public SPKI only",
+    "privateKeys": "ephemeral input to private unit/broker scratch; absent from image/channel/browser"
+  },
+  "checks": [
+    {
+      "command": "npm run runner:proxy-check",
+      "result": "13 isolated policy/TLS groups; 2 fresh real Chromium journeys; 1 active-browser proxy-loss check; containers and channel removed"
+    },
+    {
+      "command": "npm run lint",
+      "result": "139 files passed"
+    },
+    {
+      "command": "npm run typecheck",
+      "result": "passed"
+    },
+    {
+      "command": "bash -n runners/setup-preview-runtime.sh",
+      "result": "passed"
+    }
+  ],
+  "policyChecks": [
+    "noncanonical origin and private/reserved/mixed DNS refusal",
+    "checked IP literal supplied to TLS transport with hostname verification; proxy credential not forwarded",
+    "changed and rebound DNS denied before upstream connect",
+    "unapproved CONNECT, forged Host, absolute URL and write method refused",
+    "WebSocket upgrade and nested CONNECT refused",
+    "same-origin redirect allowed, off-origin/private redirects withheld",
+    "upstream certificate hostname mismatch refused",
+    "failed DNS recheck denied without raw error leakage",
+    "cancellation during DNS prevents late upstream connection",
+    "per-response and aggregate byte budgets",
+    "request and connection count budgets",
+    "parsed incoming metadata and concurrent connection budgets",
+    "active cancellation, deadline and idle timeout"
+  ],
+  "browserRuns": [
+    {
+      "attempt": 1,
+      "passed": true,
+      "allowedNavigation": true,
+      "redirectChecked": true,
+      "deniedOrigin": true,
+      "deniedWriteMethod": true,
+      "directIPv4IPv6PrivateMetadataAndUdpDenied": true,
+      "freshStorage": true,
+      "channelReadOnly": true
+    },
+    {
+      "attempt": 2,
+      "passed": true,
+      "allowedNavigation": true,
+      "redirectChecked": true,
+      "deniedOrigin": true,
+      "deniedWriteMethod": true,
+      "directIPv4IPv6PrivateMetadataAndUdpDenied": true,
+      "freshStorage": true,
+      "channelReadOnly": true
+    }
+  ],
+  "proxyWitness": {
+    "closed": false,
+    "connections": 16,
+    "requests": 14,
+    "parsedInputMetadataBytes": 12666,
+    "responseBytesIncludingSerializedHeaders": 1760,
+    "upstreamRequests": 12,
+    "observations": [
+      {
+        "origin": "https://preview.example.com",
+        "reason": "ALLOWED",
+        "count": 10
+      },
+      {
+        "origin": "https://preview.example.com",
+        "reason": "REDIRECT_DENIED",
+        "count": 2
+      },
+      {
+        "origin": "https://preview.example.com",
+        "reason": "METHOD_DENIED",
+        "count": 2
+      },
+      {
+        "origin": null,
+        "reason": "ORIGIN_DENIED",
+        "count": 2
+      }
+    ]
+  },
+  "proxyLoss": {
+    "loadedSuccessfullyBeforeKill": true,
+    "proxyKilledBySupervisor": true,
+    "freshNavigationRefusedAfterKill": true,
+    "directNetworkDenied": true
+  },
+  "cleanup": {
+    "ownedContainersRemoved": true,
+    "channelVolumeRemoved": true,
+    "temporaryBuildContextsAndIdentityFilesRemoved": true
+  },
+  "limitations": [
+    "Offline fixture tests only: no Blokaz or other public site executed.",
+    "Transport mapping to loopback is confined to reviewed fixture helpers; default public-network transport awaits authorized target integration.",
+    "Byte counts are parsed HTTP metadata and response data, not complete TLS wire accounting.",
+    "GET/HEAD-only HTTP/1.1 policy; no form/authenticated/wallet/WebSocket journey.",
+    "Proxy snapshot is independent of browser output but has not been delivered to the authenticated Trialoom host-witness API.",
+    "No live grant, application evidence/replay ingestion, host registration, acceptance or payment.",
+    "Production crash reconciliation, external watchdog/reaper and adversarial gVisor resource checks remain open."
+  ],
+  "sourceSha256": {
+    "runners/preview-policy.ts": "1df443501f2a9bb28ad5ce11142d80bc6f6a21629d2bda7f6a2779ac93e6d163",
+    "runners/preview-proxy.ts": "8faeb64a6c05a07f3d0d470d7e30e921c6d6ca35a08c4ff2cf52130f7b20f091",
+    "runners/setup-preview-runtime.sh": "b0843e98efeb6e87f17a76729339dc37ac366083808902ec3ae331b45617788f",
+    "scripts/check-preview-proxy.ts": "232b77af97ff985b4913e4df0db73f7dd8611ff962c9b2278223acf314d46b2f",
+    "src/server/targets.ts": "d3afc9112b2382abef906177d061c9f40c62f2e470fe8c927ed8747c76565651",
+    "src/domain/errors.ts": "dba69283676705bbcb3a62f21d9b9840ac2b50c332a8dbb95e0f26f7f23662f8",
+    "package.json": "b2208e054e741aede994b542941283ea53b8824ed952d910bc205aee0638668a",
+    "tsconfig.json": "a9b6ec1b8ba3367029aa4f85e686d0d64cc2e3ba2a30baf16d73fb1f6aacf216",
+    "biome.json": "79ef6d0fb91cadb714f5d8e2825a5fbc0993b9202f9e3501d7449fa822999966",
+    "runners/preview-check/Dockerfile": "51cfbd45c6222b07e126b7ce2aa8139784691bc2c605cff1d8168e7f7023162a",
+    "runners/preview-check/broker.ts": "d21674593fa2a4b971afd40e130a388254c7ad9637881a7aa7a508933a70952e",
+    "runners/preview-check/browser.ts": "583d4e4b4498a6f00e5cf5e7c8dc1134684ae70e19afa6e301205d90b03318ed",
+    "runners/preview-check/fixture.ts": "d6ec0c305112cb50b8ce4a87ee38810c761620ff2f6b1b5a6476d7b1a2d0c177",
+    "runners/preview-check/proxy.test.ts": "7b095c48df92355d3eabdb846b64a667ec35f57a514d364a70c722eff46b8850",
+    "runners/preview-check/read-identities.ts": "edad89d3b217130c3120c3f45c871c415aafda2c626e5991bfe42912e46ff607",
+    "runners/preview-check/test-entry.ts": "211a0a4f2409b5290c1ab4e82e9974191d4dc477ddd4adb13f429712b4d2bfb6"
+  }
+}

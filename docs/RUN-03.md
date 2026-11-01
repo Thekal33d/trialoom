@@ -1,6 +1,6 @@
 # Operated runner: isolation checkpoints
 
-RUN-03 is in progress. Two checkpoints were verified on 2026-11-01: **offline owned Node fixtures** under OS-enforced container controls, followed by **two owned Chromium journeys under gVisor** in a separate isolated Linux environment. Neither runs customer code or preview websites. See the [dedicated host guide](RUN-03-HOST.md) and [browser evidence](evidence/RUN-03-gvisor.json). RUN-01's visible browser demo still uses its existing controlled local driver.
+RUN-03 is in progress. The offline and browser checkpoints were verified on 2026-11-01: **offline owned Node fixtures** under OS-enforced container controls, followed by **two owned Chromium journeys under gVisor** in a separate isolated Linux environment. Neither runs customer code or preview websites. See the [dedicated host guide](RUN-03-HOST.md) and [browser evidence](evidence/RUN-03-gvisor.json). A third [restricted proxy checkpoint](RUN-03-PROXY.md) now verifies two isolated Chromium journeys through an enforcing HTTPS proxy and access loss after proxy termination. RUN-01's visible browser demo still uses its existing controlled local driver.
 
 ## First checkpoint
 
@@ -47,7 +47,7 @@ The original macOS Docker engine offers `runc`; the dedicated Ubuntu development
 Before RUN-03 can be complete:
 
 1. Extend the verified local gVisor/Chromium compatibility checkpoint with adversarial resource checks, an external watchdog and crash recovery. The two owned browser runs do not prove those production properties.
-2. Make a host-controlled, origin-restricted proxy the browser's only egress path. Pin admitted IP addresses on actual connections, deny internal/metadata destinations and revalidate redirects. Retain an independent witness; no network assertion from the page can establish enforcement.
+2. The host-controlled proxy path is verified against offline fixtures, including pinned-IP request options, TLS/HTTP authority, redirects and direct-network denial. Connect its independent observations to the authenticated host witness API and validate the default public-network transport during the authorized target integration; do not treat fixture execution as a live customer test.
 3. Bind dispatch, cancellation and expiry to the actual run grant/host contract, publish applicable resource limits, and safely collect bounded evidence after shutdown.
 4. Run the owned invitation journey through this host and the existing evidence/replay workflow. Only then admit one explicitly authorized real preview and bounded journey.
 

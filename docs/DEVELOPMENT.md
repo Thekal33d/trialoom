@@ -2,7 +2,7 @@
 
 The application includes invitation-only accounts, workspace roles, authorized projects, pinned builds, and versioned draft briefs ([ALPHA-02](ALPHA-02.md)), operator connection and qualification ([ALPHA-03](ALPHA-03.md)), and the campaign ledger with atomic claims and leases ([ALPHA-04](ALPHA-04.md)), plus a durable smoke worker. `/workspace` holds real local account/project data. `/demo` remains explicitly synthetic: Canopy is an example name, and its before/after results summarize the existing invitation fixture. Builders can publish briefs, review submitted work, and export redacted evidence; operators can claim work through the API. Valid decisions create payables, but no live payment provider is configured locally.
 
-For offline runner controls and customer-readiness gates, see [RUN-03](RUN-03.md): `npm run runner:check` and `npm run runner:doctor`. For actual owned Chromium execution under gVisor, see the [dedicated host setup](RUN-03-HOST.md): `npm run runner:gvisor-check`.
+For offline runner controls and customer-readiness gates, see [RUN-03](RUN-03.md): `npm run runner:check` and `npm run runner:doctor`. For actual owned Chromium execution under gVisor, see the [dedicated host setup](RUN-03-HOST.md): `npm run runner:gvisor-check`. The [restricted preview proxy](RUN-03-PROXY.md) has its own isolated `npm run runner:proxy-check` suite; its fixture certificates are supplied only inside private scratch.
 
 ## First run
 

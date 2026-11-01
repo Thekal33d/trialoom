@@ -60,6 +60,6 @@ An initial request-budget check failed because Node's HTTP parser can bypass soc
 
 ## Remaining RUN-03 work
 
-Bind this path to the live run grant, approved scope and host credential; revoke it on assignment cancellation/expiry; deliver/reconcile witness observations; collect bounded evidence after shutdown and show it through the existing replay flow. Verify the owned journey through that full path before the authorized read-only `https://www.blokaz.xyz` journey. This library/check does not enable arbitrary-site execution. Adversarial gVisor resource exhaustion, a production watchdog/reaper, crash reconciliation, deployment and independent operator verification remain open.
+The later [application integration](RUN-03-INTEGRATION.md) binds this proxy to live permissions, immutable host-witness receipts and bounded evidence/replay. The owned read-only journey passes; the authorized Blokaz homepage loads but records scope/budget blocks. The local external watchdog is verified. Durable production recovery, adversarial resource exhaustion, deployment and independent-operator validation remain open. This library/check itself still does not enable arbitrary-site execution.
 
 Official sources checked on 2026-11-01: [installed gVisor release flags](https://github.com/google/gvisor/blob/release-20261026.0/runsc/config/flags.go), [gVisor networking](https://gvisor.dev/docs/user_guide/networking/), [Node TLS APIs](https://github.com/nodejs/node/blob/main/doc/api/tls.md), and [Docker tmpfs mounts](https://docs.docker.com/engine/storage/tmpfs/).

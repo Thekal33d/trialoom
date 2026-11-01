@@ -509,3 +509,10 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Validation: all 8 archive/projection tests pass, including a secret canary attached to the failed request and invalid status variants; 32 ingestion/export/database regressions pass; projecting the private real trace produces metadata-only output with three failures and no target name. Build (same three pre-existing storage tracing warnings), strict types, lint and diff checks pass. A fresh actual Blokaz run passed HTTP ingestion, independent witness, sanitized hash agreement and the visible no-response UI assertion; screenshot visually checked. It loaded homepage content with HTTP 200, forwarded six responses and remained blocked after two off-origin denials and a budget refusal. No acceptance or payable.
 - New signed-in replay session: port 59933; private result/screenshot under ignored artifacts. The earlier port-59867 process ended; verified cleanup of its specifically identified disposable DB/raw evidence separately. Current and earlier RUN-01 demos are retained. No integrated-run containers or channel volumes remain.
 - Commit subject: `fix: preserve failed requests in sanitized browser replay` (RUN-03, RUN-02).
+
+
+## 2026-11-01 — RUN-03: reconcile durable context and remaining gates
+
+- Updated PROJECT and the earlier runner guides to distinguish historical offline/compatibility checkpoints from the now-verified local application integration. Removed stale claims that live witness/evidence dispatch is still unimplemented; preserved production recovery, adversarial resources and independent validation as open gates. STATUS remains the current-session source of truth.
+- Checked local Markdown links, JSON evidence/source hashes, original PRD digest and Git diff. Documentation only; no additional runtime tests needed.
+- Commit subject: `docs: reconcile runner progress and remaining gates` (RUN-03).

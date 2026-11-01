@@ -42,16 +42,15 @@ The live check exercises actual denied TCP/UDP/IPv6/metadata-address connections
 
 ## Remaining gates
 
-The original macOS Docker engine offers `runc`; the dedicated Ubuntu development environment now has `runsc` and passes owned Chromium compatibility checks. OrbStack machines share a Linux kernel; the additional gVisor syscall boundary is exercised, but no customer host is registered and the complete `runner-host-v1` contract is not yet satisfied.
+The original macOS Docker engine offers `runc`; the dedicated Ubuntu environment runs `runsc` with verified owned Chromium compatibility. OrbStack machines share a Linux kernel. The later [application integration](RUN-03-INTEGRATION.md) now registers a host in a disposable workspace, binds real run permissions, reports independent egress, collects bounded evidence and displays replay. An external host timer and active permission-stop checks pass. The authorized Blokaz homepage loaded through the default public transport; scope/budget denials correctly kept its overall result blocked. The fixed read-only sample replaces the write-based invitation journey for this proxy policy.
 
 Before RUN-03 can be complete:
 
-1. Extend the verified local gVisor/Chromium compatibility checkpoint with adversarial resource checks, an external watchdog and crash recovery. The two owned browser runs do not prove those production properties.
-2. The host-controlled proxy path is verified against offline fixtures, including pinned-IP request options, TLS/HTTP authority, redirects and direct-network denial. Connect its independent observations to the authenticated host witness API and validate the default public-network transport during the authorized target integration; do not treat fixture execution as a live customer test.
-3. Bind dispatch, cancellation and expiry to the actual run grant/host contract, publish applicable resource limits, and safely collect bounded evidence after shutdown.
-4. Run the owned invitation journey through this host and the existing evidence/replay workflow. Only then admit one explicitly authorized real preview and bounded journey.
+1. Verify adversarial resource exhaustion under the complete gVisor/proxy topology. Applied limits and earlier offline checks do not prove every production property.
+2. Add durable dispatch/recovery records, daemon/machine restart reconciliation and operational monitoring. The local transient watchdog does not cover every infrastructure failure.
+3. Agree further target journeys and dependencies explicitly, confirm deployed build identity, and complete the production operations/privacy/security gates and independent-operator validation.
 
-No customer execution mode exists in this checkpoint. The doctor remains unready even if a runtime called `runsc` is registered: registration alone is not verification. Existing application admission, review and payment behavior is unchanged.
+The offline `runner:doctor` remains unready for general customer operation. Its result must not be bypassed because a runtime is registered or a local demonstration passed. Existing review/payment authority remains separate from execution evidence.
 
 ## Official references checked on 2026-11-01
 

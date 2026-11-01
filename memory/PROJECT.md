@@ -29,7 +29,7 @@ A verified local application now exists: `/workspace` uses invitation-only Bette
 
 RUN-01 adds a fixed, controlled Chromium driver connected to actual evidence HTTP ingestion and the workspace. `npm run browser:demo` runs an owned loopback invitation fixture in a disposable database and opens fresh pending evidence. The browser has a separate context and filtered environment; the trusted controller and driver still share a Node process. This does not operate a customer sandbox or enable arbitrary targets. Raw traces remain private. RUN-02 adds recorded step replay and metadata-only Playwright v10 derivatives for review/download/export, omitting page contents and free-form trace values; unsupported archives stay private. This does not re-execute a test or establish independent verification. [Execution](../docs/RUN-01.md), [replay policy and checks](../docs/RUN-02.md).
 
-RUN-03 is underway. An offline supervisor now verifies OS network denial, resource limits, interruption and cleanup with owned Node fixtures. It does not run customer browsers or weaken the selected gVisor requirement. [Host checkpoint and remaining gates](../docs/RUN-03.md).
+RUN-03 is underway. Offline control probes verify OS network/resource denial and cleanup; a dedicated isolated Ubuntu environment now runs two fresh owned Chromium journeys under gVisor with external networking disabled. The local browser check is separate from customer dispatch: enforcing proxy, grant lifecycle and evidence integration remain open. [Host checkpoints and remaining gates](../docs/RUN-03.md).
 
 The disposable browser/evidence experiment uses Node 24 and Playwright Test (D009). This local harness is separate from the eventual marketplace architecture.
 

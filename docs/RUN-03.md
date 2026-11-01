@@ -1,6 +1,6 @@
 # Operated runner: isolation checkpoints
 
-RUN-03 is in progress. The first checkpoint, verified on 2026-11-01, operates **offline owned Node fixtures** under OS-enforced container controls. It does not yet run Chromium, customer code, or preview websites. RUN-01's visible browser demo still uses its existing controlled local driver.
+RUN-03 is in progress. Two checkpoints were verified on 2026-11-01: **offline owned Node fixtures** under OS-enforced container controls, followed by **two owned Chromium journeys under gVisor** in a separate isolated Linux environment. Neither runs customer code or preview websites. See the [dedicated host guide](RUN-03-HOST.md) and [browser evidence](evidence/RUN-03-gvisor.json). RUN-01's visible browser demo still uses its existing controlled local driver.
 
 ## First checkpoint
 
@@ -42,11 +42,11 @@ The live check exercises actual denied TCP/UDP/IPv6/metadata-address connections
 
 ## Remaining gates
 
-The local Docker engine currently offers `runc`, not `runsc`. Ordinary containers share their Linux host kernel; this checkpoint does **not** satisfy the existing `runner-host-v1` customer sandbox contract or register a witnessed host.
+The original macOS Docker engine offers `runc`; the dedicated Ubuntu development environment now has `runsc` and passes owned Chromium compatibility checks. OrbStack machines share a Linux kernel; the additional gVisor syscall boundary is exercised, but no customer host is registered and the complete `runner-host-v1` contract is not yet satisfied.
 
 Before RUN-03 can be complete:
 
-1. Operate and verify a separate gVisor Linux host with a pinned browser image; test Chromium compatibility, isolation, resource limits and crash recovery there.
+1. Extend the verified local gVisor/Chromium compatibility checkpoint with adversarial resource checks, an external watchdog and crash recovery. The two owned browser runs do not prove those production properties.
 2. Make a host-controlled, origin-restricted proxy the browser's only egress path. Pin admitted IP addresses on actual connections, deny internal/metadata destinations and revalidate redirects. Retain an independent witness; no network assertion from the page can establish enforcement.
 3. Bind dispatch, cancellation and expiry to the actual run grant/host contract, publish applicable resource limits, and safely collect bounded evidence after shutdown.
 4. Run the owned invitation journey through this host and the existing evidence/replay workflow. Only then admit one explicitly authorized real preview and bounded journey.

@@ -30,7 +30,7 @@ The local [browser/evidence experiment](spikes/browser-evidence/README.md) repro
 
 For fresh evidence from an actual browser execution, follow [the real browser walkthrough](docs/RUN-01.md): `npm run browser:demo` tests the owned invitation app and opens its newly submitted result with [recorded replay and a sanitized trace download](docs/RUN-02.md).
 
-The [RUN-03 host checkpoint](docs/RUN-03.md) adds `npm run runner:check` for offline isolation controls; customer preview execution still requires the gVisor host and enforcing proxy.
+The [RUN-03 host checkpoints](docs/RUN-03.md) add `npm run runner:check` for offline controls and `npm run runner:gvisor-check` for two owned Chromium journeys in a dedicated gVisor environment. Customer preview execution still requires proxy, grant and evidence integration.
 
 For a prepared hands-on sample, follow [Try Trialoom locally](docs/TRY-TRIALOOM.md). `npm run playground` opens a signed-in practice workspace, a sample app with a reproducible bug, and a short guide. It uses a disposable database and no real money.
 

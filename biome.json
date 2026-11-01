@@ -11,7 +11,8 @@
       "next.config.ts",
       "playwright.config.ts",
       "biome.json",
-      "runners/offline-*.ts"
+      "runners/offline-*.ts",
+      "runners/gvisor-check/*.mjs"
     ],
     "ignoreUnknown": true
   },

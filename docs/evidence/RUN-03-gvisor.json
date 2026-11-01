@@ -1,0 +1,136 @@
+{
+  "task": "RUN-03",
+  "checkpoint": "dedicated local gVisor owned-browser compatibility",
+  "verifiedOn": "2026-11-01",
+  "timezone": "Africa/Lagos",
+  "result": "two fresh owned Chromium journeys passed; customer runner remains gated",
+  "commitSubject": "feat: verify Chromium in a dedicated gVisor runner",
+  "host": {
+    "machine": "trialoom-runner",
+    "os": "Ubuntu 24.04",
+    "architecture": "arm64",
+    "isolatedIntegration": true,
+    "isolatedNetwork": true,
+    "macMount": false,
+    "sshAgentForwarded": false,
+    "cpus": 2,
+    "memoryMiB": 2048,
+    "diskQuotaGiB": 12,
+    "runtime": "runsc release-20261026.0",
+    "platform": "systrap",
+    "docker": "29.1.3",
+    "storage": "vfs",
+    "separateKernel": false
+  },
+  "image": {
+    "baseDigest": "node@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c",
+    "imageId": "sha256:748a26205404b83ccc6a62da04a72ae42a63a5110de2f342ae1a47a4a47d0da9",
+    "playwright": "1.64.1",
+    "chromium": "156.0.8078.4",
+    "node": "v24.22.2"
+  },
+  "policy": {
+    "name": "gvisor-owned-browser-v1",
+    "network": "none",
+    "uid": 65534,
+    "readonlyRoot": true,
+    "readonlyTmpMiB": 1,
+    "scratchMiB": 128,
+    "sharedMemoryMiB": 64,
+    "memoryMiB": 1024,
+    "extraSwapMiB": 0,
+    "cpus": 1,
+    "hostPidsLimit": 256,
+    "guestNprocLimit": 256,
+    "fileMiB": 16,
+    "outputKiB": 64,
+    "traceMiB": 8,
+    "internalDeadlineSeconds": 45,
+    "controllerDeadlineSeconds": 50,
+    "hostMounts": false,
+    "applicationCredentials": false
+  },
+  "fixtureBuild": "e6ac712e4c02b17a6b64daa2a8e9060980fc126611fe14a9742ba864d20fecd4",
+  "runs": [
+    {
+      "attempt": 1,
+      "statuses": [
+        201,
+        400
+      ],
+      "freshStorage": true,
+      "networkDenied": true,
+      "rootWriteErrno": "EROFS",
+      "tmpWriteErrno": "EROFS",
+      "trace": {
+        "bytes": 2884,
+        "sha256": "3ec7a72ca81cf4938541ee1674512027a08c95ea09420743ce0299e5da6c406c"
+      },
+      "containerRemoved": true
+    },
+    {
+      "attempt": 2,
+      "statuses": [
+        201,
+        400
+      ],
+      "freshStorage": true,
+      "networkDenied": true,
+      "rootWriteErrno": "EROFS",
+      "tmpWriteErrno": "EROFS",
+      "trace": {
+        "bytes": 2882,
+        "sha256": "4f0cdf8b464b2d71abc6e449e9991ad69adb25a22f7893338e5c6677747bba39"
+      },
+      "containerRemoved": true
+    }
+  ],
+  "checks": [
+    {
+      "command": "npm run runner:gvisor-check",
+      "result": "passed two fresh runs; verified runtime/policy and cleanup"
+    },
+    {
+      "command": "npm run lint",
+      "result": "130 files passed"
+    },
+    {
+      "command": "npm run typecheck",
+      "result": "passed"
+    },
+    {
+      "command": "bash -n runners/setup-local-gvisor.sh",
+      "result": "passed"
+    }
+  ],
+  "observedFailures": [
+    "Nested Docker overlayfs dpkg directory renames failed with EXDEV; dedicated daemon moved to VFS preserving the public base image.",
+    "First gVisor browser check rejected its implicit writable /tmp; fixed with explicit read-only tmpfs.",
+    "Additional root write probe returned EACCES due to ordinary permissions; moved the probe into a writable image directory and verified EROFS."
+  ],
+  "boundaries": [
+    "Reviewed owned fixture only; no Blokaz browser execution, customer scripts or live run grant.",
+    "Public dependencies fetched during trusted toolchain construction only; execution has no external route.",
+    "Chromium inner sandbox disabled; outer runsc required and no runc fallback.",
+    "Applied resource settings inspected, but adversarial gVisor exhaustion and production watchdog/recovery remain unverified.",
+    "Trace bytes were ephemeral in sandbox scratch; only sizes and hashes retained.",
+    "No evidence submitted, host registered, review accepted, payment made or production deployment.",
+    "OrbStack machines share a Linux kernel; this is a local development compatibility environment."
+  ],
+  "remaining": [
+    "Enforced origin-restricted proxy with pinned public IPs and independent witness",
+    "Live grant dispatch, cancellation, expiry and bounded evidence ingestion",
+    "Owned journey through existing replay flow",
+    "Authorized read-only Blokaz journey",
+    "Adversarial resource checks and production external watchdog/crash recovery"
+  ],
+  "sourceSha256": {
+    "runners/setup-local-gvisor.sh": "52647c8330e655269055f9caec6635a76a01261b2353d73ba29e91ab253577fc",
+    "runners/gvisor-check/Dockerfile": "a0846b7f44bad8789e65bf2e88114fa8856364b2fa036eec383e54f53c3bd8cf",
+    "runners/gvisor-check/browser.mjs": "8fc4a84ea99eb3cdb1fbf39d420d558667b8645c28a494e0e93da525ae0b0e14",
+    "scripts/check-gvisor-browser.ts": "3006a30d2a26b44c46068829d4bc20fe16f81b21b4ecdf487feffdccfc8279e6",
+    "spikes/browser-evidence/fixture.mjs": "50f5ab1bc12140c017714ab1830c6de13ea64e81143b81257ff25eb4a901561f",
+    "package.json": "7a6c3b8d21673951fbf39005ff3ed4b33a3a8db3b2f4afbc001c03a2d2ee49b9",
+    "biome.json": "7a0c0463d8ac77acaa24f8e336465dbfbc88501942f4d27833a4e803d3012267"
+  }
+}

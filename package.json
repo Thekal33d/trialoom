@@ -37,7 +37,8 @@
     "payments:fork": "node --env-file-if-exists=.env scripts/verify-payments.ts",
     "runner:doctor": "node scripts/check-runner.ts --doctor",
     "runner:check": "node scripts/check-runner.ts",
-    "runner:cleanup": "node scripts/check-runner.ts --reap-expired"
+    "runner:cleanup": "node scripts/check-runner.ts --reap-expired",
+    "runner:gvisor-check": "node scripts/check-gvisor-browser.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",

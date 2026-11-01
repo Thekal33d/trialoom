@@ -1,0 +1,75 @@
+{
+  "task": "RUN-01",
+  "verifiedOn": "2026-11-01",
+  "timezone": "Africa/Lagos",
+  "result": "passed locally",
+  "scope": "Actual controlled Chromium execution submitted through the existing HTTP evidence API and displayed pending builder review.",
+  "checks": [
+    {
+      "command": "npm run browser:demo -- --smoke",
+      "result": "passed",
+      "groups": 7,
+      "outcomes": [
+        "baseline 201/400 and product_failed",
+        "expired grant refused",
+        "local cancellation closes context with no submission",
+        "unavailable fixture blocked with no defect",
+        "revoked run stops before submission",
+        "time cap produces agent_limitation blockage",
+        "repaired fixture 201/201 and executed"
+      ]
+    },
+    {
+      "command": "node --env-file-if-exists=.env --test tests/runner.test.ts",
+      "result": "25 passed; pinned binding assertions added to existing grant test"
+    },
+    {
+      "command": "npm run lint",
+      "result": "passed, 116 files"
+    },
+    {
+      "command": "npm run typecheck",
+      "result": "passed"
+    },
+    {
+      "command": "npm run build",
+      "result": "passed",
+      "warnings": "Three pre-existing dynamic filesystem tracing warnings in src/server/storage.ts"
+    },
+    {
+      "command": "npm run browser:demo",
+      "result": "Visible fresh run submitted, signed-in pending review inspected"
+    }
+  ],
+  "additionalAssertions": [
+    "real trace contains observed 201 and 400 responses",
+    "uploaded trace SHA-256 matches local captured bytes",
+    "run grant absent from browser trace",
+    "redacted text and ZIP export available after reload",
+    "raw binary trace withheld",
+    "no payable or acceptance created by submission",
+    "closed grant cannot submit a second result",
+    "normal HTTP project admission still refuses loopback target",
+    "disposable smoke database/files removed"
+  ],
+  "limits": [
+    "fixed owned loopback fixture only",
+    "administrative test accounts, qualification, claim, and grant setup",
+    "driver and trusted controller share a Node process; Chromium has filtered environment and separate browser context",
+    "attested isolation, no operated OS sandbox or customer-site support",
+    "no automatic dispatch from campaign UI",
+    "no independent operator or repair verification claim",
+    "no raw-trace export/replay UI",
+    "no payment, resource purchase, deployment, or hackathon eligibility claim"
+  ],
+  "sourceSha256": {
+    "src/server/runner.ts": "75f8979a10ac2f11ed9c84edd6490e1888efa4b6baaaf9b1cd3774aeed5ad0dc",
+    "scripts/browser-worker.ts": "c614c3d280b1794868c762d777e84d98d3817d4bf505e63adec9c0d4af72f580",
+    "scripts/browser-fixture.ts": "79ec4e4d571bdb2f09783549a6bccd70a6e1063a150088c1cbe136f46ff1a2b7",
+    "scripts/browser-demo.ts": "2b07313e66872be06902e351f91123b45db89f33cb7b8c8b5f7cb9a177aea428",
+    "scripts/browser-checks.ts": "1f064c3430338a2af14581e59edbb74d4561e0957aa9156993e666b45c65a0e3",
+    "scripts/local-server.ts": "94ca1061b0bc33d7df4cdf0f343ccc41d24551a42ba6faa9044bf856991d4df8",
+    "tests/runner.test.ts": "ee98f14ff82448ebbc85fdee08e20c840110092575892625b986277f595df592",
+    "package.json": "34e7aae273758a80e1eb840d582449011a99daeb9aa948d5948f897dc8ae0b53"
+  }
+}

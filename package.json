@@ -29,6 +29,7 @@
     "test:db": "node --env-file-if-exists=.env --test tests/*.test.ts",
     "test:e2e": "node --env-file-if-exists=.env scripts/test-browser.ts",
     "playground": "node --env-file-if-exists=.env scripts/test-browser.ts --playground",
+    "browser:demo": "PLAYWRIGHT_BROWSERS_PATH=.cache/ms-playwright node --env-file-if-exists=.env scripts/browser-demo.ts",
     "check": "npm run lint && npm run typecheck && npm test",
     "setup:auth": "node scripts/setup-auth.mjs",
     "workspace:invite": "node --env-file-if-exists=.env scripts/invite.ts",

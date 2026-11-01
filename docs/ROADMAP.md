@@ -1,6 +1,6 @@
 # Delivery roadmap
 
-Last updated: 2026-10-27. Baseline: [PRD v0.1](PRD.md). Live task state: [BACKLOG.md](BACKLOG.md).
+Last updated: 2026-11-01. Baseline: [PRD v0.1](PRD.md). Live task state: [BACKLOG.md](BACKLOG.md).
 
 The product target is an invited marketplace. The hackathon target is a demonstrable slice of the same product. A successful demo does not establish pilot readiness.
 
@@ -8,7 +8,7 @@ The product target is an invited marketplace. The hackathon target is a demonstr
 | --- | --- | --- | --- |
 | M0 — Project foundation | PRD, persistent memory, incremental commits, roadmap, backlog, hackathon notes | Linked documents and checkpoint commits | Complete |
 | M1 — Capability validation | Seeded browser journey, reproducible defect, regression fix, payment recovery experiment, resource evaluation | Replay/export artifacts, baseline/candidate results, recovery outcomes, stack decision | In progress: VAL-01/VAL-03 complete locally; VAL-02 independent review and VAL-04 resource proof pending |
-| M2 — Internal alpha | Projects/builds, versioned terms, operator API, bounded claims, evidence review, ledger, provider adapters | Repeatable seeded campaign through settlement; concurrency and restart checks pass | The alpha backlog is complete and verified locally, ALPHA-01 to ALPHA-11; invited sessions, roles, project/build records, versioned terms, operator connection and qualification, the campaign ledger with atomic claims and leases, scoped run grants with evidence ingestion, recorded decisions that accept work, the quoted and independently verified repair workflow, payables settled through an idempotent outbox, capped resource purchases reimbursed at their eligible cost, exports plus a queue of what is waiting, and one repeatable command that drives the whole loop are implemented; what remains before a pilot is a funded payment authority and a runner host Trialoom operates, now that egress is witnessed rather than attested and the pilot's own targets are instrumented and measured |
+| M2 — Internal alpha | Projects/builds, versioned terms, operator API, bounded claims, evidence review, ledger, provider adapters | Repeatable seeded campaign through settlement; concurrency and restart checks pass | ALPHA-01–ALPHA-11 complete locally as foundations. RUN-01 now connects actual controlled Chromium execution to HTTP evidence ingestion and review/export. Production runner isolation, PILOT-01 operations/privacy/security, real participants, and funded pilot work remain open. |
 | H — Hackathon demonstration | Usable slice of M1/M2 with selected event requirements | [Hackathon checklist](HACKATHON.md) and verified demo evidence | Not started; track proposed |
 | M3 — Invited pilot | Three launch services, reviewer coverage, appeals, caps, exports, retention, real customers | All PRD release scenarios pass; controls and measured metrics support launch | Not started |
 | M4 — Public beta | Stronger funding guarantees, scaled qualification, hardened operations | Implemented funding mechanism and security/provider reviews support public promises | Deferred |

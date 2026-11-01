@@ -1,8 +1,10 @@
 # Current status
 
-Last updated: 2026-10-31 (Africa/Lagos).
+Last updated: 2026-11-01 (Africa/Lagos).
 
 ## State
+
+**RUN-01 is connected and verified locally.** `npm run browser:demo` executes the owned invitation fixture in Chromium, uploads the actual trace/assertions/report through scoped HTTP routes, and opens the new finding pending builder review. The fixture build hash, observed responses, browser version, and timestamps come from execution. A repaired copy passes with the same driver; expiry, cancellation, revocation, and timeout are checked. Setup/accounts/claims remain administratively prepared in a disposable database; this is a fixed controlled journey, not hosted autonomous execution or an isolated customer runner. Raw traces remain private under the existing text-only redaction policy. [Run guide and limits](../docs/RUN-01.md).
 
 **PRACTICE-01 user walkthrough completed:** on 2026-10-31 the user reported that testing was complete and things worked. This is user-reported success of the prepared local sample, not a claim that every release scenario or a real agent campaign was tested. `npm run playground` opens a visible browser with a guide, an owned invitation app containing a reproducible bug, and the real workspace signed in to disposable sample data. Review decisions persist and redacted ZIP exports work; the separate manual test is not automatically ingested. No wallet, email, hosted agent, or worker is enabled. See [the walkthrough](../docs/TRY-TRIALOOM.md). Local alpha foundations are implemented; the operations/privacy/security work and real-world pilot gates remain open.
 
@@ -53,7 +55,7 @@ Last updated: 2026-10-31 (Africa/Lagos).
 
 ## Next action
 
-**Recommended next build (proposal, RUN-01): connect actual controlled browser execution to the workspace.** Run a bounded journey on an owned test application, capture fresh results tied to its build, submit evidence through the scoped HTTP API, and let the builder review/export that newly executed run. The existing browser experiment executes a real journey separately; the workspace playground and end-to-end loop still use prepared evidence. Start with controlled fixtures; customer targets require verified host isolation. The user has asked for the next step, not yet approved this specific implementation sequence. No funding is needed for this first integration milestone.
+**Next action (proposed): implement a reviewed sanitization/export path for the known Playwright trace format so the fresh RUN-01 execution can be replayed by a reviewer.** Keep unknown or unsuccessfully sanitized archives private, preserve content hashes, and verify that secrets are removed without breaking replay. This is a separate step from operating an isolated runner for customer targets. The RUN-01 implementation itself is complete; no real payments or deployment are needed to inspect its pending report.
 
 PILOT-01 (operations, privacy, security, and reviewer coverage) is still not started. Operating an isolated runner, deployment/remote CI, actual independent operators, and a specifically authorized funded payment experiment are separate production gates. VAL-02 still needs independent operator review and VAL-04 still needs actual paid resource provisioning; the hackathon checklist remains unmet.
 
@@ -73,6 +75,8 @@ A local **Trialoom** owner invitation was created on 2026-10-27 and saved privat
 No dependency blocks local capability work. Registration, wallet funding, and deployment have not been performed. Paid experiments still require concrete funding details.
 
 ## Latest validation
+
+- RUN-01 (2026-11-01): seven integration check groups passed through actual Chromium and HTTP ingestion, including buggy/repaired outcomes, persisted pending review, redacted ZIP export, no automatic payable, duplicate refusal, unchanged private-target admission, expiry, local cancellation, run revocation, infrastructure blockage, and the time cap. All 25 runner/evidence database checks passed, including pinned-manifest bindings. Lint, strict types and production build passed; three existing storage-tracing warnings remain. A fresh visible run was inspected and left open for review. [Evidence](../docs/evidence/RUN-01.json).
 
 - PRACTICE-01 (2026-10-30): production build, lint and strict types passed; headless walkthrough verified real fixture 201/400 responses, redacted report, persisted review after reload, blocked sample payment, ZIP download, and normal disposable-data cleanup. Existing desktop evidence suite: 10 passing checks. Visible fresh session opened with the review left pending. Three pre-existing dynamic-file tracing warnings in `src/server/storage.ts` remain in the production build.
 

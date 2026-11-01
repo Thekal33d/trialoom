@@ -1,6 +1,6 @@
 # Decision register
 
-Last updated: 2026-10-30.
+Last updated: 2026-11-01.
 
 Statuses: **Accepted** (user instruction or explicit working decision), **Proposed** (candidate), **Open** (unresolved), **Superseded** (retained with replacement reference).
 
@@ -56,6 +56,10 @@ Statuses: **Accepted** (user instruction or explicit working decision), **Propos
 ## D032 — Prepared hands-on practice (2026-10-30, accepted)
 
 The user chose a prepared sample for their first product test. Reuse the existing browser fixture seeding and real application routes in a disposable local database, with normal sign-in and a random sample password, instead of adding an authentication bypass or modifying their owner account. Open a guide, the owned invitation fixture, and the signed-in workspace. Explicitly distinguish the manually reproducible bug from seeded reports, identities, receipts, and repair claims; the manual fixture does not automatically ingest evidence. Clear inherited payment settings, run no worker, and clean up on normal exit. This enables hands-on review/export now without claiming hosted execution, payment, independent verification, or hackathon eligibility. Revisit when connecting a real runner or designing permanent onboarding. [Guide and verification](../docs/TRY-TRIALOOM.md).
+
+## D033 — Connect a controlled browser through real ingestion (2026-11-01, accepted)
+
+The user approved RUN-01 by asking to connect a real browser. Start with the existing owned invitation fixture and a fixed Chromium driver, preparing accounts, qualification, project/build, claim, and grant administratively in a disposable local database. Record the actual loopback target and a distinct local-fixture admission policy; do not fake public DNS, remap a public URL, or add a production exception for private targets. Production admission remains unchanged and is checked through HTTP. Add pinned evidence identities to newly issued manifests so a driver needs only its scoped run grant to read the assignment binding and submit real artifacts through existing HTTP routes. The grant stays outside page traffic; Chromium gets a filtered environment and fresh context, while the trusted controller and driver remain in one Node process. Derive outcomes from actual responses and UI observations; distinguish infrastructure/time-limit blockages from defects and stop on cancellation or grant loss. Keep acceptance manual and traces private until an archive policy is reviewed. This proves the execution-to-workspace connection while leaving customer isolation, general journey dispatch, independent operators, payment, and production hosting open. [Checks and limits](../docs/RUN-01.md). Revisit when adding trace replay, a hosted runner, or another journey.
 
 ## Open product decisions from the PRD
 

@@ -283,8 +283,31 @@ export async function issueRun(db: PoolClient, session: AgentSession, prepared: 
   const wallClockSeconds = Math.floor(
     (new Date(assignment.lease_expires_at).getTime() - Date.now()) / 1000,
   );
+  // The run grant must be sufficient to assemble evidence without giving the
+  // browser worker an agent credential or asking it to guess pinned identities.
+  const pinned = (
+    await db.query(
+      `SELECT b.revision,b.fixture_version,b.target_url,t.content_hash,p.environment
+      FROM builds b JOIN terms_versions t ON t.id=$2
+      JOIN projects p ON p.id=b.project_id WHERE b.id=$1`,
+      [assignment.build_id, assignment.terms_version_id],
+    )
+  ).rows[0];
   const manifest = {
     schemaVersion: 1,
+    binding: {
+      campaignId: assignment.campaign_id,
+      assignmentId: assignment.id,
+      termsVersionId: assignment.terms_version_id,
+      termsContentHash: pinned.content_hash,
+      build: {
+        id: assignment.build_id,
+        revision: pinned.revision,
+        fixtureVersion: pinned.fixture_version,
+        targetUrl: pinned.target_url,
+      },
+      environment: pinned.environment,
+    },
     service: document.service,
     scope: document.scope,
     allowedActions: document.allowedActions,

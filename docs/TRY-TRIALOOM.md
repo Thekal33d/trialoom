@@ -2,6 +2,8 @@
 
 PRACTICE-01 · 2026-10-30 · Prepared sample, real workspace screens.
 
+For actual browser-generated evidence automatically submitted to the workspace, use the newer [real browser walkthrough](RUN-01.md) with `npm run browser:demo`. The playground below retains its separate manual fixture and prepared reports.
+
 ## Open the sample
 
 After the [first-run setup](DEVELOPMENT.md), with Docker running:

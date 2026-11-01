@@ -388,6 +388,19 @@ test('a run grant is scoped to one run, expires with the lease, and signs nothin
   assert.equal(run.manifest.payoutSigning, 'never_delegated');
   assert.equal(run.manifest.grant.scope, 'evidence:submit');
   assert.deepEqual(run.manifest.egressAllowlist, [origin]);
+  const binding = run.manifest.binding;
+  assert.equal(binding.assignmentId, assignment.assignmentId);
+  assert.equal(binding.campaignId, assignment.campaignId);
+  assert.equal(binding.termsVersionId, assignment.termsVersionId);
+  assert.equal(binding.build.id, assignment.buildId);
+  const pinned = (
+    await db.pool.query('SELECT content_hash,document FROM terms_versions WHERE id=$1', [
+      assignment.termsVersionId,
+    ])
+  ).rows[0];
+  assert.equal(binding.termsContentHash, pinned.content_hash);
+  assert.equal(binding.build.targetUrl, target);
+  assert.equal(binding.environment, 'preview');
   assert.equal(grant.run.grant_scope, 'evidence:submit');
   // The grant never outlives the lease that justifies it.
   assert.equal(

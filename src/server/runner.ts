@@ -8,6 +8,7 @@ import { transaction } from './database.ts';
 import { emit } from './events.ts';
 import { bindHost, hostContract, requiredIsolation } from './isolation.ts';
 import type { TermsDocument } from './ledger.ts';
+import { assertRunLive } from './run-access.ts';
 import { type ResolveTarget, validateTarget } from './targets.ts';
 
 /** Limits the manifest publishes and ingestion enforces. */
@@ -16,6 +17,10 @@ export const runLimits = {
   maxArtifactBytes: 8 * 1024 * 1024,
   maxTotalBytes: 32 * 1024 * 1024,
   maxNavigations: 50,
+  memoryBytes: 1024 ** 3,
+  maxProcesses: 256,
+  scratchBytes: 128 * 1024 ** 2,
+  cpuMillisPerSecond: 1000,
   maxRedirectHops: 3,
   minimumLeaseSeconds: 60,
 } as const;
@@ -327,6 +332,10 @@ export async function issueRun(db: PoolClient, session: AgentSession, prepared: 
       maxArtifactBytes: runLimits.maxArtifactBytes,
       maxTotalBytes: runLimits.maxTotalBytes,
       maxNavigations: runLimits.maxNavigations,
+      memoryBytes: runLimits.memoryBytes,
+      maxProcesses: runLimits.maxProcesses,
+      scratchBytes: runLimits.scratchBytes,
+      cpuMillisPerSecond: runLimits.cpuMillisPerSecond,
     },
     isolation: isolationProfile,
     // What the host must do, what the platform checks itself, and what is still
@@ -474,6 +483,7 @@ export async function authenticateRun(pool: Pool, token: string): Promise<RunSes
       'This run grant expired with its claim lease. Renew the lease and start a new run.',
       401,
     );
+  await assertRunLive(pool, run);
   return { run, secret: token };
 }
 
@@ -481,6 +491,14 @@ export async function abandonRun(pool: Pool, session: AgentSession, runId: strin
   const { attemptToken } = runStartSchema.parse(input);
   const id = uuid.parse(runId);
   return transaction(pool, async (db) => {
+    const lookup = (
+      await db.query('SELECT assignment_id FROM runs WHERE id=$1 AND operator_id=$2', [
+        id,
+        session.operator.id,
+      ])
+    ).rows[0];
+    if (!lookup) throw new AppError('NOT_FOUND', 'Run not found.', 404);
+    await liveAssignment(db, session, lookup.assignment_id, attemptToken);
     const run = (
       await db.query('SELECT * FROM runs WHERE id=$1 AND operator_id=$2 FOR UPDATE', [
         id,
@@ -488,7 +506,6 @@ export async function abandonRun(pool: Pool, session: AgentSession, runId: strin
       ])
     ).rows[0];
     if (!run) throw new AppError('NOT_FOUND', 'Run not found.', 404);
-    await liveAssignment(db, session, run.assignment_id, attemptToken);
     if (!['issued', 'active'].includes(run.state))
       throw new AppError('RUN_CLOSED', `This run is already ${run.state}.`, 409);
     await db.query(

@@ -10,7 +10,7 @@ import { decide, ledger, type Observation, originOf, startProxy } from '../runne
 import { AppError } from '../src/domain/errors.ts';
 import type { Actor } from '../src/server/access.ts';
 import { type AgentSession, authenticateAgent } from '../src/server/agents.ts';
-import { claim, publishCampaign } from '../src/server/assignments.ts';
+import { claim, publishCampaign, releaseAssignment } from '../src/server/assignments.ts';
 import { transaction } from '../src/server/database.ts';
 import { storeArtifact, submitEvidence } from '../src/server/evidence.ts';
 import {
@@ -33,7 +33,7 @@ import { migrate } from '../src/server/migrations.ts';
 import { createCredential, registerOperator } from '../src/server/operators.ts';
 import { addBuild, createCampaign, createProject } from '../src/server/projects.ts';
 import { submitAttempt } from '../src/server/qualification.ts';
-import { authenticateRun, isolationProfile, startRun } from '../src/server/runner.ts';
+import { abandonRun, authenticateRun, isolationProfile, startRun } from '../src/server/runner.ts';
 import { digestOf } from '../src/server/storage.ts';
 import { disposableDatabase } from './helpers/database.ts';
 
@@ -539,6 +539,93 @@ test('an attested run still works and is labelled as only attested', async () =>
   const hosts = await workspaceHosts(db.pool, owner, workspaceId);
   assert.ok(hosts.hosts.length >= 1);
   assert.equal(hosts.contract.version, 'runner-host-v1');
+});
+
+test('lost witness acknowledgements retry exactly once, including after run closure', async () => {
+  const campaign = await newCampaign('Retry-safe witness', { minimumIsolation: 'witnessed' });
+  const host = await registerHost(db.pool, owner, workspaceId, {
+    ...conforming,
+    name: 'Retry host',
+  });
+  const operator = await qualifiedOperator('iso-retry');
+  const work = await runOn(operator.session, campaign.campaignId, host.hostId);
+  const report = [seen(allowed, 'allowed', 3)];
+  const receipts = await Promise.all(
+    [1, 2].map(() => witness(host.credential, work.run.runId, 1, report)),
+  );
+  assert.deepEqual(receipts.map((r) => r.replayed).sort(), [false, true]);
+  await witness(host.credential, work.run.runId, 2, [
+    { ...seen(allowed, 'denied', 2), origin: null, reason: 'ORIGIN_DENIED' },
+  ]);
+  const isolation = await runIsolation(db.pool, work.run.runId);
+  assert.equal(isolation?.observations.find((row) => row.decision === 'allowed').requests, '3');
+  await abandonRun(db.pool, operator.session, work.run.runId, {
+    attemptToken: work.assignment.attemptToken,
+  });
+  assert.equal((await witness(host.credential, work.run.runId, 1, report)).replayed, true);
+  await assert.rejects(
+    witness(host.credential, work.run.runId, 1, [seen(allowed, 'allowed', 4)]),
+    code('EGRESS_BATCH_REPLAYED'),
+  );
+  await assert.rejects(witness(host.credential, work.run.runId, 3, []), code('RUN_CLOSED'));
+});
+
+test('released assignments and revoked hosts stop polling and stale-session writes', async () => {
+  for (const mode of ['release', 'revoke', 'expire', 'abandon'] as const) {
+    const campaign = await newCampaign(`Permission ${mode}`, { minimumIsolation: 'witnessed' });
+    const host = await registerHost(db.pool, owner, workspaceId, {
+      ...conforming,
+      name: `Permission ${mode}`,
+    });
+    const operator = await qualifiedOperator(`iso-stop-${mode}`);
+    const work = await runOn(operator.session, campaign.campaignId, host.hostId);
+    const hostSession = await authenticateHost(db.pool, host.credential);
+    let refusal: string;
+    if (mode === 'release') {
+      await releaseAssignment(db.pool, operator.session, work.assignment.assignmentId, {
+        attemptToken: work.assignment.attemptToken,
+      });
+      refusal = 'ATTEMPT_CLOSED';
+    } else if (mode === 'revoke') {
+      await revokeHost(db.pool, owner, workspaceId, host.hostId);
+      refusal = 'HOST_UNUSABLE';
+    } else if (mode === 'expire') {
+      await db.pool.query(
+        "UPDATE runs SET issued_at=clock_timestamp()-interval '2 seconds',grant_expires_at=clock_timestamp()-interval '1 second' WHERE id=$1",
+        [work.run.runId],
+      );
+      refusal = 'RUN_EXPIRED';
+    } else {
+      await abandonRun(db.pool, operator.session, work.run.runId, {
+        attemptToken: work.assignment.attemptToken,
+      });
+      refusal = 'RUN_CLOSED';
+    }
+    await assert.rejects(authenticateRun(db.pool, work.run.runToken), code(refusal));
+    await assert.rejects(hostRunView(db.pool, hostSession, work.run.runId), code(refusal));
+    await assert.rejects(
+      recordEgress(db.pool, hostSession, work.run.runId, { batch: 1, observations: [] }),
+      code(refusal),
+    );
+    const bytes = Buffer.from('stale permission artifact');
+    await assert.rejects(
+      storeArtifact(
+        db.pool,
+        work.grant,
+        { name: 'late.md', kind: 'report', sha256: digestOf(bytes) },
+        'text/markdown',
+        bytes,
+      ),
+      code(refusal),
+    );
+    await assert.rejects(
+      submitEvidence(db.pool, work.grant, {
+        ...work.document([allowed]),
+        termsContentHash: work.run.manifest.binding.termsContentHash,
+      }),
+      code(refusal),
+    );
+  }
 });
 
 test('the reference proxy denies what the allowlist forbids and counts both', async () => {

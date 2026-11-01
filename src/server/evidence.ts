@@ -21,6 +21,7 @@ import { campaignPayouts } from './payables.ts';
 import { decodeUtf8, redactionPolicy, redactText, scanText } from './redaction.ts';
 import { campaignRepairs, recordRepair, recordVerification, repairRole } from './repairs.ts';
 import { campaignResources } from './resources.ts';
+import { assertRunLive, lockLiveRun } from './run-access.ts';
 import { isolationProfile, type RunSession, runLimits } from './runner.ts';
 import { digestOf, getObject, putObject } from './storage.ts';
 import { readTraceArchive } from './trace-archive.ts';
@@ -44,6 +45,7 @@ export async function storeArtifact(
   mediaType: string,
   bytes: Uint8Array,
 ) {
+  await assertRunLive(pool, session.run);
   const data = artifactUploadSchema.parse(input);
   const allowed = artifactMediaTypes[data.kind as ArtifactKind];
   if (!allowed.includes(mediaType))
@@ -113,8 +115,7 @@ export async function storeArtifact(
   }
   await putObject(bytes);
   return transaction(pool, async (db) => {
-    const run = (await db.query('SELECT * FROM runs WHERE id=$1 FOR UPDATE', [session.run.id]))
-      .rows[0];
+    const run = await lockLiveRun(db, session.run.id);
     if (!['issued', 'active'].includes(run.state))
       throw new AppError('RUN_CLOSED', `This run is ${run.state} and accepts no evidence.`, 409);
     if (run.artifact_count + 1 > runLimits.maxArtifacts)
@@ -200,6 +201,7 @@ export async function submitEvidence(pool: Pool, session: RunSession, input: unk
     limits: { wallClockSeconds: number };
   };
   return transaction(pool, async (db) => {
+    await lockLiveRun(db, run.id);
     const assignment = (
       await db.query('SELECT * FROM assignments WHERE id=$1 FOR UPDATE', [run.assignment_id])
     ).rows[0];

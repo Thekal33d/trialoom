@@ -163,7 +163,22 @@ export const egressReportSchema = z
       .array(
         z
           .object({
-            origin: z.string().trim().min(1).max(2048),
+            origin: z.string().trim().min(1).max(2048).nullable(),
+            reason: z
+              .enum([
+                'ALLOWED',
+                'ORIGIN_DENIED',
+                'PROTOCOL_DENIED',
+                'METHOD_DENIED',
+                'DNS_DENIED',
+                'REDIRECT_DENIED',
+                'UPSTREAM_FAILED',
+                'BUDGET_EXHAUSTED',
+                'TLS_DENIED',
+                'CANCELLED',
+                'DEADLINE',
+              ])
+              .optional(),
             decision: z.enum(['allowed', 'denied']),
             requests: z.number().int().min(1).max(100000),
             firstSeenAt: z.iso.datetime(),
@@ -171,7 +186,7 @@ export const egressReportSchema = z
           })
           .strict(),
       )
-      .min(1)
+      .min(0)
       .max(100),
   })
   .strict();

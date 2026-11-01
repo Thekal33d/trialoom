@@ -942,7 +942,7 @@ test('a valid submission records work, holds the reservation, and decides nothin
   assert.equal(accounting?.reconciled, true);
   // The grant is spent; a second submission cannot arrive.
   await assert.rejects(authenticateRun(db.pool, grant.secret), code('RUN_CLOSED'));
-  await assert.rejects(submitEvidence(db.pool, grant, document), code('ATTEMPT_CLOSED'));
+  await assert.rejects(submitEvidence(db.pool, grant, document), code('RUN_CLOSED'));
   await assert.rejects(
     db.pool.query("UPDATE evidence_submissions SET outcome='executed' WHERE run_id=$1", [
       grant.run.id,

@@ -2,8 +2,10 @@ import { createHash, randomBytes } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import { AppError } from '../domain/errors.ts';
 import { egressReportSchema, runnerHostSchema, uuid } from '../domain/schemas.ts';
+import { canonicalJson } from '../domain/values.ts';
 import { type Actor, audit, requireRole } from './access.ts';
 import { transaction } from './database.ts';
+import { assertRunLive, lockLiveRun } from './run-access.ts';
 
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
 
@@ -136,7 +138,7 @@ export async function revokeHost(pool: Pool, actor: Actor, workspaceId: string, 
       throw new AppError('NOT_FOUND', 'Runner host not found or already revoked.', 404);
     await audit(db, workspaceId, actor.id, 'runner_host.revoked', id);
     // Live runs keep their binding: what the host already witnessed still
-    // happened. It simply cannot be named by a new run.
+    // happened. It cannot continue execution or be named by a new run.
     return { hostId: id, revoked: true };
   });
 }
@@ -220,6 +222,7 @@ export async function hostRunView(pool: Pool, session: HostSession, runId: strin
     ])
   ).rows[0];
   if (!run) throw new AppError('RUN_MISMATCH', 'That run was not issued to this host.', 403);
+  await assertRunLive(pool, run);
   const manifest = run.manifest as { egressAllowlist: string[]; limits: Record<string, number> };
   return {
     runId: run.id,
@@ -245,7 +248,13 @@ export async function recordEgress(
 ) {
   const data = egressReportSchema.parse(input);
   const id = uuid.parse(runId);
+  const hash = digest(canonicalJson(data));
   return transaction(pool, async (db) => {
+    // Serialize batches with evidence closure. Lock assignment before run.
+    await db.query(
+      `SELECT id FROM assignments WHERE id=(SELECT assignment_id FROM runs WHERE id=$1) FOR UPDATE`,
+      [id],
+    );
     const run = (
       await db.query('SELECT * FROM runs WHERE id=$1 AND host_id=$2 FOR UPDATE', [
         id,
@@ -253,60 +262,91 @@ export async function recordEgress(
       ])
     ).rows[0];
     if (!run) throw new AppError('RUN_MISMATCH', 'That run was not issued to this host.', 403);
-    if (!['issued', 'active'].includes(run.state))
+    const previous = (
+      await db.query(
+        'SELECT content_hash,receipt FROM egress_batches WHERE run_id=$1 AND batch=$2',
+        [id, data.batch],
+      )
+    ).rows[0];
+    if (previous) {
+      if (previous.content_hash !== hash)
+        throw new AppError(
+          'EGRESS_BATCH_REPLAYED',
+          'This batch number already holds a different report.',
+          409,
+        );
+      return { ...previous.receipt, replayed: true };
+    }
+    await lockLiveRun(db, id);
+    if (
+      (
+        await db.query('SELECT 1 FROM egress_observations WHERE run_id=$1 AND batch=$2 LIMIT 1', [
+          id,
+          data.batch,
+        ])
+      ).rowCount
+    )
       throw new AppError(
-        'RUN_CLOSED',
-        `This run is ${run.state}; its egress record is closed.`,
+        'EGRESS_BATCH_REPLAYED',
+        'This legacy batch number is already recorded.',
         409,
       );
     const allowlist = (run.manifest as { egressAllowlist: string[] }).egressAllowlist;
-    const recorded: { origin: string; decision: string; requests: number }[] = [];
+    const recorded: { origin: string | null; decision: string; requests: number }[] = [];
+    const seen = new Set<string>();
     for (const observation of data.observations) {
-      let origin: string;
-      try {
-        origin = new URL(observation.origin).origin;
-      } catch {
-        throw new AppError('EGRESS_REPORT_INVALID', `${observation.origin} is not an origin.`);
+      let origin: string | null = null;
+      if (observation.origin !== null) {
+        try {
+          origin = new URL(observation.origin).origin;
+        } catch {
+          throw new AppError('EGRESS_REPORT_INVALID', 'The report contains an invalid origin.');
+        }
+        if (origin === 'null')
+          throw new AppError('EGRESS_REPORT_INVALID', 'The report contains an opaque origin.');
       }
-      // A proxy that allowed an origin outside the allowlist did not enforce it.
-      if (observation.decision === 'allowed' && !allowlist.includes(origin))
+      if (observation.decision === 'allowed' && (!origin || !allowlist.includes(origin)))
         throw new AppError(
           'EGRESS_NOT_ENFORCED',
-          `This host reports allowing ${origin}, which is outside the run allowlist. A proxy that allows what the manifest forbids is not enforcing it.`,
+          'The proxy reports allowing an origin outside the run allowlist.',
           409,
         );
-      try {
-        await db.query(
-          `INSERT INTO egress_observations (run_id,host_id,batch,origin,decision,requests,
-          first_seen_at,last_seen_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-          [
-            id,
-            session.host.id,
-            data.batch,
-            origin,
-            observation.decision,
-            observation.requests,
-            observation.firstSeenAt,
-            observation.lastSeenAt,
-          ],
+      const key = `${origin} ${observation.decision}`;
+      if (seen.has(key) || observation.lastSeenAt < observation.firstSeenAt)
+        throw new AppError(
+          'EGRESS_REPORT_INVALID',
+          'Duplicate observations or reversed timestamps.',
         );
-      } catch (error) {
-        if ((error as { code?: string }).code === '23505')
-          throw new AppError(
-            'EGRESS_BATCH_REPLAYED',
-            `Batch ${data.batch} already reports ${origin} as ${observation.decision}. Send a new batch number rather than rewriting one.`,
-            409,
-          );
-        throw error;
-      }
-      recorded.push({
-        origin,
-        decision: observation.decision,
-        requests: observation.requests,
-      });
+      seen.add(key);
+      await db.query(
+        `INSERT INTO egress_observations (run_id,host_id,batch,origin,decision,requests,first_seen_at,last_seen_at,reason)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+        [
+          id,
+          session.host.id,
+          data.batch,
+          origin,
+          observation.decision,
+          observation.requests,
+          observation.firstSeenAt,
+          observation.lastSeenAt,
+          observation.reason ?? null,
+        ],
+      );
+      recorded.push({ origin, decision: observation.decision, requests: observation.requests });
     }
+    const receipt = {
+      runId: id,
+      batch: data.batch,
+      recorded: recorded.length,
+      observations: recorded,
+    };
+    await db.query(
+      'INSERT INTO egress_batches (run_id,batch,content_hash,receipt) VALUES ($1,$2,$3,$4)',
+      [id, data.batch, hash, JSON.stringify(receipt)],
+    );
     await db.query("UPDATE runs SET state='active' WHERE id=$1 AND state='issued'", [id]);
-    return { runId: id, batch: data.batch, recorded: recorded.length, observations: recorded };
+    return { ...receipt, replayed: false };
   });
 }
 
@@ -349,26 +389,28 @@ export async function verifyEgress(
       );
     origins.add(origin);
   }
-  const { rows } = await db.query<{ origin: string; decision: string; requests: string }>(
+  const { rows } = await db.query<{ origin: string | null; decision: string; requests: string }>(
     `SELECT origin,decision,SUM(requests)::text AS requests,count(DISTINCT batch)::int AS batches
     FROM egress_observations WHERE run_id=$1 GROUP BY origin,decision`,
     [run.id],
   );
   const batches = (
     await db.query<{ n: number }>(
-      'SELECT count(DISTINCT batch)::int AS n FROM egress_observations WHERE run_id=$1',
+      'SELECT count(*)::int AS n FROM (SELECT batch FROM egress_observations WHERE run_id=$1 UNION SELECT batch FROM egress_batches WHERE run_id=$1) batches',
       [run.id],
     )
   ).rows[0].n;
-  const allowed = rows.filter((row) => row.decision === 'allowed').map((row) => row.origin);
+  const allowed = rows
+    .filter((row) => row.decision === 'allowed')
+    .map((row) => row.origin as string);
   const denied = rows.filter((row) => row.decision === 'denied');
   const verification: EgressVerification = {
     level: run.isolation_level,
     hostId: run.host_id,
-    witnessed: rows.length > 0,
+    witnessed: batches > 0,
     batches,
     allowedOrigins: [...new Set(allowed)].sort(),
-    deniedOrigins: [...new Set(denied.map((row) => row.origin))].sort(),
+    deniedOrigins: [...new Set(denied.flatMap((row) => (row.origin ? [row.origin] : [])))].sort(),
     claimedOrigins: [...origins].sort(),
     deniedAttempts: denied.reduce((total, row) => total + Number(row.requests), 0),
   };

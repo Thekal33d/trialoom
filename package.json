@@ -23,6 +23,8 @@
     "db:migrate": "node --env-file-if-exists=.env scripts/migrate.ts",
     "jobs:enqueue": "node --env-file-if-exists=.env scripts/enqueue.ts",
     "worker": "node --env-file-if-exists=.env workers/main.ts",
+    "worker:free": "node --env-file-if-exists=.env workers/free-tests.ts",
+    "runner:free-check": "PLAYWRIGHT_BROWSERS_PATH=.cache/ms-playwright node --env-file-if-exists=.env scripts/check-free-tests.ts",
     "typecheck": "next typegen && tsc --noEmit",
     "lint": "biome check .",
     "format": "biome format --write .",

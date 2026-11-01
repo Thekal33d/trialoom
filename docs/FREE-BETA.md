@@ -8,7 +8,7 @@ A builder signs up publicly, verifies their email, creates a workspace, authoriz
 
 Only advertise testing availability once the hosted execution path is verified. Account creation can be implemented first without pretending that an automatic test has run. Preserve existing invited workspaces and their obligations. Do not convert old paid records into free records.
 
-Initial limits: one free workspace per verified account, three projects, one active test and three test starts per account per UTC day. These are conservative product defaults, not fraud prevention by themselves; enforce global concurrency and a platform spend ceiling before enabling execution. Per-target quotas, trusted edge rate limits and abuse response remain release gates. A user must authorize the target and any supporting origins; signup does not authorize arbitrary probing or relax runner restrictions.
+Initial limits: one free workspace per verified account, three projects, one active test and three admitted test requests per account per UTC day. Cancelled requests count. FREE-02 adds one executing browser, ten queued/active requests, thirty requests per UTC day across the deployment and five per external target origin. These are conservative product defaults, not fraud prevention by themselves; trusted edge limits and abuse response remain release gates. Paid resources stay disabled until a separate sponsored spend ceiling and recovery journal exist. A user must authorize the target and any supporting origins; signup does not authorize arbitrary probing or relax runner restrictions. [Local execution and limits](FREE-02.md).
 
 ## Five release workstreams
 

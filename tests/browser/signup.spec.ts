@@ -71,9 +71,7 @@ test('verified link creates a free workspace, persists a project and refuses ope
   await page.getByRole('button', { name: 'Create free workspace' }).click();
   await expect(page).toHaveURL('/workspace');
   await expect(page.getByRole('heading', { name: 'My free workspace' })).toBeVisible();
-  await expect(
-    page.getByText('Automatic testing is being connected', { exact: false }),
-  ).toBeVisible();
+  await expect(page.getByText('The test runner is offline', { exact: false })).toBeVisible();
   await page.getByRole('button', { name: 'Add a project' }).click();
   await page.getByLabel('Project name').fill('My preview');
   await page.getByLabel('Preview URL').fill('https://127.0.0.1');

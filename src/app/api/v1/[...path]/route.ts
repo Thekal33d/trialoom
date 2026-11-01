@@ -37,6 +37,7 @@ import {
   readReplay,
 } from '@/server/evidence';
 import { campaignExport } from '@/server/exports';
+import { cancelFreeTest, freeTestsView, requestFreeTest } from '@/server/free-tests';
 import {
   handleApi,
   json,
@@ -135,6 +136,17 @@ async function handler(request: Request) {
       return json({ workspaces: await listWorkspaces(pool, actor) });
     if (parts[0] === 'workspaces' && parts.length >= 3) {
       const workspaceId = uuid.parse(parts[1]);
+      if (parts[2] === 'free-tests') {
+        if (parts.length === 3 && method === 'GET')
+          return json(await freeTestsView(pool, actor, workspaceId));
+        if (parts.length === 3 && method === 'POST')
+          return json(
+            await requestFreeTest(pool, actor, workspaceId, await readJson(request, 4096)),
+            201,
+          );
+        if (parts.length === 4 && method === 'DELETE')
+          return json(await cancelFreeTest(pool, actor, workspaceId, parts[3]));
+      }
       if (parts[2] === 'projects') {
         if (parts.length === 3 && method === 'GET')
           return json({ projects: await listProjects(pool, actor, workspaceId) });

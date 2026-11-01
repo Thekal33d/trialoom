@@ -133,4 +133,4 @@ For the integrated isolated browser walkthrough and authorized Blokaz homepage c
 
 ## Public free beta signup
 
-See [FREE-01](FREE-01.md) for the verified signup flow and mail configuration. Set `TRIALOOM_PUBLIC_SIGNUP=true` only after configuring a verified sender with `RESEND_API_KEY` and `TRIALOOM_EMAIL_FROM`. Missing mail delivery fails visibly. New accounts get free project setup; automatic test dispatch and sponsored usebuy output remain separate work. Existing invited workspaces are preserved.
+See [FREE-01](FREE-01.md) for the verified signup flow and mail configuration. Set `TRIALOOM_PUBLIC_SIGNUP=true` only after configuring a verified sender with `RESEND_API_KEY` and `TRIALOOM_EMAIL_FROM`. Missing mail delivery fails visibly. New accounts get free project setup. [FREE-02](FREE-02.md) adds the separately enabled local free-test worker, bounded requests and sanitized replay; run `npm run runner:free-check` for its disposable end-to-end check. Public hosted execution and sponsored usebuy output remain gated. Existing invited workspaces are preserved.

@@ -1,0 +1,50 @@
+{
+  "task": "FREE-02",
+  "checkedAt": "2026-11-01T17:33:23.198Z",
+  "image": "sha256:e5e6d45bb4f3ed29fec696af18afe322343e6292ad6417c522b69dcf57a5453f",
+  "mode": "offline-owned-proxy-fixture-v1",
+  "automaticDispatch": true,
+  "signupToReplay": true,
+  "actions": 7,
+  "requests": 2,
+  "recovery": [
+    {
+      "checkpoint": "running",
+      "phase": "interrupted"
+    },
+    {
+      "checkpoint": "captured",
+      "phase": "completed"
+    }
+  ],
+  "customerLiabilityUnits": "0",
+  "publicTargetsContacted": false,
+  "checkpoint": "local-free-signup-to-replay",
+  "baseCommit": "d6495d9",
+  "commitSubject": "feat: run bounded free browser tests with durable replay",
+  "validation": {
+    "freeTestChecks": 14,
+    "signupChecks": 7,
+    "tracePrivacyChecks": 9,
+    "signupBrowserChecks": 4,
+    "desktopMobileAccessibilityAndOverflow": "passed",
+    "lint": "180 files passed",
+    "strictTypes": "passed",
+    "productionBuild": "passed; three pre-existing storage tracing warnings"
+  },
+  "limits": {
+    "activePerAccount": 1,
+    "requestsPerAccountPerUtcDay": 3,
+    "activeOrQueuedGlobally": 10,
+    "requestsGloballyPerUtcDay": 30,
+    "requestsPerPublicOriginPerUtcDay": 5,
+    "executingBrowsers": 1
+  },
+  "limitations": [
+    "Local OrbStack runner only; public feature flags remain off by default",
+    "Only fixed owned navigation and operator-enabled primary-origin page rendering",
+    "Whole-host recovery, adversarial resource tests and hosted operations still open",
+    "No raw DOM/video replay, independent reproduction or build certification",
+    "No paid usebuy call, funded sponsor wallet, customer payment, email delivery or public deployment"
+  ]
+}

@@ -4,6 +4,7 @@ import { FreeWorkspace } from '@/components/free-workspace';
 import { LiveWorkspace } from '@/components/live-workspace';
 import { getAuth } from '@/server/auth/config';
 import { getPool } from '@/server/database';
+import { freeTestsView } from '@/server/free-tests';
 import { listProjects } from '@/server/projects';
 import { freeBetaAccount } from '@/server/signup';
 import { listWorkspaces } from '@/server/workspaces';
@@ -21,6 +22,7 @@ export default async function WorkspacePage() {
       <FreeWorkspace
         workspace={workspace}
         initialProjects={await listProjects(pool, user, workspace.id)}
+        initialTests={await freeTestsView(pool, user, workspace.id)}
       />
     );
   return <LiveWorkspace user={user} workspaces={workspaces} />;

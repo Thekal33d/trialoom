@@ -715,3 +715,49 @@ button:disabled {
   color: var(--muted);
   font-size: 14px;
 }
+.free-sample {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 2rem 0;
+  margin-bottom: 2rem;
+  border-block: 1px solid var(--line);
+}
+.free-sample h2 {
+  margin: 0.5rem 0;
+}
+.free-sample p {
+  max-width: 54ch;
+}
+.free-sample > button {
+  flex-shrink: 0;
+}
+.free-test-form,
+.free-test-history {
+  margin-top: 2rem;
+}
+.free-checks {
+  list-style: none;
+  padding: 0;
+}
+.free-checks li {
+  display: flex;
+  gap: 1rem;
+  padding: 0.5rem 0;
+}
+.free-checks strong {
+  min-width: 4rem;
+}
+.free-replay {
+  margin-top: 1rem;
+}
+@media (max-width: 640px) {
+  .free-sample {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .free-checks li {
+    gap: 0.5rem;
+  }
+}

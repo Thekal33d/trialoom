@@ -117,3 +117,23 @@ test('lying about expanded size cannot bypass the inflater output cap', () => {
   bytes.writeUInt32LE(1, central + 24);
   assert.throws(() => readTraceArchive(bytes));
 });
+
+test('a failed network request preserves no-response status without exposing failure details', () => {
+  const files = unzipSync(traceFixture());
+  const network = JSON.parse(new TextDecoder().decode(files['trace.network']));
+  network.snapshot.response.status = -1;
+  network.snapshot._failureText = traceCanary;
+  files['trace.network'] = strToU8(JSON.stringify(network));
+  const projected = sanitizeBrowserTrace(zipSync(files), [traceCanary]);
+  assert(projected);
+  assert.equal(projected.replay.requests[0].status, -1);
+  const clean = readTraceArchive(projected.bytes);
+  assert(
+    ![...clean.values()].some((bytes) => new TextDecoder().decode(bytes).includes(traceCanary)),
+  );
+  for (const status of [-2, '-1', 600, 1.5]) {
+    network.snapshot.response.status = status;
+    files['trace.network'] = strToU8(JSON.stringify(network));
+    assert.equal(sanitizeBrowserTrace(zipSync(files)), null);
+  }
+});

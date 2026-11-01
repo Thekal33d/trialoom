@@ -27,6 +27,8 @@ The owned broker is network-disabled and serves a closed HTTPS fixture on loopba
 
 The browser returns JSON and a trace through a pipe capped at 12 MiB. No archive is extracted and no path is taken from sandbox output. The controller validates the report, enforces the app's 8 MiB per-artifact and 32 MiB total bounds, freezes the separate proxy, and reads its private snapshot. A batch receipt must be acknowledged before evidence submission; identical retries are safe and changed batches fail. Unknown denied destinations remain anonymous. A blocked run may report zero contacted origins with a host receipt; executed/product-failure reports may not.
 
+The verified Blokaz check loaded visible homepage content with HTTP 200, then recorded an overall blocked result after two off-origin denials and a budget refusal. Its sanitized replay contains three browser actions and nine request records, including three with no HTTP response. This is a scope/resource limitation, not evidence of a product bug; the deployed revision is unconfirmed.
+
 Raw traces stay in the private evidence store. The existing sanitizer rebuilds supported traces into metadata-only downloads. Replay displays the actual steps, assertions and sanitized actions/HTTP statuses. Submission remains pending review, retains its accounting reservation and creates no payable. This is not independent reproduction or acceptance.
 
 ## Remaining gates

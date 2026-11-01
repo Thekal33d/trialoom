@@ -183,7 +183,9 @@ export function sanitizeBrowserTrace(bytes: Uint8Array, secrets: string[] = []) 
       const snapshot = object(event.snapshot);
       const request = object(snapshot.request);
       const response = object(snapshot.response);
-      const status = number(response.status);
+      // Playwright HAR uses -1 when no HTTP response was received. Preserve
+      // that closed numeric sentinel; never copy its failure text or URL.
+      const status = response.status === -1 ? -1 : number(response.status);
       if (!Number.isInteger(status) || status > 599) throw new Error('Invalid response status.');
       const startMs = time(snapshot._monotonicTime);
       const durationMs = Math.round(number(snapshot.time));

@@ -153,6 +153,10 @@ try {
   if (recorded.trace) {
     assert(recorded.trace.actions.length > 0 && recorded.trace.requests.length > 0);
     assert.equal(recorded.trace.sha256, trace.redacted_sha256);
+    if (recorded.trace.requests.some((request: { status: number }) => request.status <= 0)) {
+      await replay.getByText(/^HTTP responses ·/).click();
+      await expect(replay.getByText('No HTTP response', { exact: true }).first()).toBeVisible();
+    }
   } else {
     assert.equal(mode, 'public');
     assert(recorded.traceReason);

@@ -44,5 +44,36 @@
     "src/server/run-access.ts": "86d69587f961f608f61a1b1a82a2879047f6f879389a21e5007c311d1b7019fc",
     "src/server/isolation.ts": "8ad7dd66cfffd0f71af464b0dc1db80a6d5dafc0b17cbf112d0a22c6d9dc30bf",
     "db/migrations/0018_egress_batches.sql": "f6f49038248b22482e8c430cd04a21774ead13d01f66e7c2a9f6c966c6beb165"
+  },
+  "followUp": {
+    "date": "2026-11-01",
+    "checkpoint": "failed-request metadata replay",
+    "checks": {
+      "projectionArchiveTests": 8,
+      "ingestionExportTests": 32,
+      "actualRestrictedBlokazReplay": "passed; sanitized hash agrees; No HTTP response labels visible"
+    },
+    "blokaz": {
+      "outcome": "blocked",
+      "homepageStatus": 200,
+      "visibleContent": true,
+      "forwardedResponses": 6,
+      "offOriginDenials": 2,
+      "budgetExhausted": true,
+      "revisionConfirmed": false,
+      "traceReviewable": true,
+      "recordedActions": 3,
+      "recordedRequests": 9,
+      "noResponseRequests": 3,
+      "decision": "pending_review",
+      "payables": 0
+    },
+    "sourceHashes": {
+      "src/server/trace-redaction.ts": "00f087ddcb1e7ba5561b6594e228c9c0ee0d9baa04ea1cff17e794b574cc0213",
+      "src/components/replay-panel.tsx": "2b516fd0d2d5e0f1a9e2557809a1f2bed8574868aff381651cfe88b0e4dde14b",
+      "src/domain/replay.ts": "3be18bb29ce006043b3a9deb886d84b67c4d1ffdba6360909b50185aaaf4588f",
+      "tests/trace-redaction.test.ts": "71bc4cc1645b122f0dae72213c1ba811868b52cfd6a8993d52fc144339bf21ab",
+      "scripts/preview-demo.ts": "d5e77466b431bd18f12b90278b4162464e01f0c7bb1f47e095b07444bce599f3"
+    }
   }
 }

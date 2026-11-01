@@ -201,8 +201,12 @@ export function ReplayPanel({
                     <li key={request.index}>
                       <span>{(request.startMs / 1000).toFixed(2)}s</span>
                       <strong>{request.method}</strong>
-                      <span data-status={request.status >= 400 ? 'failed' : undefined}>
-                        HTTP {request.status || 'no response'}
+                      <span
+                        data-status={
+                          request.status <= 0 || request.status >= 400 ? 'failed' : undefined
+                        }
+                      >
+                        {request.status > 0 ? `HTTP ${request.status}` : 'No HTTP response'}
                       </span>
                     </li>
                   ))}

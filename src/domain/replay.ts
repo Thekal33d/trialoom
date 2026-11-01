@@ -10,6 +10,7 @@ export type TraceReplay = {
   requests: {
     index: number;
     method: string;
+    /** -1 is Playwright's no-response marker; 0 also means no HTTP response. */
     status: number;
     startMs: number;
     durationMs: number;

@@ -50,3 +50,6 @@ Playwright's viewer can show its action and network metadata; snapshots and sour
 - Lint, strict types, production build, documentation links and diff checks passed. The three existing dynamic-filesystem tracing build warnings remain.
 
 The scoped feature checks are not a comprehensive security audit or a production-isolation certification. The operated customer runner, independent operators, pilot operations/privacy/security, deployment and funded pilot gates remain open. [Evidence summary](evidence/RUN-02.json).
+
+
+The integrated restricted preview check exposed Playwright's numeric `-1` no-response marker. It is now preserved in sanitized metadata and shown as **No HTTP response**; failure text and request addresses remain withheld. Invalid other negative statuses and unknown layouts still remain private. See [the integrated runner evidence](evidence/RUN-03-integration.json).

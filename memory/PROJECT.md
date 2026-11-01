@@ -17,6 +17,7 @@ Last updated: 2026-11-01.
 - Track progress, status, decisions, and remaining work throughout development.
 - Commit every meaningful completed step as the build progresses.
 - Target the Celo Agents on Open Rails **Build with buy** bounty. User confirmed on 2026-11-01 that Trialoom is not enrolled yet. Registration, agent identity, public repository, live service use and submission evidence remain work to complete.
+- No Trialoom domain yet (user confirmed 2026-11-01); keep origin and sending domain configurable.
 - Local timezone: Africa/Lagos.
 
 ## Product boundaries

@@ -607,3 +607,11 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Validation: 60 focused DB checks (7 signup, 9 accounts, 8 projects, 11 operators, 25 authority), 16 existing desktop/mobile account checks and 4 new signup checks passed. New browser checks initially failed because the selector matched Next.js's route-announcer alert; scoped to main and rerun successfully. Initial sandbox DB connection was denied by EPERM; approved local test access succeeded. Corrected initial type mismatches before final checks.
 - Lint over 166 files, strict types and production build pass; three pre-existing storage tracing warnings remain. Desktop signup/mobile workspace screenshots visually inspected. Disposable test data cleaned; project default signup flag and private .env unchanged.
 - Next: BUY-01 closed report input and unsigned quote, then sponsored accounting/execution; FREE-03 real email/recovery/hosting/abuse controls remain open. Commit subject: `feat: add verified public signup and free builder workspaces` (FREE-01).
+
+## 2026-11-01 — BUY-01: closed report contract and live unsigned quote
+
+- Added report preparation for closed scalar observations with generated evidence references/canonical hashes. Rejects raw/private/free-form fields and inconsistent values. Bounded generated output must cite existing refs, carry no decision fields, and pass plain-text/secret checks; it is explicitly advisory.
+- Added `npm run buy:quote-report`: refresh free catalog, verify service/model/output contract, and request the exact unsigned Cencori quote. Fresh HTTP 402 offers 10,000 USDC base units on Celo mainnet with the pinned token/payee/domain. Used synthetic 201/400 data only. No signer, payment header, paid output or mainnet transaction.
+- Six boundary tests, lint and strict types pass. Safe checkpoint records request/source hashes; detailed public-safe quote remains ignored. The actual sponsored ledger, paid dispatch/reconciliation, useful response and report UI remain unfinished, explicitly recorded in BUY-01.md and status.
+- Recorded D050; FREE-02’s bounded request/dispatcher is the next concrete implementation. Enrollment remains pending; user confirmed no domain yet. No publication, wallet funding, email or deployment.
+- Commit subject: `feat: prepare sanitized test reports for buy quotes` (BUY-01).

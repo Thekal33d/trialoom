@@ -39,7 +39,7 @@ The [live buy catalog](https://gateway.usebuy.ai/v1/catalog), retrieved unsigned
 | Agent identity / funded resource wallet | Not configured |
 | Real browser results / replay | Local owned fixture and authorized Blokaz ladder; [verified checkpoint](evidence/RUN-03-ladder-verified.json) |
 | Payment recovery | Local Celo fork only; [VAL-03](evidence/VAL-03.json), [VAL-04](evidence/VAL-04.json) |
-| Useful buy output / mainnet receipt | Pending |
+| Useful buy output / mainnet receipt | Pending; [unsigned quote/input boundary](BUY-01.md) verified, with no payment |
 | External beta users / submission | Pending |
 
 Registration, publication and funding require concrete destination/identity/budget details. Keep private customer data, credentials, raw traces and provider capabilities out of public evidence. A working demo does not itself close public beta operations gates.

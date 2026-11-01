@@ -1,0 +1,44 @@
+{
+  "task": "BUY-01",
+  "stage": "unsigned-quote-and-input-boundary",
+  "checkedAt": "2026-11-01T15:21:19.994Z",
+  "catalog": "https://gateway.usebuy.ai/v1/catalog",
+  "catalogSha256": "cc0a16573d68b640ced5ac766ff1cdefea2f44bcaa6edeeae22a4c6977def114",
+  "service": "cencori.v1.chat.completions",
+  "url": "https://gateway.usebuy.ai/cencori/v1/chat/completions",
+  "requestHash": "094bd962204686f5e8a285b647be60caa3bf24542793b203e105ac90ee524a7b",
+  "evidenceHash": "1b94c8014d9e406855338177ffca41c9757536ea2c30651e811e9ef031c2bd25",
+  "inputProvenance": "Synthetic public-safe HTTP 201 expected / 400 observed; not customer evidence.",
+  "offer": {
+    "scheme": "exact",
+    "network": "celo",
+    "resource": "https://gateway.usebuy.ai/cencori/v1/chat/completions",
+    "asset": "0xcebA9300f2b948710d2653dD7B07f33A8B32118C",
+    "payTo": "0x20faAca5F980E29639A0FCC6dcA6988E18ed333B",
+    "maxAmountRequired": "10000",
+    "maxTimeoutSeconds": 60,
+    "extra": {
+      "name": "USDC",
+      "version": "2"
+    }
+  },
+  "paid": false,
+  "mainnetTransaction": null,
+  "usefulPaidOutput": false,
+  "checks": {
+    "boundaryTests": 6,
+    "lint": true,
+    "types": true
+  },
+  "limits": [
+    "No signer or funded resource wallet",
+    "No durable sponsored purchase journal or chain reconciliation yet",
+    "No generated output delivered through the product",
+    "Quote must be refreshed before any authorized purchase"
+  ],
+  "sourceHashes": {
+    "src/server/buy-report.ts": "80666e62a8f99c27ecb78d356e9047361148d357d6e93c22f777be6aace94d52",
+    "scripts/quote-buy-report.ts": "d3e354d377ebc918472558756a8f94463529af0631bc72cb25b753dc19b1c2e2",
+    "tests/buy-report.test.ts": "dd031dc2808ddb2ade675a616e8d5b896cd6c2110618ccce174a89521699fe3a"
+  }
+}

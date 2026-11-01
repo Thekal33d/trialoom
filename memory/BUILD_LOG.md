@@ -632,3 +632,9 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Fetched the remote, merged its initial history without rewriting commits, and resolved the sole README add/add conflict by retaining Trialoom's existing documentation. Branch protection is unchanged. Both histories are preserved; a normal push is the next action.
 - Rechecked official GitLab protected-branch guidance and event rules: the hackathon explicitly requires a public GitHub repository. GitLab synchronization does not satisfy that requirement or constitute enrollment. Updated status to distinguish the configured GitLab remote from the missing GitHub destination.
 - Checks: remote contents/history inspected, README preserved, merge conflict resolved and diff checks clean. No application code changed; application tests are not needed for this history/documentation step. Commit subject: `chore: merge GitLab initialization without rewriting history`.
+
+## 2026-11-01 — HACK-01: normal push awaiting terminal authentication
+
+- Created merge `ae88d83` with parents `385b4a1` and GitLab initial commit `6ef241a`. Confirmed remote main is now an ancestor and Trialoom's README is unchanged.
+- Retried the user's upload with `git push -u origin main`, without force. It stopped before authentication because terminal prompts are disabled in this tool session and no username credential was available. No successful push or remote branch update is claimed.
+- User next action: run the same normal push from their authenticated terminal. No password/token should be pasted into this conversation. GitLab protection is unchanged; the separate public GitHub requirement remains open. Documentation/diff checks only; commit subject: `docs: record pending GitLab authentication`.

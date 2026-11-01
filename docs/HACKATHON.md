@@ -35,7 +35,7 @@ The [live buy catalog](https://gateway.usebuy.ai/v1/catalog), retrieved unsigned
 | Item | Current evidence |
 | --- | --- |
 | Track / enrollment | Build with buy selected / not enrolled |
-| Public repo / hosted demo | GitLab origin configured; normal push pending. Required public GitHub repository and hosted demo not configured |
+| Public repo / hosted demo | GitLab origin configured and histories merged locally; normal push awaits terminal authentication. Required public GitHub repository and hosted demo not configured |
 | Agent identity / funded resource wallet | Not configured |
 | Real browser results / replay | Local owned fixture and authorized Blokaz ladder; [verified checkpoint](evidence/RUN-03-ladder-verified.json) |
 | Payment recovery | Local Celo fork only; [VAL-03](evidence/VAL-03.json), [VAL-04](evidence/VAL-04.json) |

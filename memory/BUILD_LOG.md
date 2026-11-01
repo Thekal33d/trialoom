@@ -547,3 +547,14 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Visually inspected the owned replay screenshot; verified no application runner containers or channel volumes remain. Private source copies and run artifacts remain ignored. Reviewed source hashes, document links and unchanged original PRD digest.
 - The exact Supabase read is prepared for user review and approval before public execution. Auth, wallets, gameplay, scores, identity changes and RPC remain excluded. Production/recovery/independent-operator gates remain open.
 - Commit subject: `feat: enforce exact API reads and scoped ladder journeys` (RUN-03).
+
+
+## 2026-11-01 — RUN-03: approved live ladder attempt and verified runner fixes
+
+- User approved the prepared exact Supabase GET. The initial permission-review timeout was retried successfully under that approval; it did not identify a safety issue. No permission was expanded.
+- First startup failed generically. Reproduced a `created`-container readiness race with an 800 ms delayed attachment in the network-disabled owned fixture, then verified that the fix reaches actual Chromium navigation and frozen witness under the same delay. A later public startup failure remains, so this is not a claim of complete startup reliability.
+- A subsequent run was refused with EGRESS_CONCEALED. Bounded approved GET diagnostics showed the missing CORS Origin behavior; proxy forwarding now preserves only an exact primary-manifest Origin and strips credentials. Ingestion equality was not weakened. The actual JSON uses 25 standings rows and a numeric total (3480 at inspection), correcting the earlier array assumption. Raw values remain private and ignored.
+- Validation: 19 isolated proxy groups plus two Chromium/proxy-loss checks; two API-contract tests; owned ladder success and both negative controls; lint/types; delayed-start before/after check; no runner containers/volumes remain. The app/server code was unchanged, so the existing passing production build was reused.
+- Submitted public attempt: homepage passed, eight responses forwarded, one first-party upstream script failure at about 5.05 seconds, no exhausted budget. Metadata replay has six actions and nine requests; hash, HTTP ingestion, independent witness and scope editor preservation passed. Visually inspected the replay. No ladder count agreement, accepted work or payable. A fresh retry stopped at broker startup without submission.
+- Current review session is retained at port 61193; private artifacts at `artifacts/preview-runs/49d3faa1215e3ceb/`. Failed disposable sessions and the latest owned smoke DB/raw evidence were cleaned. Existing older sessions untouched. Next: bounded startup/upstream diagnostics and clearer infrastructure classification, then rerun with the already approved scope.
+- Commit subject: `fix: preserve scoped CORS and validate live ladder responses` (RUN-03).

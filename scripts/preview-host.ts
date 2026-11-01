@@ -274,7 +274,10 @@ export function previewHost(image: string, publicNetwork: boolean, signal: Abort
           remote(['docker', 'exec', broker, 'test', '-f', '/channel/ready.json']);
           return;
         } catch {
-          assert(inspect(broker).State.Running, 'BROKER_NOT_READY');
+          const state = inspect(broker).State;
+          // Attaching through Orb is asynchronous; a created container has not failed.
+          // Keep polling within the existing bound, but stop on an exited/dead broker.
+          assert(state.Running || state.Status === 'created', 'BROKER_NOT_READY');
         }
         await delay(100);
       }

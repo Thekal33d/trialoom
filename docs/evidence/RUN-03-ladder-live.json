@@ -1,0 +1,102 @@
+{
+  "task": "RUN-03",
+  "checkpoint": "approved-live-ladder-attempt",
+  "date": "2026-11-01",
+  "publicApproval": "granted in conversation for the exact prepared GET",
+  "publicBackendContacted": true,
+  "applicationImage": "sha256:868fafa59d0d4c06239f50f8b4c93c9ab14173f30c33a7b7dc4e004bda3ace70",
+  "proxyCheckImage": "sha256:693b4bcfae7576afb797a0a86d8039b7cdac3e68fd27b416fa24f385606f6cdb",
+  "liveResult": {
+    "outcome": "blocked",
+    "decision": "pending_review",
+    "homepage": "passed",
+    "ladderCountAgreement": false,
+    "revisionConfirmed": false,
+    "acceptedUnits": "0",
+    "payableCount": 0,
+    "actions": 6,
+    "requestRecords": 9,
+    "noResponseRecords": 1,
+    "witness": {
+      "closed": true,
+      "connections": 9,
+      "requests": 9,
+      "inputBytes": 7212,
+      "outputBytes": 2712687,
+      "limits": {
+        "connections": 64,
+        "concurrent": 8,
+        "requests": 100,
+        "requestBytes": 2097152,
+        "responseBytes": 2097152,
+        "totalResponseBytes": 8388608,
+        "durationMs": 50000,
+        "idleMs": 5000,
+        "connectionMs": 15000
+      },
+      "budgetExceeded": null,
+      "observations": [
+        {
+          "origin": "https://www.blokaz.xyz",
+          "reason": "ALLOWED",
+          "count": 6
+        },
+        {
+          "origin": "https://fonts.googleapis.com",
+          "reason": "ALLOWED",
+          "count": 2
+        },
+        {
+          "origin": "https://www.blokaz.xyz",
+          "reason": "UPSTREAM_FAILED",
+          "count": 1
+        },
+        {
+          "origin": null,
+          "reason": "CANCELLED",
+          "count": 1
+        }
+      ]
+    },
+    "sanitizedReplay": "reviewable; hash/UI verified; screenshot inspected"
+  },
+  "apiDiagnostic": {
+    "status": 200,
+    "standingsRows": 25,
+    "playersTotal": 3480,
+    "noOriginCorsPermission": false,
+    "matchingPageOriginCorsPermission": true,
+    "browserVerification": false
+  },
+  "attemptLimitations": [
+    "Initial broker readiness failure; independently reproduced and fixed created-state race",
+    "Earlier evidence rejected with EGRESS_CONCEALED; equality check retained",
+    "Submitted attempt blocked by upstream first-party script failure after about 5.05 seconds",
+    "Fresh later attempt stopped with BROKER_NOT_READY; exact cause unresolved"
+  ],
+  "checks": {
+    "proxyGroups": 19,
+    "chromiumProxyJourneys": 2,
+    "proxyLoss": "passed",
+    "responseContractTests": 2,
+    "ownedSuccess": "passed",
+    "wrongCount": "blocked",
+    "unexpectedOrigin": "blocked",
+    "delayedStartBefore": "reproduced BROKER_NOT_READY",
+    "delayedStartAfter": "actual Chromium journey, witness freeze and cleanup passed",
+    "lint": "passed",
+    "typecheck": "passed",
+    "build": "reused preceding passing production build; runner-only changes",
+    "cleanup": "no runner containers or channel volumes remain"
+  },
+  "sourceHashes": {
+    "scripts/preview-host.ts": "b8d29dc6ab036e786d51d26a863d4c691485739dacbb54c40c9f158b5d4b933e",
+    "runners/preview-proxy.ts": "36aa06244d727c0ff2a8ccae4bf4bab46056db6bc604e1d1c71cece679e4214a",
+    "runners/preview-broker.ts": "cea6cd1776c3af93fde40e0cf217b18949ceb9b812991bade31e844fd09bbe23",
+    "runners/preview-ladder.ts": "0b6eb86101ced6af6c7310354cc9b772ed300252351f133040da14e768fa644c",
+    "runners/preview-check/proxy.test.ts": "955f63b42584eb9d237dc1d3e28111cf577c92becfa6199eb667402a1b99fde3",
+    "tests/preview-ladder.test.ts": "8244ce25334640527c443c736949c201993389f4cbb9a6b927a2f8ce1b24311d",
+    "runners/preview-browser.ts": "77ccf1cb539f6990f6a6e52e7b67ba72fce85438a05139570437d2c527501cf6",
+    "scripts/preview-controller.ts": "95c5c7e10aa4548f4c9690ba87a446f3ec39b8d3c7859ae65383ce70c8651b3d"
+  }
+}

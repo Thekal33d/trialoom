@@ -32,7 +32,9 @@ async function main() {
       ? createServer(input.identity, (req, res) => {
           if (req.url === '/rankings?limit=25') {
             res.setHeader('content-type', 'application/json');
-            res.end(JSON.stringify({ players: [{ fixture: true }, { fixture: true }] }));
+            res.end(
+              JSON.stringify({ players: 2, standings: [{ fixture: true }, { fixture: true }] }),
+            );
             return;
           }
           res.setHeader('content-type', 'text/html');
@@ -46,7 +48,7 @@ async function main() {
               <script>
               fetch('https://excluded.example.com/').catch(()=>{});
               ${input.fixtureOutcome === 'unexpected' ? "fetch('https://unknown.example.com/').catch(()=>{});" : ''}
-              fetch('/rankings?limit=25').then(r=>r.json()).then(data=>document.querySelector('#count').textContent=(data.players.length+${input.fixtureOutcome === 'mismatch' ? 1 : 0})+' CLASSIC PLAYERS');</script>`
+              fetch('/rankings?limit=25').then(r=>r.json()).then(data=>document.querySelector('#count').textContent=(data.players+${input.fixtureOutcome === 'mismatch' ? 1 : 0})+' CLASSIC PLAYERS');</script>`
               : req.url === '/next'
                 ? '<!doctype html><h1>Next page</h1><p>Owned navigation completed.</p>'
                 : '<!doctype html><title>Owned preview</title><h1>Owned preview sample</h1><p>A controlled read-only journey.</p><a href="/next">Next page</a>',
@@ -83,6 +85,7 @@ async function main() {
   }
   const proxy = await startPreviewProxy({
     admission,
+    pageOrigin: origin,
     socketPath: '/channel/egress.sock',
     identity: input.identity,
     limits: { durationMs: input.durationMs },

@@ -49,6 +49,8 @@ export type PreviewProxyOptions = {
   limits?: Partial<Limits>;
   readOnlyRequests?: { origin: string; requests: { method: 'GET'; path: string }[] }[];
   blockedOrigins?: string[];
+  /** The manifest's primary page origin, for browser CORS requests only. */
+  pageOrigin?: string;
   /** Trusted transport seam for isolated loopback fixtures; not a run input. */
   transport?: (
     options: RequestOptions,
@@ -59,6 +61,11 @@ export type PreviewProxyOptions = {
 
 /** HTTPS-only, read-only application proxy; no opaque CONNECT forwarding. */
 export async function startPreviewProxy(options: PreviewProxyOptions) {
+  if (options.pageOrigin !== undefined) {
+    previewOrigin(options.pageOrigin);
+    if (!options.admission.origins.includes(options.pageOrigin))
+      throw new Error('PREVIEW_SCOPE_INVALID');
+  }
   const blockedOrigins = new Set(options.blockedOrigins ?? []);
   if (blockedOrigins.size > 7 || blockedOrigins.size !== (options.blockedOrigins ?? []).length)
     throw new Error('PREVIEW_SCOPE_INVALID');
@@ -214,6 +221,14 @@ export async function startPreviewProxy(options: PreviewProxyOptions) {
       const value = incoming.headers[name];
       if (typeof value === 'string' && !hopHeaders.has(name)) headers[name] = value;
     }
+    // Preserve the browser's genuine page origin without admitting arbitrary
+    // caller-supplied origins or synthesizing CORS headers on responses.
+    if (
+      options.pageOrigin &&
+      incoming.headers.origin === options.pageOrigin &&
+      !hopHeaders.has('origin')
+    )
+      headers.origin = options.pageOrigin;
     const upstream = (options.transport ?? httpsRequest)(
       {
         hostname: destination.address,

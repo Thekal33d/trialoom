@@ -69,6 +69,27 @@ test('an allowed HTTPS request uses pinned IP and hostname-verified TLS; no prox
   assert.equal(upstream.connections(), 1);
   assert.deepEqual(proxy.snapshot().observations, [{ origin, reason: 'ALLOWED', count: 1 }]);
 });
+test('CORS forwards only the actual manifest page origin; never credentials or arbitrary origins', async (t) => {
+  const { get } = await setup(t, { pageOrigin: origin });
+  const allowed = await get('/headers', {
+    extra: `Origin: ${origin}\r\nAuthorization: Bearer fixture-auth-canary\r\nCookie: fixture-cookie-canary=secret\r\n`,
+  });
+  assert.equal(allowed.status, 200);
+  assert(allowed.text.includes(`"origin":"${origin}"`));
+  assert(!allowed.text.includes('fixture-auth-canary'));
+  assert(!allowed.text.includes('fixture-cookie-canary'));
+  for (const extra of [
+    '',
+    'Origin: https://unapproved.example.com\r\n',
+    'Origin: null\r\n',
+    `Origin: ${origin}/\r\n`,
+    `Origin: ${origin}\r\nConnection: origin\r\n`,
+  ]) {
+    const response = await get('/headers', { extra });
+    assert.equal(response.status, 200);
+    assert(!response.text.includes('"origin":'));
+  }
+});
 test('approved dependencies retain separate TLS and DNS pins; credentials and other origins stay blocked', async (t) => {
   const dependency = 'https://wrong.example.com';
   const dependencyTls = await identity('wrong.example.com');

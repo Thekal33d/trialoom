@@ -23,6 +23,7 @@ import {
   reconcilePurchase,
 } from '../src/server/resources.ts';
 import { authenticateRun, isolationProfile, startRun } from '../src/server/runner.ts';
+import { requestSignup } from '../src/server/signup.ts';
 import { digestOf } from '../src/server/storage.ts';
 import { disposableDatabase } from '../tests/helpers/database.ts';
 import type { PlaygroundFixture } from './playground.ts';
@@ -853,6 +854,16 @@ try {
       email: `${viewport}-join@example.test`,
       name: 'Invited browser workspace',
     });
+    // Private captured mail in disposable test fixtures; never a real delivery.
+    let signupUrl = '';
+    await requestSignup(
+      db.pool,
+      { email: `${viewport}-free@example.test` },
+      'http://127.0.0.1:3100',
+      async (mail) => {
+        signupUrl = mail.url;
+      },
+    );
     // The payment authority check has its own workspace: registering one makes
     // naming it a requirement for every later publication there, which would
     // otherwise reach the other specs through the shared database.
@@ -873,6 +884,7 @@ try {
       campaignId: campaign.campaignId,
       termsVersionId: campaign.id,
       joinToken: join.token,
+      signupUrl,
       treasuryOwnerEmail: `${viewport}-treasury-owner@example.test`,
       treasuryWorkspaceId: treasury.workspaceId,
       reviewerEmail: `${viewport}-reviewer@example.test`,
@@ -933,6 +945,8 @@ try {
           DATABASE_URL: db.url,
           BETTER_AUTH_URL: 'http://127.0.0.1:3100',
           BETTER_AUTH_SECRET: randomBytes(48).toString('base64url'),
+          RESEND_API_KEY: '',
+          TRIALOOM_EMAIL_FROM: '',
           PLAYWRIGHT_BROWSERS_PATH: '.cache/ms-playwright',
           TRIALOOM_E2E_FIXTURE: fixtureFile,
           TRIALOOM_EVIDENCE_DIR: resolve(directory, 'evidence'),

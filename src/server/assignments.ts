@@ -23,6 +23,7 @@ import {
   total,
 } from './ledger.ts';
 import { approvedQuote, repairRole } from './repairs.ts';
+import { requireMarketplaceWorkspace } from './signup.ts';
 
 export const leaseSeconds = 900;
 type CampaignRow = {
@@ -102,6 +103,7 @@ async function publish(
   return transaction(pool, async (db) => {
     // Money decisions belong to the workspace owner.
     await requireRole(db, actor, workspaceId, ['owner']);
+    await requireMarketplaceWorkspace(db, workspaceId);
     if (
       !(
         await db.query('SELECT 1 FROM projects WHERE id=$1 AND workspace_id=$2', [

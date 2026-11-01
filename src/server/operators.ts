@@ -21,6 +21,7 @@ import type { Actor } from './access.ts';
 import { authSettings } from './auth/config.ts';
 import { transaction } from './database.ts';
 import { bindPendingPayouts } from './payables.ts';
+import { requireInvitedOperator } from './signup.ts';
 
 export type Operator = { id: string; handle: string; status: string };
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -44,6 +45,7 @@ export async function requireOperator(db: PoolClient, actor: Actor): Promise<Ope
 export async function registerOperator(pool: Pool, actor: Actor, input: unknown) {
   const data = operatorSchema.parse(input);
   return transaction(pool, async (db) => {
+    await requireInvitedOperator(db, actor.id);
     const existing = (
       await db.query<Operator>('SELECT id,handle,status FROM operators WHERE user_id=$1', [
         actor.id,

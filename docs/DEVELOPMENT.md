@@ -130,3 +130,7 @@ Web requests never auto-migrate. Add migrations under `db/migrations/` using asc
 The initial database user has local development privileges. Accounts and roles are verified locally; production identity hardening/recovery, isolated database/process identities, backup/restore, artifact storage, runners, money handlers, deployment, and monitoring still require their own gates. Readiness currently checks the database schema, not complete deployment readiness. See [architecture](ARCHITECTURE.md) and [backlog](BACKLOG.md).
 
 For the integrated isolated browser walkthrough and authorized Blokaz homepage check, see [RUN-03 integration](RUN-03-INTEGRATION.md): `npm run browser:preview` (or `-- --smoke`).
+
+## Public free beta signup
+
+See [FREE-01](FREE-01.md) for the verified signup flow and mail configuration. Set `TRIALOOM_PUBLIC_SIGNUP=true` only after configuring a verified sender with `RESEND_API_KEY` and `TRIALOOM_EMAIL_FROM`. Missing mail delivery fails visibly. New accounts get free project setup; automatic test dispatch and sponsored usebuy output remain separate work. Existing invited workspaces are preserved.

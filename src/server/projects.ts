@@ -7,6 +7,7 @@ import { buildSchema, projectSchema, type TermsInput, termsSchema } from '../dom
 import { canonicalJson, settlementCurrency } from '../domain/values.ts';
 import { type Actor, audit, requireRole } from './access.ts';
 import { transaction } from './database.ts';
+import { requireMarketplaceWorkspace, reserveProjectSlot } from './signup.ts';
 import { parseTarget, type ResolveTarget, validateTarget } from './targets.ts';
 
 const readers = ['owner', 'member', 'reviewer'] as const;
@@ -57,6 +58,7 @@ export async function createProject(
   const repository = data.repositoryUrl ? parseTarget(data.repositoryUrl).url.href : null;
   return transaction(pool, async (db) => {
     await requireRole(db, actor, workspaceId, ['owner', 'member']);
+    await reserveProjectSlot(db, workspaceId);
     const { rows } = await db.query(
       `INSERT INTO projects (workspace_id,name,target_url,authorized_origin,environment,repository_url,authorized_by,admission_addresses)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
@@ -214,6 +216,7 @@ export async function createCampaign(
     .parse(input);
   return transaction(pool, async (db) => {
     await accessProject(db, actor, workspaceId, projectId, true);
+    await requireMarketplaceWorkspace(db, workspaceId);
     const { rows } = await db.query(
       'INSERT INTO campaigns (project_id,name,created_by) VALUES ($1,$2,$3) RETURNING id',
       [projectId, name, actor.id],

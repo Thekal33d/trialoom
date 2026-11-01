@@ -10,6 +10,7 @@ import { type Actor, audit, requireRole } from './access.ts';
 import { transaction } from './database.ts';
 import { completeJob, enqueueJob, type JobLease, rescheduleJob } from './jobs.ts';
 import { noticeTopics, raiseNotice, resolveNotices } from './notices.ts';
+import { requireMarketplaceWorkspace } from './signup.ts';
 
 /**
  * A payment authority is what makes a payout possible, and it is deliberately
@@ -229,6 +230,7 @@ export async function registerAuthority(
   const data = paymentAuthoritySchema.parse(input);
   return transaction(pool, async (db) => {
     await requireRole(db, actor, workspaceId, ['owner']);
+    await requireMarketplaceWorkspace(db, workspaceId);
     // The approval is identified the way the chain identifies it, not by the
     // workspace or the policy, so two workspaces pointing at one wallet
     // contend on one row instead of each believing they are funded.

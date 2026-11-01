@@ -598,3 +598,12 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Network-restricted catalog GET failed DNS, then succeeded through approved network access. No paid request, wallet action, email, publication or enrollment. Event attribution and independent-user qualification remain evidence gates.
 - Checks: documentation diff/link review and unchanged original PRD hash. Implementation follows under FREE-01 and BUY-01; hosted execution and paid output are not claimed.
 - Commit subject: `docs: select public free beta and Build with buy launch scope` (FREE-00, HACK-01).
+
+## 2026-11-01 — FREE-01: email-first public signup and free workspace
+
+- Implemented configuration-gated signup, 30-minute digest-only email capabilities, same-origin bounded routes and durable rate limits. Only verified-link completion creates credentials, owner membership, a free workspace and audit event atomically. Existing accounts/invitations are preserved; duplicate links cannot race two workspaces into existence.
+- Added signup/completion screens and a free project workspace with concurrent three-project cap. No customer wallet or money setup; paid campaign/authority/operator/invitation bypasses are refused. Availability text explicitly says automatic testing is being connected. Existing paid records unchanged.
+- Fixed-endpoint Resend delivery adapter supports idempotency, timeouts and safe failures. Real mail configuration is absent; tests capture messages and strip mail credentials. No real email, public target execution or payment occurred.
+- Validation: 60 focused DB checks (7 signup, 9 accounts, 8 projects, 11 operators, 25 authority), 16 existing desktop/mobile account checks and 4 new signup checks passed. New browser checks initially failed because the selector matched Next.js's route-announcer alert; scoped to main and rerun successfully. Initial sandbox DB connection was denied by EPERM; approved local test access succeeded. Corrected initial type mismatches before final checks.
+- Lint over 166 files, strict types and production build pass; three pre-existing storage tracing warnings remain. Desktop signup/mobile workspace screenshots visually inspected. Disposable test data cleaned; project default signup flag and private .env unchanged.
+- Next: BUY-01 closed report input and unsigned quote, then sponsored accounting/execution; FREE-03 real email/recovery/hosting/abuse controls remain open. Commit subject: `feat: add verified public signup and free builder workspaces` (FREE-01).

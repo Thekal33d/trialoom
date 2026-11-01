@@ -664,3 +664,54 @@ button:disabled {
     font-size: 11px;
   }
 }
+
+.free-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.free-intro {
+  padding: clamp(40px, 7vw, 80px) 0 40px;
+}
+.free-intro h1 {
+  font-size: clamp(32px, 5vw, 60px);
+  overflow-wrap: anywhere;
+  margin-top: 18px;
+}
+.beta-availability {
+  max-width: 700px;
+  padding: 16px 0;
+  border-block: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.8;
+}
+.free-workspace .editor-panel {
+  max-width: 650px;
+}
+.free-workspace .section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+.free-project-list {
+  list-style: none;
+  padding: 0;
+}
+.free-project-list li {
+  border-top: 1px solid var(--line);
+  padding: 26px 0;
+}
+.free-project-list h3,
+.free-project-list p {
+  overflow-wrap: anywhere;
+}
+.free-project-list p {
+  margin: 10px 0 16px;
+  color: var(--muted);
+  font-size: 14px;
+}

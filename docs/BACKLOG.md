@@ -27,7 +27,7 @@ The user selected public signup, free bounded testing and the Build with buy bou
 | ID | Work | State | Depends on | Acceptance / evidence |
 | --- | --- | --- | --- | --- |
 | FREE-00 | Release scope and bounty requirements | Done | User decision | D049; fresh official event and free buy catalog review; no enrollment, purchase or deployment claimed |
-| FREE-01 | Verified public signup and free workspace | In progress | FREE-00 | Email possession, atomic signup, workspace isolation, explicit free entitlement, paid/operator boundaries, desktop/mobile flow |
+| FREE-01 | Verified public signup and free workspace | Done (local) | FREE-00 | Email-first atomic signup, one free workspace, concurrent three-project cap, paid/operator/invitation boundaries; 60 DB and 20 desktop/mobile checks; [guide](FREE-01.md). Real delivery/recovery/edge controls remain FREE-03 |
 | FREE-02 | Bounded free test and automatic runner | Not started | FREE-01, RUN-03 | Quotas and global ceiling, authorized targets, automatic dispatch/recovery, observed output and replay, no customer liability |
 | BUY-01 | Sponsored buy report explanation | In progress | FREE-00, RUN-02 | Exact catalog/quote; closed sanitized inputs; useful Cencori output; reserved platform cap, durable intent/reconciliation, Celo receipt; no customer reimbursement |
 | FREE-03 | Hosted staging and launch operations | Not started | FREE-01, FREE-02 | HTTPS/app/worker/Postgres/private evidence; real mail/recovery; backup restore, roles, monitoring, retention and abuse controls |

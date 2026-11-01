@@ -81,17 +81,22 @@ export async function sessionActor(request: Request): Promise<Actor | null> {
     ? { id: session.user.id, email: session.user.email, name: session.user.name }
     : null;
 }
-export async function limitRequest(purpose: string, identity: string, maximum: number) {
+export async function limitRequest(
+  purpose: string,
+  identity: string,
+  maximum: number,
+  windowSeconds = 60,
+) {
   const key = createHash('sha256').update(`${purpose}:${identity}`).digest('hex');
   const { rows } = await getPool().query(
-    `INSERT INTO request_limits (key,count,resets_at) VALUES ($1,1,clock_timestamp()+interval '1 minute')
+    `INSERT INTO request_limits (key,count,resets_at) VALUES ($1,1,clock_timestamp()+make_interval(secs => $2))
     ON CONFLICT (key) DO UPDATE SET count=CASE WHEN request_limits.resets_at<=clock_timestamp() THEN 1 ELSE request_limits.count+1 END,
-    resets_at=CASE WHEN request_limits.resets_at<=clock_timestamp() THEN clock_timestamp()+interval '1 minute' ELSE request_limits.resets_at END
+    resets_at=CASE WHEN request_limits.resets_at<=clock_timestamp() THEN clock_timestamp()+make_interval(secs => $2) ELSE request_limits.resets_at END
     RETURNING count`,
-    [key],
+    [key, windowSeconds],
   );
   if (rows[0].count > maximum)
-    throw new AppError('RATE_LIMITED', 'Too many attempts. Please wait a minute.', 429);
+    throw new AppError('RATE_LIMITED', 'Too many attempts. Please try again later.', 429);
 }
 export async function handleApi(
   request: Request,

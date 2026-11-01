@@ -1,0 +1,104 @@
+import { readFileSync } from 'node:fs';
+import AxeBuilder from '@axe-core/playwright';
+import { expect, type Page, test } from '@playwright/test';
+
+const fixtures = JSON.parse(readFileSync(process.env.TRIALOOM_E2E_FIXTURE ?? '', 'utf8')) as Record<
+  string,
+  { signupUrl: string; password: string }
+>;
+test.skip(
+  process.env.TRIALOOM_PUBLIC_SIGNUP !== 'true',
+  'Explicitly enable the signup flow for these checks.',
+);
+async function accessible(page: Page) {
+  expect(
+    (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze())
+      .violations,
+  ).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+}
+
+test('public signup shows delivery failure honestly and limits retries', async ({
+  page,
+  request,
+}, info) => {
+  await page.goto('/sign-up');
+  await accessible(page);
+  await page.screenshot({ path: info.outputPath('public-signup.png'), fullPage: true });
+  const email = `${info.project.name}-missing-mail@example.test`;
+  await page.getByLabel('Email address').fill(email);
+  await page.getByRole('button', { name: 'Send signup link' }).click();
+  await expect(page.getByRole('main').getByRole('alert')).toContainText(
+    'Signup email is not available yet',
+  );
+  await expect(page.getByRole('heading', { name: 'Check your inbox.' })).toHaveCount(0);
+  for (let i = 0; i < 3; i++) {
+    const result = await request.post('/api/signup/request', {
+      headers: { origin: 'http://127.0.0.1:3100' },
+      data: { email },
+    });
+    expect(result.status()).toBe(i === 2 ? 429 : 503);
+    expect(result.headers()['cache-control']).toBe('no-store');
+  }
+  const crossOrigin = await request.post('/api/signup/complete', {
+    headers: { origin: 'https://attacker.example' },
+    data: {},
+  });
+  expect(crossOrigin.status()).toBe(403);
+  const body = await request.post('/api/signup/request', {
+    headers: { origin: 'http://127.0.0.1:3100' },
+    data: { email, padding: 'x'.repeat(5000) },
+  });
+  expect(body.status()).toBe(413);
+});
+
+test('verified link creates a free workspace, persists a project and refuses operator access', async ({
+  page,
+}, info) => {
+  test.setTimeout(60000);
+  const fixture = fixtures[info.project.name];
+  await page.goto(fixture.signupUrl);
+  await expect(page).toHaveURL('/sign-up/complete');
+  await expect(page.getByLabel('Email address')).toHaveValue(
+    `${info.project.name}-free@example.test`,
+  );
+  await page.getByLabel('Your name').fill('Public builder');
+  await page.getByLabel('Workspace name').fill('My free workspace');
+  await page.getByLabel('Choose a password').fill(fixture.password);
+  await accessible(page);
+  await page.getByRole('button', { name: 'Create free workspace' }).click();
+  await expect(page).toHaveURL('/workspace');
+  await expect(page.getByRole('heading', { name: 'My free workspace' })).toBeVisible();
+  await expect(
+    page.getByText('Automatic testing is being connected', { exact: false }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Add a project' }).click();
+  await page.getByLabel('Project name').fill('My preview');
+  await page.getByLabel('Preview URL').fill('https://127.0.0.1');
+  await page.getByLabel('I own this website').check();
+  await page.getByRole('button', { name: 'Save project' }).click();
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('private');
+  await page.getByLabel('Preview URL').fill('https://example.com');
+  await page.getByRole('button', { name: 'Save project' }).click();
+  await expect(page.getByRole('heading', { name: 'My preview' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'My preview' })).toBeVisible();
+  await accessible(page);
+  await page.screenshot({ path: info.outputPath('free-workspace.png'), fullPage: true });
+  const refused = await page.request.post('/api/v1/operator', {
+    headers: { origin: 'http://127.0.0.1:3100' },
+    data: { handle: `${info.project.name}-public-operator` },
+  });
+  expect(refused.status()).toBe(403);
+  expect((await refused.json()).error.code).toBe('OPERATOR_INVITATION_REQUIRED');
+  await page.goto('/operator');
+  await expect(page).toHaveURL('/workspace');
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await expect(page).toHaveURL('/sign-in');
+  await page.goto(fixture.signupUrl);
+  await expect(page.getByRole('main').getByRole('alert')).toContainText(
+    'expired or was already used',
+  );
+});

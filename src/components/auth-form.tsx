@@ -97,7 +97,7 @@ export function AuthForm({ join = false }: { join?: boolean }) {
               ? `Join ${invitation.workspace} as ${invitation.role}.`
               : join
                 ? 'A private invitation connects you to your workspace.'
-                : 'Sign in to your invited workspace.'}
+                : 'Sign in to your workspace.'}
           </p>
           {loading && <p role="status">Checking your invitation…</p>}
           {error && (
@@ -158,8 +158,13 @@ export function AuthForm({ join = false }: { join?: boolean }) {
             </form>
           )}
           <p className="auth-footnote">
-            Access is by invitation. Contact your workspace owner if you need a new invitation or
-            account help.
+            {join ? (
+              'Contact your workspace owner if you need a new invitation or account help.'
+            ) : (
+              <Link className="text-link" href="/sign-up">
+                New to Trialoom? Create a free workspace
+              </Link>
+            )}
           </p>
         </section>
       </div>

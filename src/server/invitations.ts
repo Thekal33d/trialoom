@@ -5,6 +5,7 @@ import { AppError } from '../domain/errors.ts';
 import { inviteSchema, joinSchema, tokenSchema, workspaceSchema } from '../domain/schemas.ts';
 import { type Actor, audit, type Role, requireRole } from './access.ts';
 import { transaction } from './database.ts';
+import { requireMarketplaceWorkspace } from './signup.ts';
 
 const tokenHash = (token: string) => createHash('sha256').update(token).digest('hex');
 async function issue(
@@ -45,6 +46,7 @@ export async function createInvitation(
   const data = inviteSchema.parse(input);
   return transaction(pool, async (db) => {
     await requireRole(db, actor, workspaceId, ['owner']);
+    await requireMarketplaceWorkspace(db, workspaceId);
     return issue(db, workspaceId, data.email, data.role, actor.id);
   });
 }

@@ -4,7 +4,7 @@ Last updated: 2026-11-01 (Africa/Lagos).
 
 ## State
 
-**First release changed to a public free testing beta (D049).** The user selected public signup, free bounded testing and the **Build with buy** hackathon track, and confirmed Trialoom is not enrolled. FREE-01 signup and BUY-01 sponsored report explanation are active. The app is still local and invitation-only until those changes are verified; no paid provider output, public deployment or submission exists. [Release scope](../docs/FREE-BETA.md), [backlog](../docs/BACKLOG.md).
+**First release changed to a public free testing beta (D049).** The user selected public signup, free bounded testing and the **Build with buy** hackathon track, and confirmed Trialoom is not enrolled. FREE-01 public signup is implemented and verified locally, with email-first account creation, a free workspace and three-project cap. Signup remains configuration-gated; real mail delivery is not configured. BUY-01 sponsored report explanation is active; no paid provider output, public deployment or submission exists. [Release scope](../docs/FREE-BETA.md), [backlog](../docs/BACKLOG.md).
 
 **RUN-03 controller-crash recovery is implemented and verified locally.** A PostgreSQL journal fixes each run's execution identity before dispatch and references a synced private capture. Fresh processes reconcile the original witness, uploads and submission; incomplete captures are cleaned up and marked interrupted without redispatch. Ten real SIGKILL cases cover running/captured/delivery boundaries plus corrupt evidence, upload conflicts, expiry and revocation. Recovery keeps commitments unchanged, with no duplicate submission, acceptance or payable. Fifty focused database checks include journal exclusion, immutable state, integrity and database-session loss. This does not provide an automatic scheduler or whole-machine/daemon recovery. [Recovery guide](../docs/RUN-03-RECOVERY.md), [checkpoint](../docs/evidence/RUN-03-recovery.json).
 
@@ -68,7 +68,7 @@ Earlier dependency and blocked live checkpoints remain unchanged as historical e
 
 ## Next action
 
-**Next action: implement and verify FREE-01 public email signup with a free workspace and closed paid/operator access; prepare BUY-01 using a fresh unsigned quote.** RUN-03 resource/automatic-dispatch/host-recovery checks remain prerequisites to public execution, not a reason to defer signup and usebuy work. Preserve all existing target permissions.
+**Next action: prepare BUY-01 with closed sanitized report inputs and a fresh unsigned Cencori quote, then connect the sponsored purchase journal and free-test dispatcher.** RUN-03 resource/automatic-dispatch/host-recovery checks remain prerequisites to public execution, not a reason to defer signup and usebuy work. Preserve all existing target permissions.
 
 
 PILOT-01 (operations, privacy, security, and reviewer coverage) is still not started. Operating an isolated runner, deployment/remote CI, actual independent operators, and a specifically authorized funded payment experiment are separate production gates. VAL-02 still needs independent operator review and VAL-04 still needs actual paid resource provisioning; the hackathon checklist remains unmet. Paid marketplace items below are deferred from the selected free beta; applicable execution/privacy/operations gates still apply.

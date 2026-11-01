@@ -23,7 +23,10 @@ export async function identity(hostname = 'preview.example.com') {
     .digest('base64');
   return { key, cert, spki };
 }
-export async function fixture(tls: Awaited<ReturnType<typeof identity>>) {
+export async function fixture(
+  tls: Awaited<ReturnType<typeof identity>>,
+  hostname = 'preview.example.com',
+) {
   const hits: string[] = [];
   const server = createServer(tls, (req, res) => {
     hits.push(req.url ?? '');
@@ -52,6 +55,7 @@ export async function fixture(tls: Awaited<ReturnType<typeof identity>>) {
         res.end('<h1>Next page</h1>');
         return;
       case '/headers':
+        res.setHeader('set-cookie', 'fixture-cookie-canary=secret');
         res.end(JSON.stringify(req.headers));
         return;
       default:
@@ -77,7 +81,7 @@ export async function fixture(tls: Awaited<ReturnType<typeof identity>>) {
         publicIp,
         'Actual transport must receive the checked IP literal',
       );
-      assert.equal(options.servername, 'preview.example.com');
+      assert.equal(options.servername, hostname);
       assert.equal(options.port, 443);
       assert.equal(options.rejectUnauthorized, true);
       connections++;
@@ -127,6 +131,7 @@ export async function throughProxy(
     method?: string;
     extra?: string;
     maxResponseBytes?: number;
+    pinProxyIdentity?: boolean;
   } = {},
 ) {
   const socket = await connectTunnel(path, options.authority);
@@ -135,6 +140,16 @@ export async function throughProxy(
       socket,
       servername: options.servername ?? 'preview.example.com',
       ca: cert,
+      ...(options.pinProxyIdentity
+        ? {
+            // Match the exact ephemeral proxy identity, as Chromium does through
+            // its SPKI pin. Upstream TLS still verifies each destination hostname.
+            checkServerIdentity: (_hostname: string, peer: { fingerprint256: string }) =>
+              peer.fingerprint256 === new X509Certificate(cert).fingerprint256
+                ? undefined
+                : new Error('PROXY_IDENTITY_MISMATCH'),
+          }
+        : {}),
     });
     let answer = '';
     client.on('data', (chunk) => {

@@ -124,6 +124,7 @@ export async function startPreviewProxy(options: PreviewProxyOptions) {
     'upgrade',
     'alt-svc',
     'x-trialoom-proxy-denied',
+    'set-cookie',
   ]);
   const forward = async (origin: string, incoming: IncomingMessage, response: ServerResponse) => {
     if (closed) return response.destroy();
@@ -170,7 +171,7 @@ export async function startPreviewProxy(options: PreviewProxyOptions) {
     const hopHeaders = new Set(
       (incoming.headers.connection ?? '').split(',').map((name) => name.trim().toLowerCase()),
     );
-    for (const name of ['accept', 'accept-language', 'user-agent', 'cookie', 'range']) {
+    for (const name of ['accept', 'accept-language', 'user-agent', 'range']) {
       const value = incoming.headers[name];
       if (typeof value === 'string' && !hopHeaders.has(name)) headers[name] = value;
     }

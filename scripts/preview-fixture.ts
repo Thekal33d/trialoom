@@ -133,9 +133,14 @@ export async function seedPreviewFixture(pool: Pool, mode: 'owned' | 'public') {
         allowedActions: [
           previewAction,
           ...(mode === 'owned' ? ['Follow the owned Next page link'] : []),
+          ...(mode === 'public'
+            ? ['Load approved Google Fonts stylesheets and font files with GET/HEAD']
+            : []),
         ],
+        readOnlyDependencyOrigins:
+          mode === 'public' ? ['https://fonts.googleapis.com', 'https://fonts.gstatic.com'] : [],
         exclusions: [
-          'No accounts, login, wallets, staking, form submissions, payment, third-party origins or state-changing methods',
+          'No accounts, login, wallets, staking, form submissions, payment, unapproved third-party origins or state-changing methods',
         ],
         acceptanceCriteria:
           'Review actual Chromium steps, assertions, trace metadata and the separate proxy witness.',

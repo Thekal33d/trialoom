@@ -69,6 +69,46 @@ test('an allowed HTTPS request uses pinned IP and hostname-verified TLS; no prox
   assert.equal(upstream.connections(), 1);
   assert.deepEqual(proxy.snapshot().observations, [{ origin, reason: 'ALLOWED', count: 1 }]);
 });
+test('approved dependencies retain separate TLS and DNS pins; credentials and other origins stay blocked', async (t) => {
+  const dependency = 'https://wrong.example.com';
+  const dependencyTls = await identity('wrong.example.com');
+  const upstream = await fixture(dependencyTls, 'wrong.example.com');
+  t.after(() => upstream.stop());
+  let changed = false;
+  const admission = await admitPreview(
+    [origin, dependency],
+    async (hostname) => (changed && hostname === 'wrong.example.com' ? ['1.1.1.1'] : [publicIp]),
+    { [origin]: [publicIp], [dependency]: [publicIp] },
+  );
+  const { get, proxy } = await setup(t, {
+    admission,
+    upstreamCa: dependencyTls.cert,
+    transport: upstream.transport,
+  });
+  const opts = {
+    authority: 'wrong.example.com:443',
+    host: 'wrong.example.com',
+    servername: 'wrong.example.com',
+    pinProxyIdentity: true,
+  };
+  const response = await get('/headers', {
+    ...opts,
+    extra: 'Cookie: fixture-cookie-canary=secret\r\nAuthorization: Bearer fixture-auth-canary\r\n',
+  });
+  assert.equal(response.status, 200);
+  assert(!response.text.includes('fixture-cookie-canary'));
+  assert(!response.text.includes('fixture-auth-canary'));
+  assert.equal((await get('/', { ...opts, method: 'POST' })).status, 403);
+  await assert.rejects(get('/', { authority: 'unapproved.example.com:443' }));
+  changed = true;
+  assert.equal((await get('/', opts)).status, 403);
+  assert.equal(upstream.connections(), 1);
+  assert(
+    proxy
+      .snapshot()
+      .observations.some((item) => item.origin === dependency && item.reason === 'ALLOWED'),
+  );
+});
 test('changed DNS and rebinding to private addresses refuse before any upstream connection', async (t) => {
   let addresses = [publicIp];
   const admission = await admitPreview([origin], async () => addresses);

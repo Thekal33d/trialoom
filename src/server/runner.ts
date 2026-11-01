@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import { AppError } from '../domain/errors.ts';
-import { runStartSchema, uuid } from '../domain/schemas.ts';
+import { readOnlyDependencyOriginsSchema, runStartSchema, uuid } from '../domain/schemas.ts';
 import type { AgentSession } from './agents.ts';
 import { liveAssignment } from './assignments.ts';
 import { transaction } from './database.ts';
@@ -231,6 +231,7 @@ export type PreparedRun = {
   secret: string;
   targetCheck: TargetCheck;
   document: TermsDocument;
+  readOnlyDependencies?: { origin: string; addresses: string[] }[];
 };
 
 /**
@@ -254,6 +255,17 @@ export async function prepareRun(
       `Renew the claim lease before starting a run; it has under ${runLimits.minimumLeaseSeconds} seconds left.`,
       409,
     );
+  const origins = readOnlyDependencyOriginsSchema.parse(
+    context.document.readOnlyDependencyOrigins ?? [],
+  );
+  if (origins.includes(context.project.authorized_origin))
+    throw new AppError('DEPENDENCY_INVALID', 'The primary target is already authorized.');
+  const readOnlyDependencies = await Promise.all(
+    origins.map(async (origin) => {
+      const admitted = await validateTarget(origin, deps.resolver);
+      return { origin, addresses: admitted.addresses };
+    }),
+  );
   return {
     assignmentId: id,
     attemptToken,
@@ -261,6 +273,7 @@ export async function prepareRun(
     secret: `trun_${randomBytes(32).toString('base64url')}`,
     targetCheck: await revalidateTarget(context.build, context.project, deps),
     document: context.document,
+    readOnlyDependencies,
   };
 }
 
@@ -285,6 +298,17 @@ export async function issueRun(db: PoolClient, session: AgentSession, prepared: 
   const { document, targetCheck } = prepared;
   const required = requiredIsolation(document);
   const bound = await bindHost(db, prepared.hostId, required);
+  const readOnlyDependencies = prepared.readOnlyDependencies ?? [];
+  if (
+    canonical(readOnlyDependencies.map((item) => item.origin)) !==
+    canonical(document.readOnlyDependencyOrigins ?? [])
+  )
+    throw new AppError('DEPENDENCY_INVALID', 'Dependency admission must match the pinned terms.');
+  if (readOnlyDependencies.length && bound.level !== 'witnessed')
+    throw new AppError(
+      'ISOLATION_REQUIRED',
+      'Read-only dependencies require an enforced, witnessed runner.',
+    );
   const wallClockSeconds = Math.floor(
     (new Date(assignment.lease_expires_at).getTime() - Date.now()) / 1000,
   );
@@ -325,7 +349,11 @@ export async function issueRun(db: PoolClient, session: AgentSession, prepared: 
       healthy: targetCheck.targetHealthy,
     },
     // Declared for the runner and checked against reported origins at ingestion.
-    egressAllowlist: [targetCheck.origin],
+    egressAllowlist: [targetCheck.origin, ...readOnlyDependencies.map((item) => item.origin)],
+    readOnlyDependencies: readOnlyDependencies.map((item) => ({
+      ...item,
+      methods: ['GET', 'HEAD'],
+    })),
     limits: {
       wallClockSeconds,
       maxArtifacts: runLimits.maxArtifacts,

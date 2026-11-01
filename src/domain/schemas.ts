@@ -38,6 +38,32 @@ const units = z
   .regex(/^(0|[1-9][0-9]{0,77})$/)
   .refine((value) => BigInt(value) <= 2n ** 256n - 1n, 'Amount exceeds uint256');
 const paragraph = z.string().trim().min(3).max(4000);
+export const readOnlyDependencyOriginsSchema = z
+  .array(
+    z
+      .string()
+      .max(253)
+      .refine((value) => {
+        try {
+          const url = new URL(value);
+          return (
+            url.protocol === 'https:' &&
+            url.origin === value &&
+            !url.port &&
+            !url.username &&
+            !url.password &&
+            !url.hostname.endsWith('.') &&
+            url.hostname.includes('.') &&
+            /[a-z]/.test(url.hostname) &&
+            /^[a-z0-9.-]+$/.test(url.hostname)
+          );
+        } catch {
+          return false;
+        }
+      }, 'Use an exact HTTPS origin without a path, port, credentials or IP address.'),
+  )
+  .max(7)
+  .refine((origins) => new Set(origins).size === origins.length, 'List each dependency once.');
 // What a run must prove about its isolation, weakest first.
 export const isolationLevels = ['attested', 'witnessed'] as const;
 export const termsSchema = z
@@ -48,6 +74,9 @@ export const termsSchema = z
     scope: paragraph,
     allowedActions: z.array(z.string().trim().min(1).max(300)).min(1).max(20),
     exclusions: z.array(z.string().trim().min(1).max(300)).max(20),
+    // Optional preserves existing immutable terms hashes. These are supporting
+    // GET/HEAD resources, not additional top-level testing targets.
+    readOnlyDependencyOrigins: readOnlyDependencyOriginsSchema.optional(),
     acceptanceCriteria: paragraph,
     rewardRubric: paragraph,
     artifactRights: paragraph,
@@ -63,7 +92,14 @@ export const termsSchema = z
     minimumIsolation: z.enum(isolationLevels).optional(),
     scopeApproved: z.literal(true),
   })
-  .strict();
+  .strict()
+  .refine(
+    (data) => !data.readOnlyDependencyOrigins?.length || data.minimumIsolation === 'witnessed',
+    {
+      path: ['minimumIsolation'],
+      message: 'Read-only dependencies require witnessed isolation.',
+    },
+  );
 export type TermsInput = z.infer<typeof termsSchema>;
 
 export const handleSchema = z

@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import test, { after, before } from 'node:test';
 import { decide, ledger, type Observation, originOf, startProxy } from '../runners/egress-proxy.ts';
 import { AppError } from '../src/domain/errors.ts';
+import { readOnlyDependencyOriginsSchema, termsSchema } from '../src/domain/schemas.ts';
 import type { Actor } from '../src/server/access.ts';
 import { type AgentSession, authenticateAgent } from '../src/server/agents.ts';
 import { claim, publishCampaign, releaseAssignment } from '../src/server/assignments.ts';
@@ -31,7 +32,7 @@ import {
 } from '../src/server/isolation.ts';
 import { migrate } from '../src/server/migrations.ts';
 import { createCredential, registerOperator } from '../src/server/operators.ts';
-import { addBuild, createCampaign, createProject } from '../src/server/projects.ts';
+import { addBuild, createCampaign, createProject, reviseTerms } from '../src/server/projects.ts';
 import { submitAttempt } from '../src/server/qualification.ts';
 import { abandonRun, authenticateRun, isolationProfile, startRun } from '../src/server/runner.ts';
 import { digestOf } from '../src/server/storage.ts';
@@ -331,6 +332,108 @@ test('terms requiring a witness refuse an unwitnessed run', async () => {
   assert.equal(stored.host_id, host.hostId);
   assert.equal(run.manifest.requiredIsolation, 'witnessed');
   assert.equal(run.manifest.hostContract.version, 'runner-host-v1');
+});
+
+test('dependency permissions require exact distinct HTTPS origins and witnessed terms', () => {
+  const dependency = 'https://fonts.example.com';
+  for (const origins of [
+    ['http://fonts.example.com'],
+    [`${dependency}/`],
+    [`${dependency}/css`],
+    [`${dependency}?key=secret`],
+    ['https://user:password@fonts.example.com'],
+    ['https://127.0.0.1'],
+    ['https://[::1]'],
+    ['https://fonts.example.com:8443'],
+    ['https://fonts.example.com.'],
+    [dependency, dependency],
+    Array.from({ length: 8 }, (_, i) => `https://fonts${i}.example.com`),
+  ])
+    assert(!readOnlyDependencyOriginsSchema.safeParse(origins).success);
+  assert(!termsSchema.safeParse(termsInput({ readOnlyDependencyOrigins: [dependency] })).success);
+  assert(
+    termsSchema.safeParse(
+      termsInput({ minimumIsolation: 'witnessed', readOnlyDependencyOrigins: [dependency] }),
+    ).success,
+  );
+});
+
+test('dependency DNS pins follow the claimed terms despite a later scope revision', async () => {
+  const dependency = 'https://fonts.example.com';
+  const campaign = await newCampaign('Pinned dependencies', {
+    minimumIsolation: 'witnessed',
+    readOnlyDependencyOrigins: [dependency],
+  });
+  const operator = await qualifiedOperator('iso-dependencies');
+  const assignment = await claim(db.pool, operator.session, { campaignId: campaign.campaignId });
+  await reviseTerms(
+    db.pool,
+    owner,
+    workspaceId,
+    projectId,
+    campaign.campaignId,
+    termsInput({
+      expectedVersion: 1,
+      minimumIsolation: 'witnessed',
+      readOnlyDependencyOrigins: [],
+    }),
+  );
+  const host = await registerHost(db.pool, owner, workspaceId, conforming);
+  const start = (resolver: (hostname: string) => Promise<string[]> = publicDns) =>
+    startRun(
+      db.pool,
+      operator.session,
+      assignment.assignmentId,
+      { attemptToken: assignment.attemptToken, hostId: host.hostId },
+      { resolver, probe: settledProbe },
+    );
+  await assert.rejects(
+    start(async (hostname) => (hostname === 'fonts.example.com' ? ['127.0.0.1'] : publicDns())),
+    code('TARGET_PRIVATE'),
+  );
+  const run = await start();
+  assert.deepEqual(run.manifest.egressAllowlist, [allowed, dependency]);
+  assert.deepEqual(run.manifest.readOnlyDependencies, [
+    { origin: dependency, addresses: ['93.184.215.14'], methods: ['GET', 'HEAD'] },
+  ]);
+  assert.equal(run.manifest.binding.termsVersionId, assignment.termsVersionId);
+  const witness = await authenticateHost(db.pool, host.credential);
+  assert.deepEqual((await hostRunView(db.pool, witness, run.runId)).egressAllowlist, [
+    allowed,
+    dependency,
+  ]);
+  const now = new Date().toISOString();
+  await recordEgress(db.pool, witness, run.runId, {
+    batch: 1,
+    observations: [allowed, dependency].map((origin) => ({
+      origin,
+      decision: 'allowed',
+      requests: 1,
+      firstSeenAt: now,
+      lastSeenAt: now,
+    })),
+  });
+  await assert.rejects(
+    recordEgress(db.pool, witness, run.runId, {
+      batch: 2,
+      observations: [
+        {
+          origin: 'https://unapproved.example.com',
+          decision: 'allowed',
+          requests: 1,
+          firstSeenAt: now,
+          lastSeenAt: now,
+        },
+      ],
+    }),
+    code('EGRESS_NOT_ENFORCED'),
+  );
+  await assert.rejects(
+    db.pool.query(
+      'UPDATE terms_versions SET document=document || \'{"readOnlyDependencyOrigins":[]}\'::jsonb WHERE id=$1',
+      [assignment.termsVersionId],
+    ),
+  );
 });
 
 test('a revoked host cannot take new work, and only its own runs', async () => {

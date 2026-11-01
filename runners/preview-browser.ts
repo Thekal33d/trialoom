@@ -13,6 +13,11 @@ async function main() {
   const ready = JSON.parse(await readFile('/channel/ready.json', 'utf8'));
   const url = new URL(job.url);
   assert(url.origin === ready.origin && url.protocol === 'https:');
+  assert(
+    Array.isArray(ready.origins) &&
+      ready.origins.includes(ready.origin) &&
+      ready.origins.length <= 8,
+  );
   assert.match(ready.spki, /^[A-Za-z0-9+/]{43}=$/);
   assert(Number.isSafeInteger(job.durationMs) && job.durationMs >= 1000 && job.durationMs <= 45000);
   assert(
@@ -65,7 +70,7 @@ async function main() {
   page.on('response', (response) => {
     if (response.headers()['x-trialoom-proxy-denied'] !== '1') {
       const origin = new URL(response.url()).origin;
-      if (origin === ready.origin) origins.add(origin);
+      if (ready.origins.includes(origin)) origins.add(origin);
     }
   });
   const timer = setTimeout(() => {
@@ -77,13 +82,15 @@ async function main() {
     assert.equal((await context.cookies()).length, 0);
     // A fixed owned hold exercises revocation while a browser is alive.
     if (job.hold === true && job.journey === 'owned')
-      await new Promise((resolve) => setTimeout(resolve, 10000));
+      await new Promise((resolve) => setTimeout(resolve, 30000));
     const response = await page.goto(url.href, { waitUntil: 'domcontentloaded' });
     const status = response?.status() ?? 0;
     if (!response?.ok() || response.headers()['x-trialoom-proxy-denied'] === '1')
       throw new Error('LOAD_BLOCKED');
     // biome-ignore lint/performance/useDomNodeTextContent: this assertion checks rendered text, excluding hidden SPA content.
     await page.waitForFunction(() => document.body.innerText.trim().length > 20);
+    await page.waitForLoadState('load');
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
     steps.push({
       index: 1,
       action: 'Open the approved homepage in a fresh Chromium context',

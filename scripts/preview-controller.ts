@@ -42,7 +42,16 @@ const viewSchema = z.object({
       addresses: z.array(z.string()).min(1),
       revisionConfirmed: z.boolean(),
     }),
-    egressAllowlist: z.array(z.string()).length(1),
+    egressAllowlist: z.array(z.string()).min(1).max(8),
+    readOnlyDependencies: z
+      .array(
+        z.object({
+          origin: z.url(),
+          addresses: z.array(z.string()).min(1).max(32),
+          methods: z.tuple([z.literal('GET'), z.literal('HEAD')]),
+        }),
+      )
+      .max(7),
     isolation: evidenceSchema.shape.isolation,
     isolationLevel: z.literal('witnessed'),
     host: z.object({ id: z.uuid(), sandbox: z.literal('gvisor'), egressEnforced: z.literal(true) }),
@@ -128,7 +137,11 @@ export async function executePreviewRun(options: {
   assert.equal(first.runId, options.runId);
   const { manifest } = first;
   assert(manifest.allowedActions.includes(previewAction), 'READ_ONLY_SCOPE_REQUIRED');
-  assert.deepEqual(manifest.egressAllowlist, [manifest.target.origin]);
+  assert.deepEqual(manifest.egressAllowlist, [
+    manifest.target.origin,
+    ...manifest.readOnlyDependencies.map((item) => item.origin),
+  ]);
+  assert.equal(new Set(manifest.egressAllowlist).size, manifest.egressAllowlist.length);
   assert.equal(new URL(manifest.target.url).origin, manifest.target.origin);
   assert.equal(manifest.limits.memoryBytes, 1024 ** 3);
   assert.equal(manifest.limits.maxProcesses, 256);
@@ -140,7 +153,10 @@ export async function executePreviewRun(options: {
         manifest.binding.build.revision === 'owned-preview-v1'),
   );
   if (options.mode === 'owned')
-    assert(manifest.allowedActions.includes('Follow the owned Next page link'));
+    assert(
+      manifest.allowedActions.includes('Follow the owned Next page link') &&
+        manifest.readOnlyDependencies.length === 0,
+    );
   const budget = Math.min(
     45000,
     manifest.limits.wallClockSeconds * 1000 - 10000,
@@ -184,6 +200,7 @@ export async function executePreviewRun(options: {
       {
         mode: options.mode,
         target: manifest.target,
+        readOnlyDependencies: manifest.readOnlyDependencies,
         identity,
         durationMs: Math.min(60000, budget + 5000),
       },
@@ -206,7 +223,7 @@ export async function executePreviewRun(options: {
     const witness = await host.witness();
     const exhausted = budgetSchema.nullable().parse(witness.budgetExceeded);
     assert(
-      witness.closed && Array.isArray(witness.observations) && witness.observations.length <= 30,
+      witness.closed && Array.isArray(witness.observations) && witness.observations.length <= 128,
     );
     const groups = new Map<
       string,

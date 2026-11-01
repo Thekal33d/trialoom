@@ -31,7 +31,7 @@ The initial policy permits GET and HEAD only, with no request body. Plain HTTP, 
 | Connections | 64 total, 8 concurrent |
 | HTTP requests inside admitted TLS tunnels | 100 |
 | Headers | 8 KiB per block; 2 MiB accumulated parsed request metadata |
-| Response | 1 MiB including headers per response; 8 MiB aggregate |
+| Response | Initially 1 MiB per response; reviewed to 2 MiB on 2026-11-01, including headers; 8 MiB aggregate |
 | Time | 60 seconds per proxy, 15 seconds per connection, 5 seconds idle |
 | Sandbox | 1 GiB memory, no additional swap, 1 CPU, 256 tasks, 128 MiB scratch |
 | Harness output | 64 KiB per attached process |
@@ -60,6 +60,6 @@ An initial request-budget check failed because Node's HTTP parser can bypass soc
 
 ## Remaining RUN-03 work
 
-The later [application integration](RUN-03-INTEGRATION.md) binds this proxy to live permissions, immutable host-witness receipts and bounded evidence/replay. The owned read-only journey passes; the authorized Blokaz homepage loads but records scope/budget blocks. The local external watchdog is verified. Durable production recovery, adversarial resource exhaustion, deployment and independent-operator validation remain open. This library/check itself still does not enable arbitrary-site execution.
+The later [application integration](RUN-03-INTEGRATION.md) binds this proxy to live permissions, immutable host-witness receipts and bounded evidence/replay. The owned read-only journey passes; the authorized Blokaz homepage and approved fonts load without exhausting the reviewed budget; other backend/auth/RPC requests remain blocked. The local external watchdog is verified. Durable production recovery, adversarial resource exhaustion, deployment and independent-operator validation remain open. This library/check itself still does not enable arbitrary-site execution.
 
 Official sources checked on 2026-11-01: [installed gVisor release flags](https://github.com/google/gvisor/blob/release-20261026.0/runsc/config/flags.go), [gVisor networking](https://gvisor.dev/docs/user_guide/networking/), [Node TLS APIs](https://github.com/nodejs/node/blob/main/doc/api/tls.md), and [Docker tmpfs mounts](https://docs.docker.com/engine/storage/tmpfs/).

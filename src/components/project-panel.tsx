@@ -317,6 +317,12 @@ function TermVersion({
             <p>{d.exclusions.join('; ') || 'None specified'}</p>
           </div>
         </div>
+        <h4>Read-only dependencies</h4>
+        <p>
+          {d.readOnlyDependencyOrigins?.length
+            ? `${d.readOnlyDependencyOrigins.join(', ')} · GET/HEAD only`
+            : 'None — only the project’s origin is approved.'}
+        </p>
         <h4>Acceptance criteria</h4>
         <p>{d.acceptanceCriteria}</p>
         <h4>Discovery reward rules</h4>

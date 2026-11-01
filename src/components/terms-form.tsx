@@ -34,6 +34,10 @@ export function TermsForm({
           .split('\n')
           .map((s) => s.trim())
           .filter(Boolean),
+        readOnlyDependencyOrigins: field(form, 'readOnlyDependencyOrigins')
+          .split('\n')
+          .map((s) => s.trim())
+          .filter(Boolean),
         acceptanceCriteria: field(form, 'acceptanceCriteria'),
         rewardRubric: field(form, 'rewardRubric'),
         artifactRights: field(form, 'artifactRights'),
@@ -140,6 +144,20 @@ export function TermsForm({
             />
           </label>
         </div>
+        <label>
+          Read-only dependency origins (optional)
+          <textarea
+            name="readOnlyDependencyOrigins"
+            maxLength={1777}
+            defaultValue={d?.readOnlyDependencyOrigins?.join('\n')}
+            placeholder="https://fonts.googleapis.com"
+            aria-describedby="dependency-scope-help"
+          />
+          <small id="dependency-scope-help">
+            Approve up to seven HTTPS origins, one per line, for supporting GET/HEAD resources.
+            Requires witnessed isolation. Leave empty to allow only the project’s origin.
+          </small>
+        </label>
         <label>
           Acceptance criteria
           <textarea

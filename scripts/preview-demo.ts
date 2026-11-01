@@ -40,7 +40,7 @@ try {
           identity: await previewIdentity('preview.example.com'),
           durationMs: 60000,
         },
-        8,
+        20,
       );
       await assert.rejects(
         host.run({
@@ -145,6 +145,13 @@ try {
     hasText: 'Read-only homepage — isolated browser evidence',
   });
   await expect(brief).toContainText('Pending review');
+  for (const item of run.manifest.readOnlyDependencies)
+    await expect(brief).toContainText(item.origin);
+  await brief.getByRole('button', { name: 'Revise terms', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: /^Read-only dependency origins/ })).toHaveValue(
+    run.manifest.readOnlyDependencies.map((item) => item.origin).join('\n'),
+  );
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await brief.getByRole('button', { name: 'View replay', exact: true }).first().click();
   const replay = brief.getByRole('region', { name: 'Recorded replay' });
   await expect(replay.locator('.replay-result')).toBeVisible();

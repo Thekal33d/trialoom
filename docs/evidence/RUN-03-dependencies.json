@@ -1,0 +1,83 @@
+{
+  "task": "RUN-03",
+  "checkpoint": "approved-read-only-dependencies",
+  "date": "2026-11-01",
+  "status": "local integration verified; additional service scope and production gates open",
+  "userApprovedOrigins": [
+    "https://fonts.googleapis.com",
+    "https://fonts.gstatic.com"
+  ],
+  "allowedMethods": [
+    "GET",
+    "HEAD"
+  ],
+  "responseBytes": 2097152,
+  "totalResponseBytes": 8388608,
+  "image": "sha256:6001b9c12e6b60f4fb3f44adf68e7cd12ef058a9069d6dba6e0e8aeac972b70a",
+  "proxyCheckImage": "sha256:22fad257c83d75983d6b0417387b90d52ace2db8c825e14c92f92127a56e3512",
+  "checks": {
+    "database": 214,
+    "isolatedProxy": 16,
+    "chromiumProxyJourneys": 2,
+    "proxyLoss": "passed",
+    "ownedReplay": "passed",
+    "independentTimer": "removed active browser/proxy/channel",
+    "activeStops": [
+      "abandon",
+      "release",
+      "expire",
+      "revoke"
+    ],
+    "termsEditorPreservesDependencies": true,
+    "build": "passed with three existing storage tracing warnings",
+    "lint": "passed",
+    "typecheck": "passed",
+    "applicationContainersAndVolumesRemaining": 0
+  },
+  "failedAttempts": [
+    "The initial owned smoke check failed during preparation with an empty inspection response while using an 8-second watchdog under concurrent load; a startup/deadline race was suspected. The test now uses a 20-second host timer and 30-second owned hold, and the rerun verified active shutdown. Public-run limits unchanged."
+  ],
+  "blokaz": {
+    "origin": "https://www.blokaz.xyz",
+    "homepageStatus": 200,
+    "visibleContent": true,
+    "outcome": "blocked",
+    "forwardedResponses": 24,
+    "forwardedTargetResponses": 19,
+    "forwardedFontStylesheets": 3,
+    "forwardedFontFiles": 2,
+    "deniedConnections": 21,
+    "budgetExceeded": null,
+    "responseBytesObserved": 2971825,
+    "revisionConfirmed": false,
+    "traceReviewable": true,
+    "recordedActions": 5,
+    "recordedRequests": 42,
+    "noResponseRequests": 18,
+    "decision": "pending_review",
+    "payables": 0,
+    "remainingScope": [
+      "Web3Auth GET",
+      "Supabase backend GET",
+      "Celo RPC POST",
+      "1RPC POST"
+    ],
+    "rpcMethods": "not established from the retained failed-request metadata; no general POST approval"
+  },
+  "sourceHashes": {
+    "src/domain/schemas.ts": "a5495cfa92b1d9b9aa3c39f0d903c9ccce0163bea98046653f7a23e627388027",
+    "src/server/ledger.ts": "9761de45c02b0836fc4ae5a9425056421b2f7a16130bdc4661bf6800d350359d",
+    "src/server/runner.ts": "e5f4046ce5c6bc80a2628c22957a07bee04df13795b41f35863f5634eb646d5c",
+    "src/components/terms-form.tsx": "18b5a97e2eaacafe28dc3d80dcef55da5754b08d9da3bb87819ff0ebbce41be4",
+    "src/components/project-panel.tsx": "a4435c1d91ccb89623c4989e93fa4eb7da0345f27fb52005c8faba68b5cfca6e",
+    "scripts/preview-controller.ts": "50efd4133352748e2ea0c3cf35521ba74750afa54d7900e859a921832e185b93",
+    "scripts/preview-fixture.ts": "bd9c76e11b7b8479a87ce9ac659947b43fcf71f3bb394067427d299fcc142df3",
+    "scripts/preview-demo.ts": "49ae9e1a504948476c2bceecbaa5b840f83c8a24a1c5029141e116557797f35a",
+    "runners/preview-proxy.ts": "3a2bf643ff3f19e5b163ff10e14b0b6e882d1ae4287814ab98f9c4b565b95b78",
+    "runners/preview-broker.ts": "367968a55304bd6ecdaad28c411f7454c9312a798174b2250a8e7d145fd14e24",
+    "runners/preview-browser.ts": "0d58299999e86e71f5c451b4ae2fc37a233cb2fd2f96528123fad6fd25953527",
+    "runners/preview-check/fixture.ts": "578d61bdacfe5e1748eb79be3f4c31b9b34861442e1620b482bf7d6dd399b2a1",
+    "runners/preview-check/proxy.test.ts": "85bdcbbb238025da675d3d3eedbb193ec3a5cc0053722e4ba921e1acea252f96",
+    "tests/isolation.test.ts": "ebf4d50ccb0da9b9fec1c0b4e34cf67476cd7db39411996a3b7ece9d9b1e7729"
+  }
+}

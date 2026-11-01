@@ -9,6 +9,9 @@ import { startPreviewProxy } from './preview-proxy.ts';
 async function main() {
   const input = await boundedInput(32768);
   const { origin, addresses } = input.target;
+  const dependencies = input.readOnlyDependencies ?? [];
+  assert(Array.isArray(dependencies) && dependencies.length <= 7);
+  for (const item of dependencies) assert.deepEqual(item.methods, ['GET', 'HEAD']);
   assert(['owned', 'public'].includes(input.mode));
   assert(
     Number.isSafeInteger(input.durationMs) && input.durationMs <= 60000 && input.durationMs > 0,
@@ -34,6 +37,7 @@ async function main() {
   let admission: PreviewAdmission;
   let port = 0;
   if (owned) {
+    assert.equal(dependencies.length, 0);
     assert.equal(origin, 'https://preview.example.com');
     assert.deepEqual(addresses, ['127.0.0.1']);
     await new Promise<void>((done) => owned.listen(0, '127.0.0.1', done));
@@ -48,15 +52,14 @@ async function main() {
       },
     });
   } else {
-    const publicAdmission = await admitPreview([origin], undefined, { [origin]: addresses });
-    admission = Object.freeze({
-      origins: publicAdmission.origins,
-      async destination(value: string) {
-        const target = await publicAdmission.destination(value);
-        assert(addresses.includes(target.address), 'MANIFEST_ADDRESS_CHANGED');
-        return target;
-      },
-    });
+    admission = await admitPreview(
+      [origin, ...dependencies.map((item) => item.origin)],
+      undefined,
+      Object.fromEntries([
+        [origin, addresses],
+        ...dependencies.map((item) => [item.origin, item.addresses]),
+      ]),
+    );
     await admission.destination(origin);
   }
   const proxy = await startPreviewProxy({
@@ -74,7 +77,11 @@ async function main() {
         }
       : {}),
   });
-  await writeFile('/channel/ready.json', JSON.stringify({ origin, spki }), { mode: 0o600 });
+  await writeFile(
+    '/channel/ready.json',
+    JSON.stringify({ origin, origins: admission.origins, spki }),
+    { mode: 0o600 },
+  );
   let writing = Promise.resolve();
   const save = () => {
     writing = writing.then(async () => {

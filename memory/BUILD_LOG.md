@@ -638,3 +638,10 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Created merge `ae88d83` with parents `385b4a1` and GitLab initial commit `6ef241a`. Confirmed remote main is now an ancestor and Trialoom's README is unchanged.
 - Retried the user's upload with `git push -u origin main`, without force. It stopped before authentication because terminal prompts are disabled in this tool session and no username credential was available. No successful push or remote branch update is claimed.
 - User next action: run the same normal push from their authenticated terminal. No password/token should be pasted into this conversation. GitLab protection is unchanged; the separate public GitHub requirement remains open. Documentation/diff checks only; commit subject: `docs: record pending GitLab authentication`.
+
+## 2026-11-01 — HACK-01: GitLab push verified; GitHub unavailable
+
+- User reported a successful GitLab push and that GitHub is currently unavailable. Read-only `git ls-remote --heads origin main` returned `633c2cf0af33ad472355b1ba2c75001f223902d8`, matching local HEAD before this documentation checkpoint. Local `main` now tracks `origin/main` with a clean, synchronized working tree. Both histories remain preserved by merge `ae88d83`.
+- Updated core memory, status and hackathon evidence to remove the resolved terminal-authentication blocker. GitLab visibility was not independently verified. Rechecked the official event page: the public GitHub requirement remains unresolved, with no organizer exception requested or approved through this task.
+- Development can continue on GitLab; the next implementation remains BUY-01's evidence binding and separate sponsored purchase journal. No application code, deployment, enrollment, provider purchase or wallet action changed. This documentation checkpoint is a new local commit after the verified user push.
+- Checks: remote SHA/upstream comparison, documentation diff/link review and `git diff --check`; no application tests needed for this documentation-only change. Commit subject: `docs: record verified GitLab sync and GitHub blocker` (HACK-01).

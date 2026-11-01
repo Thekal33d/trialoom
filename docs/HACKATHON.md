@@ -35,7 +35,7 @@ The [live buy catalog](https://gateway.usebuy.ai/v1/catalog), retrieved unsigned
 | Item | Current evidence |
 | --- | --- |
 | Track / enrollment | Build with buy selected / not enrolled |
-| Public repo / hosted demo | GitLab origin configured and histories merged locally; normal push awaits terminal authentication. Required public GitHub repository and hosted demo not configured |
+| Public repo / hosted demo | User push to GitLab verified at `633c2cf` on 2026-11-01; both histories preserved. GitLab visibility not independently verified. User's GitHub is currently unavailable; required public GitHub repository and hosted demo remain missing |
 | Agent identity / funded resource wallet | Not configured |
 | Real browser results / replay | Local owned fixture and authorized Blokaz ladder; [verified checkpoint](evidence/RUN-03-ladder-verified.json) |
 | Payment recovery | Local Celo fork only; [VAL-03](evidence/VAL-03.json), [VAL-04](evidence/VAL-04.json) |
@@ -43,3 +43,5 @@ The [live buy catalog](https://gateway.usebuy.ai/v1/catalog), retrieved unsigned
 | External beta users / submission | Pending |
 
 Registration, publication and funding require concrete destination/identity/budget details. Keep private customer data, credentials, raw traces and provider capabilities out of public evidence. A working demo does not itself close public beta operations gates.
+
+Continue development using [the GitLab repository](https://gitlab.com/Otaiki1/trialoom). GitHub unavailability does not waive the official public GitHub requirement. Restored access or an organizer-confirmed alternative is needed; no exception has been requested or approved through this task.

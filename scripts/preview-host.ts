@@ -15,6 +15,9 @@ export function remote(args: string[], input?: Buffer, timeout = 15000) {
     input,
     encoding: 'utf8',
     timeout,
+    // Orb can ignore SIGTERM while a host RPC is stuck. A synchronous timeout
+    // must still return so the journal can retain an unresolved cleanup.
+    killSignal: 'SIGKILL',
     maxBuffer: 128 * 1024,
   });
   if (result.error || result.status !== 0) throw new Error('DEDICATED_HOST_COMMAND_FAILED');
@@ -119,16 +122,19 @@ export async function previewIdentity(hostname: string) {
   }
 }
 
-/** All objects are owned by one invocation; no workspace mount or default runtime. */
-export function previewHost(image: string, publicNetwork: boolean, signal: AbortSignal) {
+/** Objects belong to one recorded execution; no workspace mount or default runtime. */
+export function previewHost(
+  image: string,
+  publicNetwork: boolean,
+  signal: AbortSignal,
+  prefix = `trialoom-run-${randomBytes(12).toString('hex')}`,
+) {
   assert.match(image, /^sha256:[a-f0-9]{64}$/);
-  const prefix = `trialoom-run-${randomBytes(12).toString('hex')}`;
+  assert.match(prefix, /^trialoom-run-[a-f0-9]{24}$/);
   const volume = `${prefix}-channel`;
   const broker = `${prefix}-broker`;
   const browser = `${prefix}-browser`;
-  let volumeCreated = false;
-  let watchdog = false;
-  const names = new Set<string>();
+  const names = new Set<string>([browser, broker]);
   const processes: Promise<string>[] = [];
   const kill = () => {
     for (const name of names) {
@@ -263,7 +269,6 @@ export function previewHost(image: string, publicNetwork: boolean, signal: Abort
         '--opt=o=size=1m,uid=65534,gid=65534,mode=0700',
         volume,
       ]);
-      volumeCreated = true;
       // Root-owned systemd timer lives outside both containers and the Mac controller.
       // All interpolated names are generated hex identifiers, never target input.
       remote([
@@ -276,7 +281,6 @@ export function previewHost(image: string, publicNetwork: boolean, signal: Abort
         '-c',
         `/usr/bin/docker rm -fv ${browser} ${broker} >/dev/null 2>&1; /usr/bin/docker volume rm ${volume} >/dev/null 2>&1`,
       ]);
-      watchdog = true;
       create(broker, 'broker');
       create(browser, 'browser');
       const brokerProcess = start(broker, input, 16384);
@@ -346,41 +350,21 @@ export function previewHost(image: string, publicNetwork: boolean, signal: Abort
         );
       }
       await Promise.allSettled(processes);
-      if (volumeCreated) {
-        if (
-          remote([
-            'docker',
-            'volume',
-            'ls',
-            '--filter',
-            `name=^${volume}$`,
-            '--format',
-            '{{.Name}}',
-          ])
-        ) {
-          const actual = JSON.parse(remote(['docker', 'volume', 'inspect', volume]))[0];
-          assert.equal(actual.Labels['trialoom.runner.policy'], policy);
-          remote(['docker', 'volume', 'rm', volume]);
-        }
-        assert.equal(
-          remote([
-            'docker',
-            'volume',
-            'ls',
-            '--filter',
-            `name=^${volume}$`,
-            '--format',
-            '{{.Name}}',
-          ]),
-          '',
-        );
+      if (
+        remote(['docker', 'volume', 'ls', '--filter', `name=^${volume}$`, '--format', '{{.Name}}'])
+      ) {
+        const actual = JSON.parse(remote(['docker', 'volume', 'inspect', volume]))[0];
+        assert.equal(actual.Labels['trialoom.runner.policy'], policy);
+        remote(['docker', 'volume', 'rm', volume]);
       }
-      if (watchdog) {
-        try {
-          remote(['systemctl', 'stop', `${prefix}.timer`, `${prefix}.service`]);
-        } catch {
-          /* fired timer may already have disappeared */
-        }
+      assert.equal(
+        remote(['docker', 'volume', 'ls', '--filter', `name=^${volume}$`, '--format', '{{.Name}}']),
+        '',
+      );
+      try {
+        remote(['systemctl', 'stop', `${prefix}.timer`, `${prefix}.service`]);
+      } catch {
+        /* fired timer may already have disappeared */
       }
     },
   };

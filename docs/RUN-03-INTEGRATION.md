@@ -47,7 +47,7 @@ The brief editor now also accepts exact API GET URLs and explicitly blocked serv
 
 ## Remaining gates
 
-- Operate a durable dispatcher, per-run recovery records and reboot/daemon-failure reconciliation; transient timers do not survive every infrastructure failure.
+- Per-run journals and controller-process recovery are verified in the [recovery guide](RUN-03-RECOVERY.md). Operate an automatic durable dispatcher and add reboot/daemon-failure reconciliation, production service roles and orphan-capture retention; transient timers do not survive every infrastructure failure.
 - Exercise adversarial resource exhaustion under this full gVisor/proxy topology, beyond the earlier offline controls and current applied-limit checks.
 - Add explicitly authorized journeys, dependencies and authentication fixtures; never silently broaden the origin/method allowlist.
 - Obtain a verifiable deployed revision for a real target. A missing revision header remains visibly unconfirmed.

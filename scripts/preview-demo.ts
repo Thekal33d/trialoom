@@ -87,6 +87,7 @@ try {
     `Running the ${mode === 'owned' ? 'owned HTTPS sample' : 'authorized Blokaz homepage'} through the isolated proxy.`,
   );
   const result = await executePreviewRun({
+    journal: { pool: db.pool, directory: resolve(directory, 'journal') },
     apiOrigin: app.origin,
     runId: run.runId,
     runToken: run.runToken,
@@ -220,6 +221,7 @@ try {
     for (const fixtureOutcome of ['mismatch', 'unexpected', 'upstream'] as const) {
       const next = await setup.assignment(`Ladder check — ${fixtureOutcome}`);
       const checked = await executePreviewRun({
+        journal: { pool: db.pool, directory: resolve(directory, 'journal') },
         apiOrigin: app.origin,
         runId: next.runId,
         runToken: next.runToken,
@@ -261,6 +263,7 @@ try {
       const pool: Pool = db.pool;
       await assert.rejects(
         executePreviewRun({
+          journal: { pool: db.pool, directory: resolve(directory, 'journal') },
           apiOrigin: app.origin,
           runId: next.runId,
           runToken: next.runToken,
@@ -317,6 +320,7 @@ try {
   await db?.close();
   // Keep private result/screenshot only; raw evidence belonged to the disposable DB.
   await rm(resolve(directory, 'evidence'), { recursive: true, force: true });
+  await rm(resolve(directory, 'journal'), { recursive: true, force: true });
   process.removeListener('SIGINT', stop);
   process.removeListener('SIGTERM', stop);
 }

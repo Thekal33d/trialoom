@@ -1,0 +1,128 @@
+{
+  "task": "RUN-03",
+  "checkpoint": "local-controller-crash-recovery",
+  "date": "2026-11-01",
+  "baseCommit": "a67f3e4",
+  "commitSubject": "feat: recover interrupted preview deliveries without duplicates",
+  "applicationRunnerImage": "sha256:e5e6d45bb4f3ed29fec696af18afe322343e6292ad6417c522b69dcf57a5453f",
+  "scope": "Network-disabled owned ladder fixture only; no public target contacted",
+  "crashMethod": "SIGKILL at ten controlled boundaries; recovery in fresh Node processes",
+  "cases": [
+    {
+      "checkpoint": "dispatching",
+      "recovered": false,
+      "submissions": 0
+    },
+    {
+      "checkpoint": "running",
+      "recovered": false,
+      "submissions": 0
+    },
+    {
+      "checkpoint": "captured",
+      "recovered": true,
+      "submissions": 1
+    },
+    {
+      "checkpoint": "egress",
+      "recovered": true,
+      "submissions": 1
+    },
+    {
+      "checkpoint": "artifact",
+      "recovered": true,
+      "submissions": 1
+    },
+    {
+      "checkpoint": "submitted",
+      "recovered": true,
+      "submissions": 1
+    },
+    {
+      "checkpoint": "corrupt",
+      "recovered": false,
+      "submissions": 0
+    },
+    {
+      "checkpoint": "conflict",
+      "recovered": false,
+      "submissions": 0
+    },
+    {
+      "checkpoint": "expired",
+      "recovered": false,
+      "submissions": 0
+    },
+    {
+      "checkpoint": "revoked",
+      "recovered": false,
+      "submissions": 0
+    }
+  ],
+  "checks": {
+    "databaseTests": 50,
+    "journalTestsIncluded": 3,
+    "hardCommandTimeoutTest": 1,
+    "competingController": "refused",
+    "changedConfiguration": "refused",
+    "corruptCapture": "refused",
+    "conflictingArtifact": "refused",
+    "closedSubmission": "same submission recognized after grant expiry",
+    "completeDeliveryCounts": {
+      "submissions": 1,
+      "artifacts": 3,
+      "witnessBatches": 1
+    },
+    "artifactByteAccounting": "matches stored artifacts; no double-count",
+    "repeatRecovery": "original submission ID; no new record",
+    "commitmentUnitsPerFixture": "2000000",
+    "acceptedUnits": "0",
+    "finalizedUnits": "0",
+    "decisions": 0,
+    "payables": 0,
+    "ownedLadderReplay": "passed; screenshot inspected",
+    "wrongCount": "blocked",
+    "unexpectedOrigin": "blocked",
+    "upstreamFailure": "blocked",
+    "startupRefusalAndCleanup": "passed",
+    "independentHostTimer": "passed",
+    "activeStops": [
+      "abandon",
+      "release",
+      "expire",
+      "revoke"
+    ],
+    "lint": "passed, 157 files",
+    "typecheck": "passed",
+    "applicationBuild": "reused passing build from a67f3e4; no application source changes",
+    "finalHarnessExit": 0,
+    "privateCaptureAndEvidenceCleanup": "verified",
+    "runnerContainersAndVolumesRemaining": 0
+  },
+  "observedFailure": {
+    "phase": "Final validation cleanup after all case assertions passed",
+    "cause": "Orb inspection ignored SIGTERM after the synchronous command timeout",
+    "correction": "Hard SIGKILL command deadline; test data cleanup in finally; exact failed-test database and private raw files removed",
+    "verification": "TERM-ignoring local CLI fixture and final full suite passed"
+  },
+  "limits": [
+    "Controller process death only; same Postgres and private filesystem remain available",
+    "Manual reinvocation with original configuration and re-supplied credentials; no automatic scheduler",
+    "No automatic rerun of incomplete execution and no extension of expired permission",
+    "Trusted local DB reconciliation; production service roles and remote recovery APIs remain open",
+    "Whole-machine/daemon failure, credential recovery, orphan-capture retention and adversarial resource gates remain open",
+    "No acceptance, payment, public execution, push or deployment"
+  ],
+  "sourceHashes": {
+    "db/migrations/0019_preview_executions.sql": "3de773d0634af67972f576bf1288e58063ef5d4c5471711cc4045417782bc44e",
+    "scripts/preview-journal.ts": "fc53d67f9dd9a477494001e25cbb7dd574350bef7c0af73cbcbbea685b3cd79b",
+    "scripts/preview-controller.ts": "b3688868202e51c8e6311eec2bf7e6ab96f3ad894186b1d36aea62156f1e5c78",
+    "scripts/preview-host.ts": "68838d96f37dc85c2cf1ece6b8a5ba4552bd1ae74fb3ed512b76a10919d29ba8",
+    "scripts/preview-demo.ts": "b578134181c10ada6b83534f92fc6ed1691ffa5c55f95b8fc2c09333c3307159",
+    "scripts/preview-recovery-child.ts": "8657223ce954563ff8c9ef927eb16ea1d0c4127f483b80d420e5e3ebd5c0bb60",
+    "scripts/check-preview-recovery.ts": "12bdddea6b9011e2ed9226487ceba7ff00a272310d486171eb8414437d7bd633",
+    "tests/preview-journal.test.ts": "149490e908af4f121647d56f3657d7e55021ffc098c6bc7c9a48a2bc8e8c3116",
+    "tests/preview-command.test.ts": "e33cea111c519892d6f8487d3b3e5a069349137e9f09dbc7ad0c9be7fa3d55d5",
+    "package.json": "b6dffde89a5cc923d164b8ab7ab8863a4480cb34e5a927a7d9e061935534e3a6"
+  }
+}

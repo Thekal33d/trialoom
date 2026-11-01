@@ -37,7 +37,7 @@ The prior trace's POST bodies were recovered by following Playwright's `_file` r
 - 12 focused trace/archive, ladder-response and startup-diagnostic tests and 32 evidence-ingestion/export database tests passed. The new trace check rejects malformed durations and removes private canaries while preserving only numeric `-1`.
 - Network-disabled owned startup refusal/cleanup, success with a pending request, and wrong-count/unexpected-origin/upstream-failure controls passed through real HTTP evidence/replay. Negative controls remained blocked with zero payables; the pending-request notice was visually inspected.
 - The final public replay's stored sanitized hash and regenerated safe archive entries agree. Actual HTTP replay/hash, scope-editor preservation and no-response UI checks passed. The public screenshot was visually inspected. All runner containers/channel volumes were removed; the disposable public review session remains open.
-- Lint, strict types and a fresh production build passed. Three pre-existing storage tracing warnings remain. Durable recovery, adversarial resource testing and independent operator verification are still open.
+- Lint, strict types and a fresh production build passed. Three pre-existing storage tracing warnings remain. Whole-host recovery, adversarial resource testing and independent operator verification are still open.
 
 ## Commands
 

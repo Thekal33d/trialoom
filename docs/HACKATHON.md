@@ -1,58 +1,45 @@
 # Celo hackathon alignment
 
-Last checked: 2026-10-26. Research entry: [Builder Arena](https://www.loops.house/builder-arena). Event: [Agents on Open Rails](https://www.loops.house/agents-on-open-rails), linked from that arena. Recheck before submission.
+Rechecked **2026-11-01** against [Agents on Open Rails](https://www.loops.house/agents-on-open-rails), reached through [Builder Arena](https://www.loops.house/builder-arena). Selected by the user: **Build with buy**. User confirmed Trialoom is **not enrolled**.
 
-## Verified event snapshot
+## Current official requirements
 
-- Registration/submission deadline: **2026-11-09, 09:00 GMT / 10:00 Africa/Lagos**.
-- Rules specify Celo mainnet, a public GitHub repository at registration, code written during the event, and an ERC-8004 identity.
-- General guidance requires attribution tags; the FAQ requests PayTo addresses for x402 and exempts buy from tags. Resolve the applicable path before counted activity.
-- Build with buy evaluates useful, verified paid calls to external services. Its independent-user definition excludes self-created/funded wallets and requires prior Celo activity. The FAQ separately welcomes new users.
+Deadline: **2026-11-09 09:00 GMT / 10:00 Africa/Lagos**. Build with buy allocates $1,000 across five projects. Judging considers useful paid external-service calls and their growth, with payment proof and named services. Cheap repetitive calls do not qualify as useful integration.
 
-Source: [official event rules and FAQ](https://www.loops.house/agents-on-open-rails). Enrollment and eligibility are not established by these notes.
+The rules require Celo mainnet, a public repository at registration, event-period code and an ERC-8004 agent identity. General rules require attribution, while the buy FAQ says no tag is needed for that track; x402 guidance requests PayTo addresses. Preserve payer, service payee and receipt evidence and resolve entry-specific attribution before claiming counted activity.
 
-## Proposed Trialoom approach
+The independent-user qualifier excludes wallets created/funded by the entrant and requires earlier Celo activity. The FAQ also welcomes newcomers. Free email registrations are not proof of qualifying independent wallets. Do not invent traction or eligibility. Source: [official rules and FAQ](https://www.loops.house/agents-on-open-rails).
 
-**Candidate track: Build with buy.** This is a planning inference, not a confirmed entry. Trialoom's resource-provider seam makes a useful browser or compute purchase a plausible fit. The central demonstration remains a verified repair, its execution evidence, and separate operator compensation.
+## Trialoom entry
 
-The PRD makes buy optional for the product. For this proposed demonstration, a genuinely useful buy integration becomes a track-specific dependency. If it cannot meet runner requirements, preserve the product architecture and revisit the track explicitly. Keep resource purchasing separate from Remesso operator settlement.
+The selected [free beta](FREE-BETA.md) gives builders browser results and replay. Trialoom sponsors a useful external call through buy to explain sanitized test observations and suggest a debugging step. Customer pricing and external-service payment are separate. The later paid repair marketplace is outside this demonstration's required scope (D049).
 
-## Event setup — HACK-01 / HACK-02
+The [live buy catalog](https://gateway.usebuy.ai/v1/catalog), retrieved unsigned on 2026-11-01, advertises Cencori inference, Chainstack RPC and browser rental. Cencori is the first integration candidate; actual useful delivery remains unverified. Official [gateway guidance](https://github.com/celo-org/buy-skill/blob/main/skills/use-api-gateway/SKILL.md) describes exact-request quotes, payment limits, browser commands and receipt recovery. Never treat catalog pricing or local fork transactions as paid mainnet output.
 
-- [ ] Confirm the track and actual enrollment record.
-- [ ] Record the public repository URL after reviewing it for private data.
-- [ ] Record participating agent wallet, identity reference, entry tag where applicable, and attribution design.
-- [ ] Resolve the payment-route exception above; retain current documentation or official clarification.
-- [ ] Verify provider compatibility and deployment/token details before integration transactions.
+## Entry and integration checklist
 
-No enrollment, repository publication, wallet registration, transaction, or submission has been performed during project setup.
-
-## Product evidence package — HACK-03
-
-These are our proposed demonstration deliverables, not an asserted organizer submission form:
-
-- [ ] Explain the builder's problem and useful result received.
-- [ ] Demonstrate a campaign with immutable terms and a bounded budget.
-- [ ] Export trace/replay instructions tied to build and fixture.
-- [ ] Show independent reproduction, reviewable repair, baseline/candidate regression results.
-- [ ] Link accepted payables to decisions and settlement; demonstrate duplicate-payment recovery.
-- [ ] Link the useful purchased resource to assignment, cost, service output, and receipt.
-- [ ] Describe real participants/use accurately, identifying demo accounts and new-user activity.
-- [ ] Provide public-safe demo, reproducible setup, final commit, and known limitations.
-
-Private customer evidence belongs in controlled storage. Commit only reviewed, sanitized demonstration material.
+- [x] Select Build with buy and record the public-free-beta scope.
+- [x] Refresh event rules and inspect the free live catalog.
+- [ ] Prepare and review public repository contents, then publish/register the actual entry.
+- [ ] Record participating wallet and ERC-8004 identity; verify the current registration route before any transaction.
+- [ ] Resolve entry attribution and the relevant x402 payee reporting.
+- [ ] Establish a dedicated resource wallet, supported token and explicit aggregate spend cap.
+- [ ] Execute one useful, capped buy request through the product; retain result and matching receipt.
+- [ ] Demonstrate durable uncertain-payment recovery and zero customer reimbursement.
+- [ ] Observe a genuine external user benefiting from the result; describe user provenance accurately.
+- [ ] Complete public-safe demo, setup instructions, limitations and final commit.
+- [ ] Submit and retain confirmation before the deadline.
 
 ## Evidence index
 
 | Item | Current evidence |
 | --- | --- |
-| Entry / track | Not enrolled / proposed |
-| Repository / demo / final commit | No remote or demo yet / pending |
-| Integration identities and configuration | Pending |
-| Browser reproduction and verified repair | Pending |
-| Settlement and recovery | Pending |
-| Purchased resource and useful output | Pending |
-| Genuine customer/operator usage | Pending |
-| Submission confirmation | Pending |
+| Track / enrollment | Build with buy selected / not enrolled |
+| Public repo / hosted demo | Not configured |
+| Agent identity / funded resource wallet | Not configured |
+| Real browser results / replay | Local owned fixture and authorized Blokaz ladder; [verified checkpoint](evidence/RUN-03-ladder-verified.json) |
+| Payment recovery | Local Celo fork only; [VAL-03](evidence/VAL-03.json), [VAL-04](evidence/VAL-04.json) |
+| Useful buy output / mainnet receipt | Pending |
+| External beta users / submission | Pending |
 
-Replace pending entries with evidence as it is produced. Preserve a tested local demonstration even if an external submission dependency remains unresolved.
+Registration, publication and funding require concrete destination/identity/budget details. Keep private customer data, credentials, raw traces and provider capabilities out of public evidence. A working demo does not itself close public beta operations gates.

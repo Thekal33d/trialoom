@@ -7,8 +7,8 @@ Last updated: 2026-11-01.
 - Working name: **Trialoom**. Tagline: **Test. Fix. Ship.**
 - Builders purchase useful testing and repairs; independently operated agents earn for accepted work supported by replayable evidence.
 - First customer: solo builders and small teams with existing web applications and authorized preview environments.
-- First release: an invited marketplace with **Test my product**, **Find reproducible bugs**, and **Fix this bug**. Reproduction and verification are paid assignments within these services.
-- First milestone: one real project completes **test → reproduce → fix → independently verify → pay**.
+- First release (user-selected 2026-11-01, D049): public signup and free, bounded browser testing with findings and replay. No customer wallet, deposit, payment authority or paid operator assignment is required. Platform-sponsored usebuy purchases support useful testing results within an explicitly funded cap.
+- First release milestone: a real user signs up, authorizes a preview, receives a bounded real browser test and replay, and benefits from a useful usebuy service with verifiable Celo mainnet payment evidence. The later marketplace milestone remains **test → reproduce → fix → independently verify → pay**.
 - Differentiation hypothesis: a connected evidence-to-repair workflow with reusable regression tests and traceable settlement. Additional value over existing checks must be measured.
 
 ## User's standing preferences
@@ -16,12 +16,12 @@ Last updated: 2026-11-01.
 - Maintain persistent Markdown project memory so work survives new sessions and context resets.
 - Track progress, status, decisions, and remaining work throughout development.
 - Commit every meaningful completed step as the build progresses.
-- Keep the Celo agentic hackathon at the supplied [Loops House arena](https://www.loops.house/builder-arena) in mind.
+- Target the Celo Agents on Open Rails **Build with buy** bounty. User confirmed on 2026-11-01 that Trialoom is not enrolled yet. Registration, agent identity, public repository, live service use and submission evidence remain work to complete.
 - Local timezone: Africa/Lagos.
 
 ## Product boundaries
 
-Start with Chromium and recorded desktop/mobile viewports, not claims of real-device coverage. Repository access is needed for repair work, not basic preview testing. Builders retain merge and deployment control. General app generation, native mobile testing, unrestricted load/security testing, anonymous public enrollment, cross-chain settlement, and expansion services are outside the initial release.
+Start with Chromium and recorded desktop/mobile viewports, not claims of real-device coverage. Public builder registration requires verified email and usage limits; anonymous execution and unrestricted public operator enrollment remain excluded. Repository access and paid repair work are deferred from this free beta. Builders retain merge and deployment control. General app generation, native mobile testing, unrestricted load/security testing, cross-chain settlement, and expansion services remain outside the initial release.
 
 The selected alpha architecture is Node 24/TypeScript, Next.js/React, PostgreSQL with explicit SQL and an outbox, and separate Node workers. Better Auth database sessions, private S3 evidence, Render containers, and a separate gVisor runner host are selected targets, with implementation gates recorded in [ARCHITECTURE.md](../docs/ARCHITECTURE.md). The scaffold must not expose customer records or money actions before authorization/ledger controls exist.
 
@@ -35,7 +35,7 @@ The disposable browser/evidence experiment uses Node 24 and Playwright Test (D00
 
 ## Money and trust
 
-- PRD direction: USDC on Celo, with Remesso for approved operator payments and a separate optional buy resource adapter. Remesso policy payments/crash recovery (VAL-03) and buy payment controls/local x402 settlement recovery (VAL-04) are proven on disposable Celo forks. Production integration and useful paid buy output remain pending; the resource harness cannot dispatch live paid requests.
+- PRD marketplace direction: USDC on Celo with Remesso operator payments and a separate buy resource adapter. D049 defers customer/operator settlement from the free beta and makes useful platform-sponsored buy integration a selected hackathon dependency. Sponsored costs must never become customer reimbursement payables. Existing debts remain owed. Local fork proofs do not establish useful paid mainnet service delivery.
 - A builder policy authorizes spending; it does not escrow or reserve funds. Campaign reservations live in Trialoom's ledger. Public secured-payment promises need a separate funding design.
 - Finalized charges + unpaid liabilities + outstanding maximum commitments must stay within the campaign ceiling. Resources and platform fees participate in this invariant.
 - Accepted work remains owed after insufficient funds, policy revocation, or cancellation. Payment retries reconcile the same operation identity.

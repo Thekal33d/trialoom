@@ -590,3 +590,11 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Final private summary: ignored `artifacts/preview-recovery/84f37a6ec9f8457c/summary.json`; owned replay screenshots under ignored `artifacts/preview-runs/deff98df7f7b2dd5/` and `artifacts/preview-runs/e4e5016ba9db7b36/`. Test databases, raw evidence and captures removed. No public target request, wallet action, push or deployment. Historical Blokaz evidence and unrelated sessions were not modified.
 - Scope remains local controller-process recovery with the same DB/private filesystem and re-supplied credentials. Automatic scheduling, whole-machine/daemon recovery, production service roles, credential recovery and orphan-file retention remain open. Next: adversarial resource exhaustion under the full owned gVisor/proxy topology.
 - Commit subject: `feat: recover interrupted preview deliveries without duplicates` (RUN-03).
+
+## 2026-11-01 — FREE-00: public free beta and selected buy bounty
+
+- User selected public signup, free bounded browser testing and Build with buy; confirmed not enrolled. Recorded D049 and FREE-BETA.md, updated durable memory/instructions, roadmap, backlog and next action. Preserved original PRD and existing marketplace obligations; deferred paid repair/operator features from first release.
+- Refreshed official event rules and free live buy catalog. Deadline remains 2026-11-09 09:00 GMT / 10:00 Lagos. Chose bounded Cencori explanation of sanitized observed results as the initial useful sponsored integration; runner evidence remains authoritative. Browser rental has separate witness/trace limitations and VAL-04 remains open.
+- Network-restricted catalog GET failed DNS, then succeeded through approved network access. No paid request, wallet action, email, publication or enrollment. Event attribution and independent-user qualification remain evidence gates.
+- Checks: documentation diff/link review and unchanged original PRD hash. Implementation follows under FREE-01 and BUY-01; hosted execution and paid output are not claimed.
+- Commit subject: `docs: select public free beta and Build with buy launch scope` (FREE-00, HACK-01).

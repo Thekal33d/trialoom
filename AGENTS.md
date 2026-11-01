@@ -9,7 +9,7 @@
 
 ## Product guardrails
 
-- Build the complete test, reproduce, repair, independently verify, and pay loop. Start with invited operators and existing web apps with preview builds.
+- First release is a public-signup, free testing beta (D049), for authorized existing web apps and preview builds. Keep the complete test, reproduce, repair, independently verify, and pay loop as the later marketplace objective. Operator enrollment and paid assignments are not opened by public builder signup.
 - Valid test execution can earn its fee whether the tested product passes or fails. Discovery rewards are separate.
 - Use integer token base units for money. Reserve maximum assignment liability atomically. Reclassification from commitment to payable must not double-count funds.
 - Spending authorization is not escrow. Keep accepted obligations visible even if payment authority or funding disappears.

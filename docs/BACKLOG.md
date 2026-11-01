@@ -20,6 +20,19 @@ VAL-03/VAL-04 start with documentation and controlled environments. A later paid
 
 The local execution baseline and observed provider constraints are sufficient for VAL-05 (D012). This sequencing decision does not close VAL-04 or waive the paid-resource, independent-review, alpha, or hackathon gates.
 
+## Public free beta — selected first release (D049)
+
+The user selected public signup, free bounded testing and the Build with buy bounty. [FREE-BETA.md](FREE-BETA.md) defines acceptance and deferred marketplace scope.
+
+| ID | Work | State | Depends on | Acceptance / evidence |
+| --- | --- | --- | --- | --- |
+| FREE-00 | Release scope and bounty requirements | Done | User decision | D049; fresh official event and free buy catalog review; no enrollment, purchase or deployment claimed |
+| FREE-01 | Verified public signup and free workspace | In progress | FREE-00 | Email possession, atomic signup, workspace isolation, explicit free entitlement, paid/operator boundaries, desktop/mobile flow |
+| FREE-02 | Bounded free test and automatic runner | Not started | FREE-01, RUN-03 | Quotas and global ceiling, authorized targets, automatic dispatch/recovery, observed output and replay, no customer liability |
+| BUY-01 | Sponsored buy report explanation | In progress | FREE-00, RUN-02 | Exact catalog/quote; closed sanitized inputs; useful Cencori output; reserved platform cap, durable intent/reconciliation, Celo receipt; no customer reimbursement |
+| FREE-03 | Hosted staging and launch operations | Not started | FREE-01, FREE-02 | HTTPS/app/worker/Postgres/private evidence; real mail/recovery; backup restore, roles, monitoring, retention and abuse controls |
+| FREE-04 | Real-user release and submission | Not started | FREE-02, BUY-01, FREE-03, HACK-01 | Real signup-to-replay journey, useful paid output, demo/repo/identity and submission confirmation |
+
 ## Hands-on trial
 
 | ID | Work | State | Depends on | Acceptance / evidence |
@@ -49,8 +62,8 @@ The local execution baseline and observed provider constraints are sufficient fo
 
 | ID | Milestone | Work | State | Depends on | Acceptance / evidence |
 | --- | --- | --- | --- | --- | --- |
-| HACK-01 | H | Event setup and track choice | Ready | SETUP-02 | Complete setup items in [HACKATHON.md](HACKATHON.md); resolve rule interpretation; record real entry identifiers |
-| HACK-02 | H | Selected event integration requirements | Not started | HACK-01, VAL-03, VAL-04 | Verified implementation and references for selected checklist; no mock-derived proof |
+| HACK-01 | H | Event setup and track choice | In progress | SETUP-02 | Complete setup items in [HACKATHON.md](HACKATHON.md); resolve rule interpretation; record real entry identifiers |
+| HACK-02 | H | Selected event integration requirements | In progress | HACK-01, BUY-01 | Verified implementation and references for selected checklist; no mock-derived proof |
 | HACK-03 | H | Demo and submission evidence | Not started | HACK-02, ALPHA-11 | Usable demo, reproducible setup, meaningful real usage, sanitized evidence, limitations, final commit |
 | PILOT-03 | M3 | Runner isolation and the egress witness | Done (foundation) | ALPHA-11 | A registered host under a written contract reports what its proxy allowed and denied under its own credential, the platform compares that with the agent's claim, and a witnessed run with no witness is refused, verified in [PILOT-03](PILOT-03.md) and [evidence](evidence/PILOT-03.json); Trialoom does not run the host, so the sandbox itself is still asserted |
 | PILOT-04 | M3 | Pilot instrumentation and decision targets | Done (foundation) | ALPHA-11 | All thirteen instrumented events plus `review.opened` on an append-only closed-topic stream, and the eight PRD decision targets computed with their definitions, thresholds and inputs, verified in [PILOT-04](PILOT-04.md) and [evidence](evidence/PILOT-04.json); three targets report what is missing rather than a number, because their inputs do not exist |
@@ -60,4 +73,4 @@ The local execution baseline and observed provider constraints are sufficient fo
 | BETA-01 | M4 | Public guarantees and scale | Deferred | PILOT-02 | Implemented guarantee model, reviewed contracts/providers, qualification and incident readiness |
 | EXPAND-01 | M5 | Additional services and app creation | Deferred | Pilot demand evidence | Acceptance criteria and demonstrated demand per service |
 
-Pilot completion requires every PRD requirement beyond its alpha slice. Manual operation in a demo is not an implicit waiver of the PRD.
+Later paid marketplace pilot completion requires every PRD requirement beyond its alpha slice. The free beta follows D049 and FREE-BETA.md. Manual operation in a demo is not an implicit waiver of the PRD.

@@ -27,6 +27,8 @@ The local execution baseline and observed provider constraints are sufficient fo
 | PRACTICE-01 | Prepared hands-on local walkthrough | Done | ALPHA-10 | Visible signed-in sample workspace, separate real invitation bug, persisted practice decision and redacted ZIP export, disposable data cleanup; [guide and checks](TRY-TRIALOOM.md). No hosted agent, independent human review, or live payment claimed. Commit `13245b7`; user reported the prepared test worked on 2026-10-31. This feedback does not close production release gates. |
 | RUN-01 | Connect controlled browser execution to the workspace | Done | ALPHA-05, PILOT-03 | Actual Chromium journey and trace, build-bound HTTP uploads, fresh pending review/export, buggy and repaired results, expiry/cancellation/revocation/time-cap checks; [guide](RUN-01.md), [evidence](evidence/RUN-01.json). Controlled local fixture and administrative test setup only; no hosted or arbitrary-site execution, independent verification, trace replay UI, or payment. Commit subject: `feat: submit real Chromium evidence to the workspace` |
 
+| RUN-02 | Recorded replay and sanitized browser trace | In progress | RUN-01 | Metadata-only trace sanitizer and bounded ZIP handling verified; next: workspace replay, sanitized download/export, tenant/access checks, fresh browser and mobile verification. Page snapshots and free-form trace content are withheld. |
+
 ## Internal alpha
 
 | ID | Work | State | Depends on | PRD coverage | Acceptance / evidence |

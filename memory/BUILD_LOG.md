@@ -434,3 +434,11 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Opened and visually inspected a fresh visible execution result for the user. Smoke sessions cleaned up their test databases and private files; the visible session remains open for review. Raw traces are real but remain private under the text-only redaction policy; only redacted text is reviewable/exportable.
 - D033, the backlog/roadmap, core memory, status, validation register, and RUN-01 guide/evidence record the actual scope. Next proposed step: reviewed Playwright trace sanitization/export/replay. Customer sandbox operation, independent operators, pilot operations/security/privacy, deployment, payment, and hackathon gates remain open.
 - Commit subject: `feat: submit real Chromium evidence to the workspace` (RUN-01).
+
+
+## 2026-11-01 — RUN-02, step 1: bounded metadata-only trace derivatives
+
+- Added a bounded in-memory ZIP reader with local/central consistency, CRC, path/duplicate/overlap, compression, encryption, entry count and expanded-size checks; no filesystem extraction. Added a Playwright v10 projection that rebuilds action/request metadata and copies no arbitrary source strings or resources. Unsupported input stays private, including text falsely labelled as a trace.
+- Integrated derivatives into evidence ingestion while retaining original bytes/hash privately. Artifact reads now verify the derivative digest before serving. D034 records the chosen scope; UI and export metadata updates remain in the next step.
+- Validation: 7 focused archive tests and 26 runner/evidence tests pass; typecheck passes. A real RUN-01 trace produces 21 actions and 6 requests. The initial combined test run exposed an existing globally counted audit assertion; scoped it to its own artifact and reran successfully. No full audit or production-isolation claim.
+- Commit subject: `feat: sanitize browser traces into bounded metadata archives`.

@@ -4,6 +4,8 @@ Last updated: 2026-11-01 (Africa/Lagos).
 
 ## State
 
+**RUN-02 is in progress: recorded replay and sanitized trace download.** The user approved this step on 2026-11-01. A bounded archive reader and metadata-only Playwright v10 sanitizer now pass focused checks; workspace replay controls and fresh-browser verification are next. Raw traces remain private.
+
 **RUN-01 is connected and verified locally.** `npm run browser:demo` executes the owned invitation fixture in Chromium, uploads the actual trace/assertions/report through scoped HTTP routes, and opens the new finding pending builder review. The fixture build hash, observed responses, browser version, and timestamps come from execution. A repaired copy passes with the same driver; expiry, cancellation, revocation, and timeout are checked. Setup/accounts/claims remain administratively prepared in a disposable database; this is a fixed controlled journey, not hosted autonomous execution or an isolated customer runner. Raw traces remain private under the existing text-only redaction policy. [Run guide and limits](../docs/RUN-01.md).
 
 **PRACTICE-01 user walkthrough completed:** on 2026-10-31 the user reported that testing was complete and things worked. This is user-reported success of the prepared local sample, not a claim that every release scenario or a real agent campaign was tested. `npm run playground` opens a visible browser with a guide, an owned invitation app containing a reproducible bug, and the real workspace signed in to disposable sample data. Review decisions persist and redacted ZIP exports work; the separate manual test is not automatically ingested. No wallet, email, hosted agent, or worker is enabled. See [the walkthrough](../docs/TRY-TRIALOOM.md). Local alpha foundations are implemented; the operations/privacy/security work and real-world pilot gates remain open.
@@ -55,7 +57,7 @@ Last updated: 2026-11-01 (Africa/Lagos).
 
 ## Next action
 
-**Next action (proposed): implement a reviewed sanitization/export path for the known Playwright trace format so the fresh RUN-01 execution can be replayed by a reviewer.** Keep unknown or unsuccessfully sanitized archives private, preserve content hashes, and verify that secrets are removed without breaking replay. This is a separate step from operating an isolated runner for customer targets. The RUN-01 implementation itself is complete; no real payments or deployment are needed to inspect its pending report.
+**Next action: finish RUN-02 by connecting the sanitized trace to recorded step replay, downloads and campaign exports, then verify a fresh Chromium run.** Unsupported archives stay private. This is recorded inspection, not re-execution or independent reproduction; customer runner isolation remains a separate gate.
 
 PILOT-01 (operations, privacy, security, and reviewer coverage) is still not started. Operating an isolated runner, deployment/remote CI, actual independent operators, and a specifically authorized funded payment experiment are separate production gates. VAL-02 still needs independent operator review and VAL-04 still needs actual paid resource provisioning; the hackathon checklist remains unmet.
 

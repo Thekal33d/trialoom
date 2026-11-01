@@ -41,7 +41,9 @@ import {
   startRun,
 } from '../src/server/runner.ts';
 import { digestOf } from '../src/server/storage.ts';
+import { readTraceArchive } from '../src/server/trace-archive.ts';
 import { disposableDatabase } from './helpers/database.ts';
+import { traceCanary, traceFixture } from './helpers/trace.ts';
 
 let db: Awaited<ReturnType<typeof disposableDatabase>>;
 let owner: Actor, reviewer: Actor;
@@ -615,6 +617,39 @@ test('text evidence is redacted and only the redacted copy is readable', async (
   assert.ok(text.includes('[REDACTED:'));
 });
 
+test('a supported trace is stored separately and only its verified derivative is served', async () => {
+  const { assignment, grant } = await runFor('runner-trace');
+  const original = traceFixture();
+  const uploaded = await upload(grant, 'browser.trace.zip', 'trace', 'application/zip', original);
+  assert.equal(uploaded.reviewable, true);
+  assert.equal(uploaded.redaction.policy, 'playwright-metadata-v1');
+  const artifact = (
+    await db.pool.query('SELECT * FROM evidence_artifacts WHERE run_id=$1', [grant.run.id])
+  ).rows[0];
+  assert.notEqual(artifact.storage_key, artifact.redacted_key);
+  assert.equal(artifact.sha256, digestOf(original));
+  const served = await readArtifact(
+    db.pool,
+    reviewer,
+    workspaceId,
+    projectId,
+    assignment.campaignId,
+    artifact.id,
+  );
+  assert.equal(digestOf(served.bytes), artifact.redacted_sha256);
+  const files = readTraceArchive(served.bytes);
+  assert(
+    ![...files.values()].some((bytes) => new TextDecoder().decode(bytes).includes(traceCanary)),
+  );
+  assert.equal(
+    JSON.parse(new TextDecoder().decode(files.get('replay.json'))).requests[0].status,
+    400,
+  );
+  // A valid-looking text blob labelled as a trace cannot bypass the archive policy.
+  const fake = await upload(grant, 'fake.zip', 'trace', 'application/zip', '{"hello":"world"}');
+  assert.equal(fake.reviewable, false);
+});
+
 test('archived evidence is stored private and refused to readers', async () => {
   const { assignment, grant } = await runFor('runner-binary');
   const stored = await upload(
@@ -880,8 +915,8 @@ test('builders and reviewers read submissions, and a reviewer read is audited', 
     assertions.id,
   );
   const read = await db.pool.query(
-    "SELECT action FROM audit_events WHERE actor_id=$1 AND action='reviewer.artifact_read'",
-    [reviewer.id],
+    "SELECT action FROM audit_events WHERE actor_id=$1 AND action='reviewer.artifact_read' AND subject_id=$2",
+    [reviewer.id, assertions.id],
   );
   assert.equal(read.rowCount, 1);
 });

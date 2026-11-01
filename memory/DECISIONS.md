@@ -75,3 +75,8 @@ The user approved RUN-01 by asking to connect a real browser. Start with the exi
 | Brand | Trialoom is a working name; clearance pending | Public launch |
 
 For a material new decision, record its context, considered alternatives, chosen option, consequences, and validating evidence below the table or in a linked document. Do not erase superseded decisions.
+
+
+## D034 — 2026-11-01 — Accepted: replay from a metadata-only trace derivative
+
+The user approved replay viewing after clarifying that RUN-01 only captured private traces. Rebuild supported Playwright v10 archives from enumerated action methods, mapped identifiers, relative numeric timings and HTTP methods/statuses. Copy no original free-form trace strings, snapshots, screenshots, selectors, input values, URLs, headers, bodies, console/error details, sources or attachments. Bound compressed/expanded sizes and entry counts, validate ZIP structure and CRC, never extract files, and keep unknown/invalid formats private. Preserve the raw hash and give the derivative its own hash. Show submitted steps/assertions under the existing declared text policy separately from trace facts; recorded inspection does not re-execute the target or establish independent verification. No public trace-hosting service or active page content is needed. Existing private archives are not silently migrated; newly uploaded supported traces receive derivatives. Revisit before supporting another format or sanitized DOM snapshots.

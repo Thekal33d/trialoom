@@ -21,6 +21,7 @@ import { campaignRepairs, recordRepair, recordVerification, repairRole } from '.
 import { campaignResources } from './resources.ts';
 import { isolationProfile, type RunSession, runLimits } from './runner.ts';
 import { digestOf, getObject, putObject } from './storage.ts';
+import { sanitizeBrowserTrace, tracePolicy } from './trace-redaction.ts';
 
 const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
 /** The runner's clock may differ slightly from this one. */
@@ -30,8 +31,8 @@ const clockSkewMs = 5000;
  * Stores one artifact. Raw bytes go only to the private store; the database
  * keeps identity, size and redaction state. Text evidence is redacted and the
  * redacted copy is rescanned, so nothing text-shaped becomes shareable while a
- * known secret shape survives in it. Archives and images cannot be cleaned by
- * this policy, so they are kept private rather than shared unchecked.
+ * known secret shape survives in it. Supported browser traces are rebuilt as
+ * metadata-only archives; unsupported archives and images stay private.
  */
 export async function storeArtifact(
   pool: Pool,
@@ -64,7 +65,22 @@ export async function storeArtifact(
   const text = decodeUtf8(bytes);
   let redacted: { key: string; sha256: string } | null = null;
   let record: Record<string, unknown>;
-  if (text === null)
+  if (data.kind === 'trace') {
+    const cleaned = sanitizeBrowserTrace(bytes, [session.secret]);
+    if (cleaned) {
+      const stored = await putObject(cleaned.bytes);
+      redacted = { key: stored.key, sha256: stored.key };
+      record = cleaned.record;
+    } else
+      record = {
+        policy: tracePolicy,
+        mode: 'binary',
+        decision: 'private_only',
+        reason:
+          'Replay unavailable: this archive is invalid, exceeds replay limits, or uses an unsupported trace format. The original stays private.',
+        verified: false,
+      };
+  } else if (text === null)
     record = {
       policy: redactionPolicy,
       mode: 'binary',
@@ -571,7 +587,7 @@ export async function readArtifact(
     const role = await campaignForReader(db, actor, workspaceId, projectId, campaignId);
     const row = (
       await db.query(
-        `SELECT a.id,a.name,a.kind,a.media_type,a.reviewable,a.redacted_key,a.redaction
+        `SELECT a.id,a.name,a.kind,a.media_type,a.reviewable,a.redacted_key,a.redacted_sha256,a.redaction
         FROM evidence_artifacts a JOIN runs r ON r.id=a.run_id
         WHERE a.id=$1 AND r.campaign_id=$2`,
         [id, campaignId],
@@ -581,18 +597,26 @@ export async function readArtifact(
     if (!row.reviewable || !row.redacted_key)
       throw new AppError(
         'ARTIFACT_PRIVATE',
-        'This artifact has no verified redacted copy, so it stays private. Archived and image evidence needs a reviewed export path.',
+        'This artifact has no verified redacted copy, so it stays private.',
         403,
       );
     if (role === 'reviewer') await audit(db, workspaceId, actor.id, 'reviewer.artifact_read', id);
     return row;
   });
+  const bytes = await getObject(artifact.redacted_key as string);
+  if (digestOf(bytes) !== artifact.redacted_sha256)
+    throw new AppError(
+      'ARTIFACT_CORRUPT',
+      'The redacted artifact failed its integrity check.',
+      503,
+    );
   return {
     name: artifact.name as string,
     kind: artifact.kind as string,
     mediaType: artifact.media_type as string,
     redaction: artifact.redaction as Record<string, unknown>,
-    bytes: await getObject(artifact.redacted_key as string),
+    sha256: artifact.redacted_sha256 as string,
+    bytes,
   };
 }
 

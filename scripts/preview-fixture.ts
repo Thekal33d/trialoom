@@ -14,10 +14,10 @@ import { createCredential, registerOperator } from '../src/server/operators.ts';
 import { addBuild, createCampaign, createProject } from '../src/server/projects.ts';
 import { submitAttempt } from '../src/server/qualification.ts';
 import { issueRun, startRun, type TargetCheck } from '../src/server/runner.ts';
-import { previewAction } from './preview-controller.ts';
+import { ladderAction, previewAction } from './preview-controller.ts';
 
 /** Local administrative setup only; public Blokaz uses the normal admission path. */
-export async function seedPreviewFixture(pool: Pool, mode: 'owned' | 'public') {
+export async function seedPreviewFixture(pool: Pool, mode: 'owned' | 'public', journey?: 'ladder') {
   assert(
     /^trialoom_test_[a-f0-9]{32}$/.test(
       (await pool.query('SELECT current_database() AS name')).rows[0].name,
@@ -127,11 +127,14 @@ export async function seedPreviewFixture(pool: Pool, mode: 'owned' | 'public') {
         service: 'bug_discovery',
         minimumIsolation: 'witnessed',
         scope:
-          mode === 'owned'
-            ? 'Load the controlled HTTPS sample and follow its Next page link.'
-            : 'Load the authorized Blokaz homepage and verify visible content. Deployed revision is unconfirmed without a revision header.',
+          journey === 'ladder'
+            ? 'Open Leaderboard then The Ladder; compare the visible player count with the approved public GET response. Login, wallet, chain data, scores, identity editing and gameplay are excluded.'
+            : mode === 'owned'
+              ? 'Load the controlled HTTPS sample and follow its Next page link.'
+              : 'Load the authorized Blokaz homepage and verify visible content. Deployed revision is unconfirmed without a revision header.',
         allowedActions: [
           previewAction,
+          ...(journey === 'ladder' ? [ladderAction] : []),
           ...(mode === 'owned' ? ['Follow the owned Next page link'] : []),
           ...(mode === 'public'
             ? ['Load approved Google Fonts stylesheets and font files with GET/HEAD']
@@ -139,6 +142,18 @@ export async function seedPreviewFixture(pool: Pool, mode: 'owned' | 'public') {
         ],
         readOnlyDependencyOrigins:
           mode === 'public' ? ['https://fonts.googleapis.com', 'https://fonts.gstatic.com'] : [],
+        readOnlyRequestUrls:
+          mode === 'public' && journey === 'ladder'
+            ? [
+                'https://ghpftgmgszleutscfgqe.supabase.co/functions/v1/api/levels/leaderboard?limit=25',
+              ]
+            : [],
+        blockedDependencyOrigins:
+          journey === 'ladder'
+            ? mode === 'public'
+              ? ['https://api.web3auth.io', 'https://forno.celo.org', 'https://1rpc.io']
+              : ['https://excluded.example.com']
+            : [],
         exclusions: [
           'No accounts, login, wallets, staking, form submissions, payment, unapproved third-party origins or state-changing methods',
         ],

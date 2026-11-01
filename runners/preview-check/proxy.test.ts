@@ -119,6 +119,53 @@ test('changed DNS and rebinding to private addresses refuse before any upstream 
   assert.equal((await get()).status, 403);
   assert.equal(upstream.connections(), 0);
 });
+test('exact GET grants refuse other queries, methods, paths and every redirect', async (t) => {
+  const { get, upstream, proxy } = await setup(t, {
+    readOnlyRequests: [
+      {
+        origin,
+        requests: [
+          { method: 'GET', path: '/rankings?limit=25' },
+          { method: 'GET', path: '/redirect' },
+        ],
+      },
+    ],
+  });
+  assert.equal((await get('/rankings?limit=25')).status, 200);
+  for (const path of [
+    '/rankings',
+    '/rankings?limit=26',
+    '/rankings?limit=25&limit=100',
+    '/rankings?limit=%32%35',
+    '/other',
+    '/rankings/?limit=25',
+  ])
+    assert.equal((await get(path)).status, 403);
+  assert.equal((await get('/rankings?limit=25', { method: 'HEAD' })).status, 403);
+  assert.equal((await get('/rankings?limit=25', { method: 'POST' })).status, 403);
+  assert.equal((await get('/redirect')).status, 403);
+  assert.equal(upstream.connections(), 2);
+  assert(proxy.snapshot().observations.some((item) => item.reason === 'REQUEST_DENIED'));
+  assert(proxy.snapshot().observations.some((item) => item.reason === 'REDIRECT_DENIED'));
+});
+test('declared excluded origins are refused separately; unknown and malformed destinations remain unexpected', async (t) => {
+  const { get, proxy, upstream } = await setup(t, {
+    blockedOrigins: ['https://excluded.example.com'],
+  });
+  for (const authority of [
+    'excluded.example.com:443',
+    'unknown.example.com:443',
+    'excluded.example.com:80',
+    'excluded.example.com:443@unknown.example.com:443',
+    '%malformed:443',
+  ])
+    await assert.rejects(get('/', { authority }));
+  assert.equal(upstream.connections(), 0);
+  assert.deepEqual(proxy.snapshot().observations, [
+    { origin: null, reason: 'EXCLUDED_ORIGIN', count: 1 },
+    { origin: null, reason: 'ORIGIN_DENIED', count: 4 },
+  ]);
+});
 test('unapproved CONNECT, forged Host, absolute URL and write methods are denied', async (t) => {
   const { get, upstream } = await setup(t);
   for (const authority of [

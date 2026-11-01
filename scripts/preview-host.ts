@@ -39,9 +39,11 @@ export async function buildPreviewImage() {
       'runners/preview-proxy.ts',
       'runners/preview-channel.ts',
       'runners/preview-browser.ts',
+      'runners/preview-ladder.ts',
       'runners/preview-broker.ts',
       'src/server/targets.ts',
       'src/domain/errors.ts',
+      'src/domain/preview-scope.ts',
     ]) {
       await mkdir(dirname(`${directory}/${file}`), { recursive: true });
       await cp(file, `${directory}/${file}`);

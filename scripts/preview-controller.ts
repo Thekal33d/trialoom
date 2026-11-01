@@ -6,6 +6,8 @@ import { type EvidenceInput, evidenceSchema } from '../src/domain/schemas.ts';
 import { previewHost, previewIdentity } from './preview-host.ts';
 
 export const previewAction = 'Load the approved homepage with GET/HEAD';
+export const ladderAction =
+  'Open the public ladder and compare its player count with the approved API read';
 const digest = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex');
 const budgetLabels = {
   connections: 'Total connections',
@@ -48,10 +50,19 @@ const viewSchema = z.object({
         z.object({
           origin: z.url(),
           addresses: z.array(z.string()).min(1).max(32),
-          methods: z.tuple([z.literal('GET'), z.literal('HEAD')]),
+          methods: z.union([
+            z.tuple([z.literal('GET')]),
+            z.tuple([z.literal('GET'), z.literal('HEAD')]),
+          ]),
+          requests: z
+            .array(z.object({ method: z.literal('GET'), path: z.string().max(2048) }))
+            .min(1)
+            .max(12)
+            .optional(),
         }),
       )
       .max(7),
+    blockedDependencyOrigins: z.array(z.url()).max(7),
     isolation: evidenceSchema.shape.isolation,
     isolationLevel: z.literal('witnessed'),
     host: z.object({ id: z.uuid(), sandbox: z.literal('gvisor'), egressEnforced: z.literal(true) }),
@@ -95,11 +106,14 @@ export async function executePreviewRun(options: {
   hostCredential: string;
   image: string;
   mode: 'owned' | 'public';
+  journey?: 'ladder';
+  fixtureOutcome?: 'mismatch' | 'unexpected';
   signal?: AbortSignal;
   hold?: boolean;
   onStarted?: () => Promise<void>;
 }) {
   const origin = new URL(options.apiOrigin);
+  assert(!options.fixtureOutcome || (options.mode === 'owned' && options.journey === 'ladder'));
   assert(
     origin.origin === options.apiOrigin &&
       origin.protocol === 'http:' &&
@@ -157,6 +171,18 @@ export async function executePreviewRun(options: {
       manifest.allowedActions.includes('Follow the owned Next page link') &&
         manifest.readOnlyDependencies.length === 0,
     );
+  let readUrl: string | undefined;
+  if (options.journey === 'ladder') {
+    assert(manifest.allowedActions.includes(ladderAction), 'LADDER_SCOPE_REQUIRED');
+    if (options.mode === 'owned') readUrl = `${manifest.target.origin}/rankings?limit=25`;
+    else {
+      const reads = manifest.readOnlyDependencies.flatMap((item) =>
+        (item.requests ?? []).map((request) => item.origin + request.path),
+      );
+      assert.equal(reads.length, 1, 'EXACT_LADDER_READ_REQUIRED');
+      readUrl = reads[0];
+    }
+  }
   const budget = Math.min(
     45000,
     manifest.limits.wallClockSeconds * 1000 - 10000,
@@ -201,6 +227,9 @@ export async function executePreviewRun(options: {
         mode: options.mode,
         target: manifest.target,
         readOnlyDependencies: manifest.readOnlyDependencies,
+        blockedDependencyOrigins: manifest.blockedDependencyOrigins,
+        fixtureJourney: options.mode === 'owned' ? options.journey : undefined,
+        fixtureOutcome: options.fixtureOutcome,
         identity,
         durationMs: Math.min(60000, budget + 5000),
       },
@@ -212,7 +241,8 @@ export async function executePreviewRun(options: {
     await check();
     const running = host.run({
       url: manifest.target.url,
-      journey: options.mode === 'owned' ? 'owned' : 'homepage',
+      journey: options.journey ?? (options.mode === 'owned' ? 'owned' : 'homepage'),
+      readUrl,
       durationMs: Math.floor(budget),
       maxNavigations: manifest.limits.maxNavigations,
       hold: options.mode === 'owned' && options.hold === true,
@@ -270,13 +300,20 @@ export async function executePreviewRun(options: {
     }
     assert(acknowledged);
     // No credentials or raw target strings in product-facing assertions.
-    if ([...groups.values()].some((item) => item.decision === 'denied')) {
+    if (
+      witness.observations.some(
+        (item: { reason: string }) =>
+          !['ALLOWED', 'CANCELLED', 'DEADLINE', 'EXCLUDED_ORIGIN'].includes(item.reason),
+      )
+    ) {
       output.outcome = 'blocked';
     }
     if (
       witness.observations.some(
         (item: { reason: string }) =>
-          !['ALLOWED', 'CANCELLED', 'DEADLINE', 'BUDGET_EXHAUSTED'].includes(item.reason),
+          !['ALLOWED', 'CANCELLED', 'DEADLINE', 'BUDGET_EXHAUSTED', 'EXCLUDED_ORIGIN'].includes(
+            item.reason,
+          ),
       )
     ) {
       output.steps.push({
@@ -306,6 +343,24 @@ export async function executePreviewRun(options: {
         name: 'network.budget',
         passed: false,
         detail: `${label} exceeded the configured limit (${exhausted.observed} > ${exhausted.maximum}).`,
+      });
+    }
+    const excludedCount = witness.observations
+      .filter((item: { reason: string }) => item.reason === 'EXCLUDED_ORIGIN')
+      .reduce((sum: number, item: { count: number }) => sum + item.count, 0);
+    if (excludedCount) {
+      assert(manifest.blockedDependencyOrigins.length > 0, 'UNDECLARED_EXCLUSION');
+      output.steps.push({
+        index: output.steps.length + 1,
+        action: 'Keep the services excluded by this brief blocked',
+        expected: 'No connection to explicitly excluded services',
+        actual: `${excludedCount} connection attempts refused; excluded features were not tested`,
+        status: 'passed',
+      });
+      output.assertions.push({
+        name: 'scope.exclusions',
+        passed: true,
+        detail: 'Declared excluded services stayed blocked; this does not verify those features.',
       });
     }
     const document: EvidenceInput = {

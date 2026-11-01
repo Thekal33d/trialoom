@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import os from 'node:os';
 import { chromium } from 'playwright-core';
 import { boundedInput, previewBridge } from './preview-channel.ts';
+import { readLadder } from './preview-ladder.ts';
 
 async function main() {
   assert.equal(process.getuid?.(), 65534);
@@ -23,7 +24,8 @@ async function main() {
   assert(
     Number.isSafeInteger(job.maxNavigations) && job.maxNavigations >= 1 && job.maxNavigations <= 50,
   );
-  assert(['owned', 'homepage'].includes(job.journey));
+  assert(['owned', 'homepage', 'ladder'].includes(job.journey));
+  if (job.journey === 'ladder') assert(ready.origins.includes(new URL(job.readUrl).origin));
   const bridge = await previewBridge();
   const browser = await chromium.launch({
     headless: true,
@@ -47,6 +49,15 @@ async function main() {
   const page = await context.newPage();
   page.setDefaultTimeout(5000);
   page.setDefaultNavigationTimeout(15000);
+  const ladderRead =
+    job.journey === 'ladder'
+      ? page
+          .waitForResponse(
+            (response) => response.url() === job.readUrl && response.request().method() === 'GET',
+            { timeout: 15000 },
+          )
+          .catch(() => null)
+      : undefined;
   const origins = new Set<string>();
   const steps: {
     index: number;
@@ -117,6 +128,23 @@ async function main() {
         name: 'navigation.rendered',
         passed: true,
         detail: 'Chromium clicked the link and observed the destination heading.',
+      });
+    }
+    if (job.journey === 'ladder') {
+      assert(ladderRead);
+      const result = await readLadder(page, ladderRead);
+      steps.push({
+        index: steps.length + 1,
+        action: 'Open Leaderboard, then The Ladder',
+        expected:
+          'The public ladder opens and its displayed player count matches the approved API read',
+        actual: `HTTP 200; ${result.count} players in the response and displayed count`,
+        status: 'passed',
+      });
+      assertions.push({
+        name: 'ladder.player-count',
+        passed: true,
+        detail: `Rendered count ${result.count} agrees with the GET response (SHA-256 ${result.sha256}). Player identities are withheld.`,
       });
     }
   } catch {

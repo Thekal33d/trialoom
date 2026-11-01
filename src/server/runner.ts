@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import { AppError } from '../domain/errors.ts';
+import { dependencyScope } from '../domain/preview-scope.ts';
 import { readOnlyDependencyOriginsSchema, runStartSchema, uuid } from '../domain/schemas.ts';
 import type { AgentSession } from './agents.ts';
 import { liveAssignment } from './assignments.ts';
@@ -231,7 +232,11 @@ export type PreparedRun = {
   secret: string;
   targetCheck: TargetCheck;
   document: TermsDocument;
-  readOnlyDependencies?: { origin: string; addresses: string[] }[];
+  readOnlyDependencies?: {
+    origin: string;
+    addresses: string[];
+    requests?: { method: 'GET'; path: string }[];
+  }[];
 };
 
 /**
@@ -258,12 +263,18 @@ export async function prepareRun(
   const origins = readOnlyDependencyOriginsSchema.parse(
     context.document.readOnlyDependencyOrigins ?? [],
   );
-  if (origins.includes(context.project.authorized_origin))
-    throw new AppError('DEPENDENCY_INVALID', 'The primary target is already authorized.');
+  const scope = dependencyScope({
+    primaryOrigin: context.project.authorized_origin,
+    origins,
+    readUrls: context.document.readOnlyRequestUrls ?? [],
+    blockedOrigins: readOnlyDependencyOriginsSchema.parse(
+      context.document.blockedDependencyOrigins ?? [],
+    ),
+  });
   const readOnlyDependencies = await Promise.all(
-    origins.map(async (origin) => {
-      const admitted = await validateTarget(origin, deps.resolver);
-      return { origin, addresses: admitted.addresses };
+    scope.dependencies.map(async (item) => {
+      const admitted = await validateTarget(item.origin, deps.resolver);
+      return { ...item, addresses: admitted.addresses };
     }),
   );
   return {
@@ -299,12 +310,22 @@ export async function issueRun(db: PoolClient, session: AgentSession, prepared: 
   const required = requiredIsolation(document);
   const bound = await bindHost(db, prepared.hostId, required);
   const readOnlyDependencies = prepared.readOnlyDependencies ?? [];
+  const scope = dependencyScope({
+    primaryOrigin: targetCheck.origin,
+    origins: document.readOnlyDependencyOrigins ?? [],
+    readUrls: document.readOnlyRequestUrls ?? [],
+    blockedOrigins: document.blockedDependencyOrigins ?? [],
+  });
   if (
-    canonical(readOnlyDependencies.map((item) => item.origin)) !==
-    canonical(document.readOnlyDependencyOrigins ?? [])
+    JSON.stringify(
+      readOnlyDependencies.map(({ origin, requests }) => ({
+        origin,
+        ...(requests ? { requests } : {}),
+      })),
+    ) !== JSON.stringify(scope.dependencies)
   )
     throw new AppError('DEPENDENCY_INVALID', 'Dependency admission must match the pinned terms.');
-  if (readOnlyDependencies.length && bound.level !== 'witnessed')
+  if ((readOnlyDependencies.length || scope.blockedOrigins.length) && bound.level !== 'witnessed')
     throw new AppError(
       'ISOLATION_REQUIRED',
       'Read-only dependencies require an enforced, witnessed runner.',
@@ -352,8 +373,9 @@ export async function issueRun(db: PoolClient, session: AgentSession, prepared: 
     egressAllowlist: [targetCheck.origin, ...readOnlyDependencies.map((item) => item.origin)],
     readOnlyDependencies: readOnlyDependencies.map((item) => ({
       ...item,
-      methods: ['GET', 'HEAD'],
+      methods: item.requests ? ['GET'] : ['GET', 'HEAD'],
     })),
+    blockedDependencyOrigins: scope.blockedOrigins,
     limits: {
       wallClockSeconds,
       maxArtifacts: runLimits.maxArtifacts,

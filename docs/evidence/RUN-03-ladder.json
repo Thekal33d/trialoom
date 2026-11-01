@@ -1,0 +1,50 @@
+{
+  "task": "RUN-03",
+  "checkpoint": "exact-ladder-scope",
+  "date": "2026-11-01",
+  "publicApproval": "pending",
+  "publicBackendContacted": false,
+  "applicationImage": "sha256:cbb2cfa82715ca3791b56d03d1417417078133a175462d94750fe0ec905ab9be",
+  "proxyCheckImage": "sha256:1d76b9985a5c209f8ee8355bfe4f6294d56b1a3534d84b8aa95b56fba43a9a37",
+  "checks": {
+    "focusedDatabase": 49,
+    "isolatedProxy": 18,
+    "chromiumProxyJourneys": 2,
+    "proxyLoss": "passed",
+    "ownedLadder": "executed, metadata replay, pending review, no payable",
+    "wrongDisplayedCount": "blocked",
+    "unexpectedOrigin": "blocked",
+    "editorPreservesScope": true,
+    "build": "passed; three existing storage tracing warnings",
+    "lint": "passed",
+    "typecheck": "passed",
+    "screenshot": "visually inspected",
+    "cleanup": "no application runner containers or channel volumes remain"
+  },
+  "privateTraceCorrection": {
+    "rpcRequests": 16,
+    "method": "eth_call",
+    "bodyReference": "_file",
+    "rpcAccessEnabled": false
+  },
+  "sourceHashes": {
+    "src/domain/preview-scope.ts": "134470d73af1e997556c52c7f6df12d2d7148fd992411c7931fc1ff6d9185838",
+    "src/domain/schemas.ts": "45ba7a973bccb753b1e0e0302867652e4b795d34acf9a232943511c02a920a16",
+    "src/server/ledger.ts": "33752c72538cd25c239371dc483cbcf5a95437f526d960145c32de7286c70ce8",
+    "src/server/runner.ts": "bcd35a5a563e810c950c85a844bd3c825f3f0f8a9421267b110219091d2d541c",
+    "src/server/projects.ts": "6670484f6410995a2ee35a94c3a6b0fa2592979dad08095070d682f853660e7b",
+    "src/components/terms-form.tsx": "b5f80589ed9280541d36c5bd0220cef0706eb265049f8430204ee2553c75c275",
+    "src/components/project-panel.tsx": "fed1f2da5b467ea038f6c1b8f8610b956130bc0fdfde90a1581759029ef276f2",
+    "scripts/preview-controller.ts": "95c5c7e10aa4548f4c9690ba87a446f3ec39b8d3c7859ae65383ce70c8651b3d",
+    "scripts/preview-fixture.ts": "5735830163a67ba4a0bdbcdb32bbb6e53f478d664015ac4f1f7894d59de1a00b",
+    "scripts/preview-demo.ts": "b42fc495f957f9fd6c559f2c6f4f34728942e6d3fffb6e16e1b97669662f6658",
+    "scripts/preview-host.ts": "e3525123c2969b6595c4649ee620d0e6b4c7b25899389c832152c8785cca5ba9",
+    "scripts/check-preview-proxy.ts": "91976a3311950079d007a144569980e773e36b5284b15b53785d3724af840f4d",
+    "runners/preview-proxy.ts": "9fc294134330d844f7ae0a1b35d34cb39de635efeb725bc71ecfa0dd895edf26",
+    "runners/preview-broker.ts": "bd6e89b57d4ef342fc6456fee5010c81d5c60351d7fc3efa633f8fd56e8b07c9",
+    "runners/preview-browser.ts": "77ccf1cb539f6990f6a6e52e7b67ba72fce85438a05139570437d2c527501cf6",
+    "runners/preview-ladder.ts": "c774d4bf691a8d5820ae6c3e690a6b25b3cdd829d493b53d3b3dfc0371093993",
+    "runners/preview-check/proxy.test.ts": "67fb74d591232967805cc9df8fd9ec31607318928421e33494d54b083bb1d491",
+    "tests/isolation.test.ts": "0b034317d1a2a7ea7a58e108e7fdbfff390e9353a280251607ce8bd143f64a64"
+  }
+}

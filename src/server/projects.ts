@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import { z } from 'zod';
 import { AppError } from '../domain/errors.ts';
+import { dependencyScope } from '../domain/preview-scope.ts';
 import { buildSchema, projectSchema, type TermsInput, termsSchema } from '../domain/schemas.ts';
 import { canonicalJson, settlementCurrency } from '../domain/values.ts';
 import { type Actor, audit, requireRole } from './access.ts';
@@ -170,15 +171,26 @@ async function appendTerms(
       'The terms changed while you were editing. Reload before saving.',
       409,
     );
-  if (
-    !(
-      await db.query('SELECT id FROM builds WHERE id=$1 AND project_id=$2', [
-        data.buildId,
-        projectId,
-      ])
-    ).rowCount
-  )
-    throw new AppError('BUILD_NOT_FOUND', 'Select a pinned build from this project.');
+  const build = (
+    await db.query('SELECT id,target_url FROM builds WHERE id=$1 AND project_id=$2', [
+      data.buildId,
+      projectId,
+    ])
+  ).rows[0];
+  if (!build) throw new AppError('BUILD_NOT_FOUND', 'Select a pinned build from this project.');
+  try {
+    dependencyScope({
+      primaryOrigin: new URL(build.target_url).origin,
+      origins: data.readOnlyDependencyOrigins ?? [],
+      readUrls: data.readOnlyRequestUrls ?? [],
+      blockedOrigins: data.blockedDependencyOrigins ?? [],
+    });
+  } catch {
+    throw new AppError(
+      'DEPENDENCY_SCOPE_INVALID',
+      'Keep whole-origin permissions, exact API reads and blocked origins separate, with at most seven supporting origins.',
+    );
+  }
   const version = campaign.latest_version + 1;
   const hash = createHash('sha256').update(canonicalJson(document)).digest('hex');
   const { rows } = await db.query(

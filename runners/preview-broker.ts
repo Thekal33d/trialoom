@@ -11,8 +11,13 @@ async function main() {
   const { origin, addresses } = input.target;
   const dependencies = input.readOnlyDependencies ?? [];
   assert(Array.isArray(dependencies) && dependencies.length <= 7);
-  for (const item of dependencies) assert.deepEqual(item.methods, ['GET', 'HEAD']);
+  for (const item of dependencies)
+    assert.deepEqual(item.methods, item.requests ? ['GET'] : ['GET', 'HEAD']);
   assert(['owned', 'public'].includes(input.mode));
+  assert(
+    !input.fixtureOutcome ||
+      (input.mode === 'owned' && ['mismatch', 'unexpected'].includes(input.fixtureOutcome)),
+  );
   assert(
     Number.isSafeInteger(input.durationMs) && input.durationMs <= 60000 && input.durationMs > 0,
   );
@@ -25,12 +30,26 @@ async function main() {
   const owned =
     input.mode === 'owned'
       ? createServer(input.identity, (req, res) => {
+          if (req.url === '/rankings?limit=25') {
+            res.setHeader('content-type', 'application/json');
+            res.end(JSON.stringify({ players: [{ fixture: true }, { fixture: true }] }));
+            return;
+          }
           res.setHeader('content-type', 'text/html');
           res.setHeader('x-build-revision', 'owned-preview-v1');
           res.end(
-            req.url === '/next'
-              ? '<!doctype html><h1>Next page</h1><p>Owned navigation completed.</p>'
-              : '<!doctype html><title>Owned preview</title><h1>Owned preview sample</h1><p>A controlled read-only journey.</p><a href="/next">Next page</a>',
+            input.fixtureJourney === 'ladder'
+              ? `<!doctype html><h1>Owned ladder preview</h1><p>A controlled read-only rankings journey.</p>
+              <button onclick="document.querySelector('#ladder').hidden=false">LEADERBOARD</button>
+              <section id="ladder" hidden><button onclick="document.querySelector('#data').hidden=false">THE LADDER</button>
+              <div id="data" hidden><h2>WHO IS WHERE</h2><p id="count">Loading the ladder...</p></div></section>
+              <script>
+              fetch('https://excluded.example.com/').catch(()=>{});
+              ${input.fixtureOutcome === 'unexpected' ? "fetch('https://unknown.example.com/').catch(()=>{});" : ''}
+              fetch('/rankings?limit=25').then(r=>r.json()).then(data=>document.querySelector('#count').textContent=(data.players.length+${input.fixtureOutcome === 'mismatch' ? 1 : 0})+' CLASSIC PLAYERS');</script>`
+              : req.url === '/next'
+                ? '<!doctype html><h1>Next page</h1><p>Owned navigation completed.</p>'
+                : '<!doctype html><title>Owned preview</title><h1>Owned preview sample</h1><p>A controlled read-only journey.</p><a href="/next">Next page</a>',
           );
         })
       : null;
@@ -67,6 +86,10 @@ async function main() {
     socketPath: '/channel/egress.sock',
     identity: input.identity,
     limits: { durationMs: input.durationMs },
+    readOnlyRequests: dependencies
+      .filter((item) => item.requests)
+      .map((item) => ({ origin: item.origin, requests: item.requests })),
+    blockedOrigins: input.blockedDependencyOrigins ?? [],
     ...(owned
       ? {
           upstreamCa: input.identity.cert,

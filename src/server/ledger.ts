@@ -17,6 +17,8 @@ export type TermsDocument = TermsPricing & {
   allowedActions: string[];
   exclusions: string[];
   readOnlyDependencyOrigins?: string[];
+  readOnlyRequestUrls?: string[];
+  blockedDependencyOrigins?: string[];
   deadline: string;
   // Absent in every brief written before isolation levels existed, which is
   // read as the attested level they meant.

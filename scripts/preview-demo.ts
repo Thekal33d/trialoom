@@ -17,7 +17,8 @@ import { buildPreviewImage, previewHost, previewIdentity } from './preview-host.
 
 const smoke = process.argv.includes('--smoke');
 const mode = process.argv.includes('--blokaz') ? 'public' : 'owned';
-assert(process.argv.slice(2).every((arg) => ['--smoke', '--blokaz'].includes(arg)));
+const journey = process.argv.includes('--ladder') ? 'ladder' : undefined;
+assert(process.argv.slice(2).every((arg) => ['--smoke', '--blokaz', '--ladder'].includes(arg)));
 const directory = resolve('artifacts/preview-runs', randomBytes(8).toString('hex'));
 const abort = new AbortController();
 const stop = () => abort.abort();
@@ -30,7 +31,7 @@ try {
   await mkdir(directory, { recursive: true, mode: 0o700 });
   const image = await buildPreviewImage();
   console.log(JSON.stringify({ event: 'preview.image', image }));
-  if (smoke && mode === 'owned') {
+  if (smoke && mode === 'owned' && !journey) {
     const host = previewHost(image, false, abort.signal);
     try {
       await host.prepare(
@@ -61,7 +62,7 @@ try {
   }
   db = await disposableDatabase();
   await migrate(db.pool);
-  const setup = await seedPreviewFixture(db.pool, mode);
+  const setup = await seedPreviewFixture(db.pool, mode, journey);
   app = await startLocalServer(db.url, directory);
   const run = await setup.assignment();
   console.log(
@@ -74,13 +75,14 @@ try {
     hostCredential: setup.host.credential,
     image,
     mode,
+    journey,
     signal: abort.signal,
   });
   assert.equal(result.receipt.decision, 'pending_review');
   assert.equal(result.receipt.egress.witnessed, true);
   if (mode === 'owned') {
     assert.equal(result.document.outcome, 'executed');
-    assert.equal(result.document.steps.length, 2);
+    assert.equal(result.document.steps.length, journey ? 3 : 2);
     assert(
       result.witness.observations.some(
         (item: { reason: string; count: number }) => item.reason === 'ALLOWED' && item.count >= 2,
@@ -149,7 +151,18 @@ try {
     await expect(brief).toContainText(item.origin);
   await brief.getByRole('button', { name: 'Revise terms', exact: true }).click();
   await expect(page.getByRole('textbox', { name: /^Read-only dependency origins/ })).toHaveValue(
-    run.manifest.readOnlyDependencies.map((item) => item.origin).join('\n'),
+    run.manifest.readOnlyDependencies
+      .filter((item) => !item.requests)
+      .map((item) => item.origin)
+      .join('\n'),
+  );
+  await expect(page.getByRole('textbox', { name: /^Exact API reads/ })).toHaveValue(
+    run.manifest.readOnlyDependencies
+      .flatMap((item) => (item.requests ?? []).map((request) => item.origin + request.path))
+      .join('\n'),
+  );
+  await expect(page.getByRole('textbox', { name: /^Services excluded/ })).toHaveValue(
+    run.manifest.blockedDependencyOrigins.join('\n'),
   );
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await brief.getByRole('button', { name: 'View replay', exact: true }).first().click();
@@ -174,7 +187,38 @@ try {
   console.log(
     `PASS scoped HTTP evidence, independent witness, recorded replay and no payable. Private screenshot: ${screenshot}`,
   );
-  if (smoke && mode === 'owned') {
+  if (smoke && mode === 'owned' && journey === 'ladder') {
+    for (const fixtureOutcome of ['mismatch', 'unexpected'] as const) {
+      const next = await setup.assignment(`Ladder check — ${fixtureOutcome}`);
+      const checked = await executePreviewRun({
+        apiOrigin: app.origin,
+        runId: next.runId,
+        runToken: next.runToken,
+        hostCredential: setup.host.credential,
+        image,
+        mode,
+        journey,
+        fixtureOutcome,
+        signal: abort.signal,
+      });
+      assert.equal(checked.document.outcome, 'blocked');
+      if (fixtureOutcome === 'mismatch')
+        assert(
+          !checked.document.assertions.some(
+            (item) => item.name === 'ladder.player-count' && item.passed,
+          ),
+        );
+      else
+        assert(
+          checked.document.assertions.some(
+            (item) => item.name === 'scope.completed' && !item.passed,
+          ),
+        );
+      assert.equal((await db.pool.query('SELECT count(*)::int AS n FROM payables')).rows[0].n, 0);
+      console.log(`PASS owned ladder ${fixtureOutcome} stayed blocked; no payable.`);
+    }
+  }
+  if (smoke && mode === 'owned' && !journey) {
     for (const reason of ['abandon', 'release', 'expire', 'revoke'] as const) {
       const next = await setup.assignment(`Stop check — ${reason}`);
       const pool: Pool = db.pool;

@@ -436,6 +436,72 @@ test('dependency DNS pins follow the claimed terms despite a later scope revisio
   );
 });
 
+test('exact API reads and service exclusions are immutable, disjoint and reflected in the run', async () => {
+  const apiOrigin = 'https://api.example.com';
+  const readUrl = `${apiOrigin}/rankings?limit=25`;
+  const excluded = 'https://login.example.com';
+  for (const changes of [
+    { readOnlyDependencyOrigins: [apiOrigin] },
+    { blockedDependencyOrigins: [apiOrigin] },
+    { readOnlyRequestUrls: [`${allowed}/rankings?limit=25`] },
+  ])
+    await assert.rejects(
+      newCampaign('Overlapping scope', {
+        minimumIsolation: 'witnessed',
+        readOnlyRequestUrls: [readUrl],
+        ...changes,
+      }),
+      code('DEPENDENCY_SCOPE_INVALID'),
+    );
+  for (const value of [
+    `${apiOrigin}/../rankings`,
+    `${apiOrigin}/rankings#token`,
+    'https://user:pass@api.example.com/rankings',
+    'https://127.0.0.1/rankings',
+  ])
+    assert(
+      !termsSchema.safeParse(
+        termsInput({ minimumIsolation: 'witnessed', readOnlyRequestUrls: [value] }),
+      ).success,
+    );
+  const campaign = await newCampaign('Exact reads', {
+    minimumIsolation: 'witnessed',
+    readOnlyRequestUrls: [readUrl],
+    blockedDependencyOrigins: [excluded],
+  });
+  const operator = await qualifiedOperator('iso-exact-read');
+  const assignment = await claim(db.pool, operator.session, { campaignId: campaign.campaignId });
+  const host = await registerHost(db.pool, owner, workspaceId, conforming);
+  const resolved: string[] = [];
+  const run = await startRun(
+    db.pool,
+    operator.session,
+    assignment.assignmentId,
+    { attemptToken: assignment.attemptToken, hostId: host.hostId },
+    {
+      resolver: async (hostname) => {
+        resolved.push(hostname);
+        return publicDns();
+      },
+      probe: settledProbe,
+    },
+  );
+  assert.deepEqual(run.manifest.readOnlyDependencies, [
+    {
+      origin: apiOrigin,
+      addresses: ['93.184.215.14'],
+      requests: [{ method: 'GET', path: '/rankings?limit=25' }],
+      methods: ['GET'],
+    },
+  ]);
+  assert.deepEqual(run.manifest.blockedDependencyOrigins, [excluded]);
+  assert.deepEqual(run.manifest.egressAllowlist, [allowed, apiOrigin]);
+  assert(
+    !resolved.includes('login.example.com'),
+    'Excluded services are not contacted or resolved',
+  );
+});
+
 test('a revoked host cannot take new work, and only its own runs', async () => {
   const campaign = await newCampaign('Revoked', { minimumIsolation: 'witnessed' });
   const host = await registerHost(db.pool, owner, workspaceId, { ...conforming, name: 'Retiring' });

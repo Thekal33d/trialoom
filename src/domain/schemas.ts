@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { exactReadUrl } from './preview-scope.ts';
 export const uuid = z.uuid();
 export const roleSchema = z.enum(['owner', 'member', 'reviewer', 'operator']);
 export const emailSchema = z
@@ -77,6 +78,24 @@ export const termsSchema = z
     // Optional preserves existing immutable terms hashes. These are supporting
     // GET/HEAD resources, not additional top-level testing targets.
     readOnlyDependencyOrigins: readOnlyDependencyOriginsSchema.optional(),
+    readOnlyRequestUrls: z
+      .array(
+        z
+          .string()
+          .max(2048)
+          .refine((value) => {
+            try {
+              exactReadUrl(value);
+              return true;
+            } catch {
+              return false;
+            }
+          }, 'Use an exact HTTPS read URL without credentials or a fragment.'),
+      )
+      .max(12)
+      .refine((values) => new Set(values).size === values.length, 'List each read URL once.')
+      .optional(),
+    blockedDependencyOrigins: readOnlyDependencyOriginsSchema.optional(),
     acceptanceCriteria: paragraph,
     rewardRubric: paragraph,
     artifactRights: paragraph,
@@ -94,7 +113,12 @@ export const termsSchema = z
   })
   .strict()
   .refine(
-    (data) => !data.readOnlyDependencyOrigins?.length || data.minimumIsolation === 'witnessed',
+    (data) =>
+      !(
+        data.readOnlyDependencyOrigins?.length ||
+        data.readOnlyRequestUrls?.length ||
+        data.blockedDependencyOrigins?.length
+      ) || data.minimumIsolation === 'witnessed',
     {
       path: ['minimumIsolation'],
       message: 'Read-only dependencies require witnessed isolation.',

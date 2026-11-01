@@ -53,6 +53,7 @@ try {
     'runners/preview-check/browser.ts',
     'src/server/targets.ts',
     'src/domain/errors.ts',
+    'src/domain/preview-scope.ts',
     'runners/preview-check/proxy.test.ts',
   ];
   for (const file of files) {

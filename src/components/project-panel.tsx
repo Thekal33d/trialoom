@@ -321,8 +321,24 @@ function TermVersion({
         <p>
           {d.readOnlyDependencyOrigins?.length
             ? `${d.readOnlyDependencyOrigins.join(', ')} · GET/HEAD only`
-            : 'None — only the project’s origin is approved.'}
+            : 'No whole-origin dependencies.'}
         </p>
+        {!!d.readOnlyRequestUrls?.length && (
+          <>
+            <h4>Exact API reads · GET only</h4>
+            <ul>
+              {d.readOnlyRequestUrls.map((url) => (
+                <li key={url}>{url}</li>
+              ))}
+            </ul>
+          </>
+        )}
+        {!!d.blockedDependencyOrigins?.length && (
+          <>
+            <h4>Excluded services · blocked and untested</h4>
+            <p>{d.blockedDependencyOrigins.join(', ')}</p>
+          </>
+        )}
         <h4>Acceptance criteria</h4>
         <p>{d.acceptanceCriteria}</p>
         <h4>Discovery reward rules</h4>

@@ -536,3 +536,14 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - New visible session at port 60245; private result/screenshot in ignored `artifacts/preview-runs/1d09dddc1d5a86d9/`. Verified no application runner containers or channel volumes remain. Existing local demo sessions retained. No acceptance, payable, wallet action, push or deployment.
 - Next: identify and approve only the backend/RPC operations needed for a concrete Blokaz data-reading journey. Durable production recovery, adversarial resources, independent participants and PILOT-01 remain open.
 - Commit subject: `feat: pin approved read-only dependencies in run scope` (RUN-03).
+
+
+## 2026-11-01 — RUN-03: exact ladder reads and explicit exclusions
+
+- Reviewed the previous private trace using bounded resource references, recovering all 16 RPC bodies as eth_call through `_file`. This corrects the earlier method-unknown inspection note. Raw bodies/parameters and bounded public-source copies remain private and ignored. Source metadata identified Leaderboard → The Ladder, one credential-free levels/leaderboard GET with limit=25 and the displayed player-count label. No backend/RPC/auth contact occurred during preparation.
+- Added immutable exact API-read and excluded-origin terms fields, UI/editor preservation, disjoint scope validation, per-run DNS pins and broker enforcement. Exact reads reject other paths, queries, methods and redirects. Declared excluded services are denied anonymously without DNS/upstream contact and reported as untested; unexpected traffic and failed journey assertions still block. Old claims/reports are unchanged.
+- Added a fixed public-ladder driver and closed owned fixture. It verifies HTTP 200, bounded JSON players array and visible count agreement, retaining only the count/hash in assertions. Owned success, a wrong displayed count and an unexpected origin were exercised through actual HTTP evidence/replay with zero payable.
+- Validation: 49 focused database/project/runner checks, 18 isolated proxy groups, two Chromium/proxy-loss checks, owned ladder success plus both negative controls, replay hash/UI/editor preservation, build/lint/types and diff checks passed. Three existing storage tracing warnings remain.
+- Visually inspected the owned replay screenshot; verified no application runner containers or channel volumes remain. Private source copies and run artifacts remain ignored. Reviewed source hashes, document links and unchanged original PRD digest.
+- The exact Supabase read is prepared for user review and approval before public execution. Auth, wallets, gameplay, scores, identity changes and RPC remain excluded. Production/recovery/independent-operator gates remain open.
+- Commit subject: `feat: enforce exact API reads and scoped ladder journeys` (RUN-03).

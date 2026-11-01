@@ -38,6 +38,14 @@ export function TermsForm({
           .split('\n')
           .map((s) => s.trim())
           .filter(Boolean),
+        readOnlyRequestUrls: field(form, 'readOnlyRequestUrls')
+          .split('\n')
+          .map((s) => s.trim())
+          .filter(Boolean),
+        blockedDependencyOrigins: field(form, 'blockedDependencyOrigins')
+          .split('\n')
+          .map((s) => s.trim())
+          .filter(Boolean),
         acceptanceCriteria: field(form, 'acceptanceCriteria'),
         rewardRubric: field(form, 'rewardRubric'),
         artifactRights: field(form, 'artifactRights'),
@@ -155,7 +163,33 @@ export function TermsForm({
           />
           <small id="dependency-scope-help">
             Approve up to seven HTTPS origins, one per line, for supporting GET/HEAD resources.
-            Requires witnessed isolation. Leave empty to allow only the project’s origin.
+            Requires witnessed isolation. Leave empty when no whole-origin permission is needed.
+          </small>
+        </label>
+        <label>
+          Exact API reads (optional)
+          <textarea
+            name="readOnlyRequestUrls"
+            maxLength={24588}
+            defaultValue={d?.readOnlyRequestUrls?.join('\n')}
+            placeholder="https://api.example.com/rankings?limit=25"
+          />
+          <small>
+            One complete URL per line. Approves GET only, with exactly this path and query. No
+            redirects or credentials.
+          </small>
+        </label>
+        <label>
+          Services excluded from this test (optional)
+          <textarea
+            name="blockedDependencyOrigins"
+            maxLength={1777}
+            defaultValue={d?.blockedDependencyOrigins?.join('\n')}
+            placeholder="https://login.example.com"
+          />
+          <small>
+            These origins stay blocked. A completed journey makes no claim about their features.
+            Other unexpected requests still block the result.
           </small>
         </label>
         <label>

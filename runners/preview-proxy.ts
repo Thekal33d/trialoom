@@ -8,7 +8,8 @@ import {
   type SecureContextOptions,
   createServer as tlsServer,
 } from 'node:tls';
-import type { PreviewAdmission } from './preview-policy.ts';
+import { exactReadUrl } from '../src/domain/preview-scope.ts';
+import { type PreviewAdmission, previewOrigin } from './preview-policy.ts';
 
 export const previewLimits = Object.freeze({
   connections: 64,
@@ -27,6 +28,8 @@ export type PreviewBudgetExceeded = { limit: BudgetLimit; maximum: number; obser
 type Reason =
   | 'ALLOWED'
   | 'ORIGIN_DENIED'
+  | 'EXCLUDED_ORIGIN'
+  | 'REQUEST_DENIED'
   | 'PROTOCOL_DENIED'
   | 'METHOD_DENIED'
   | 'DNS_DENIED'
@@ -44,6 +47,8 @@ export type PreviewProxyOptions = {
   identity: Pick<SecureContextOptions, 'key' | 'cert'>;
   signal?: AbortSignal;
   limits?: Partial<Limits>;
+  readOnlyRequests?: { origin: string; requests: { method: 'GET'; path: string }[] }[];
+  blockedOrigins?: string[];
   /** Trusted transport seam for isolated loopback fixtures; not a run input. */
   transport?: (
     options: RequestOptions,
@@ -54,6 +59,37 @@ export type PreviewProxyOptions = {
 
 /** HTTPS-only, read-only application proxy; no opaque CONNECT forwarding. */
 export async function startPreviewProxy(options: PreviewProxyOptions) {
+  const blockedOrigins = new Set(options.blockedOrigins ?? []);
+  if (blockedOrigins.size > 7 || blockedOrigins.size !== (options.blockedOrigins ?? []).length)
+    throw new Error('PREVIEW_SCOPE_INVALID');
+  for (const origin of blockedOrigins) {
+    previewOrigin(origin);
+    if (options.admission.origins.includes(origin)) throw new Error('PREVIEW_SCOPE_OVERLAP');
+  }
+  const readOnlyRequests = new Map<string, Set<string>>();
+  let scopedReads = 0;
+  for (const item of options.readOnlyRequests ?? []) {
+    if (
+      !options.admission.origins.includes(item.origin) ||
+      readOnlyRequests.has(item.origin) ||
+      !item.requests.length
+    )
+      throw new Error('PREVIEW_SCOPE_INVALID');
+    const paths = new Set<string>();
+    for (const request of item.requests) {
+      const parsed = exactReadUrl(item.origin + request.path);
+      if (
+        request.method !== 'GET' ||
+        parsed.origin !== item.origin ||
+        parsed.path !== request.path ||
+        paths.has(request.path)
+      )
+        throw new Error('PREVIEW_SCOPE_INVALID');
+      paths.add(request.path);
+      if (++scopedReads > 12) throw new Error('PREVIEW_SCOPE_INVALID');
+    }
+    readOnlyRequests.set(item.origin, paths);
+  }
   const limits = { ...previewLimits, ...options.limits };
   for (const key of Object.keys(previewLimits) as (keyof Limits)[]) {
     if (!Number.isSafeInteger(limits[key]) || limits[key] < 1 || limits[key] > previewLimits[key])
@@ -158,6 +194,9 @@ export async function startPreviewProxy(options: PreviewProxyOptions) {
       return deny(response, origin, 'PROTOCOL_DENIED');
     if (!['GET', 'HEAD'].includes(incoming.method ?? ''))
       return deny(response, origin, 'METHOD_DENIED');
+    const paths = readOnlyRequests.get(origin);
+    if (paths && (incoming.method !== 'GET' || !paths.has(incoming.url)))
+      return deny(response, origin, 'REQUEST_DENIED');
     let destination: Awaited<ReturnType<PreviewAdmission['destination']>>;
     try {
       destination = await options.admission.destination(origin);
@@ -212,6 +251,9 @@ export async function startPreviewProxy(options: PreviewProxyOptions) {
           void (async () => {
             if (closed || response.destroyed) return;
             if (answer.headers.location) {
+              // An exact read grant does not authorize a redirect to a broader
+              // origin or path, even if that destination is otherwise admitted.
+              if (readOnlyRequests.has(origin)) return deny(response, origin, 'REDIRECT_DENIED');
               try {
                 const next = new URL(answer.headers.location, target);
                 if (next.username || next.password || next.protocol !== 'https:' || next.port)
@@ -299,7 +341,12 @@ export async function startPreviewProxy(options: PreviewProxyOptions) {
     const origin = `https://${authority.replace(/:443$/, '')}`;
     const tunnel = tunnelServers.get(origin);
     if (closed || !tunnel || authority !== `${new URL(origin).hostname}:443` || head.length) {
-      record(null, 'ORIGIN_DENIED');
+      record(
+        null,
+        !tunnel && blockedOrigins.has(origin) && authority === `${origin.slice(8)}:443`
+          ? 'EXCLUDED_ORIGIN'
+          : 'ORIGIN_DENIED',
+      );
       socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n');
       return;
     }

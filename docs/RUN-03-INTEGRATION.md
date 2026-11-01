@@ -39,7 +39,11 @@ Before issuing a run, Trialoom resolves every approved dependency and rejects al
 
 The initial Blokaz blocks were two Google Fonts stylesheets and a first-party script measuring 1,310,116 bytes by a bounded HEAD read. That script exceeds the previous 1 MiB cap and fits the reviewed 2 MiB envelope. Font permission was explicitly requested and granted separately. The driver now waits for page load and font readiness within the same run deadline. This still proves only the bounded homepage journey, not login, gameplay, wallet or staking behavior.
 
-Remaining attempts include Web3Auth GET, a Supabase backend GET and POSTs to `forno.celo.org` / `1rpc.io`. None is approved by the font permission. The failed-request metadata does not establish the RPC methods or whether those POSTs are reads; a future adapter must parse and allow only approved methods/parameters with the same DNS, TLS and resource controls. No blanket POST/origin expansion follows from this result.
+Remaining attempts include Web3Auth GET, a Supabase backend GET and POSTs to `forno.celo.org` / `1rpc.io`. None is approved by the font permission. A later private review resolved the `_file` body resources and identified `eth_call` in all 16 recorded RPC requests. Any future RPC adapter still needs approved methods/parameters with the same DNS, TLS and resource controls. No blanket POST/origin expansion follows from this result.
+
+## Exact API reads and excluded services
+
+The brief editor now also accepts exact API GET URLs and explicitly blocked service origins. Exact reads require the literal path/query and forbid redirects; the combined supporting-origin bound is unchanged. Declared excluded services are blocked without DNS or upstream contact, recorded anonymously and reported as untested. They do not invalidate a completed journey within its approved scope. Any unexpected denial, failed assertion or exhausted budget still blocks the result. Earlier runs retain their original scope and outcome. The [public ladder plan](RUN-03-LADDER.md) has passed local controls and is awaiting exact backend-read approval.
 
 ## Remaining gates
 

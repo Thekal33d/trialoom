@@ -1,0 +1,77 @@
+{
+  "task": "RUN-03",
+  "checkpoint": "offline host controls",
+  "verifiedOn": "2026-11-01",
+  "timezone": "Africa/Lagos",
+  "result": "offline checks passed; customer runner remains gated",
+  "commitSubject": "feat: verify offline runner isolation and resource controls",
+  "policy": "offline-runner-v1",
+  "fixtureImageId": "sha256:78bc820a7a6148e8c48731eca18dbb9b6b2c05ac4a52138479be565f2831682d",
+  "runtime": {
+    "engine": "local Docker / OrbStack",
+    "runtime": "runc",
+    "cgroupVersion": "2",
+    "seccomp": "builtin",
+    "gvisorAvailable": false
+  },
+  "checks": [
+    {
+      "command": "npm run runner:check",
+      "result": "12 live groups passed; all owned containers removed"
+    },
+    {
+      "command": "node --test tests/offline-host.test.ts",
+      "result": "6 passed"
+    },
+    {
+      "command": "npm run lint",
+      "result": "128 files passed"
+    },
+    {
+      "command": "npm run typecheck",
+      "result": "passed"
+    },
+    {
+      "command": "npm run runner:doctor",
+      "result": "expected exit 2; gVisor and browser/proxy/grant gates remain open"
+    }
+  ],
+  "liveChecks": [
+    "network denial (TCP, UDP, IPv6 and metadata address), empty environment, fresh scratch, cgroup settings, non-root/capability/seccomp restrictions, read-only root and successful owned loopback exchange",
+    "scratch size refusal (ENOSPC)",
+    "process count refusal (EAGAIN)",
+    "actual cgroup OOM kill",
+    "file size refusal",
+    "actual CPU throttling",
+    "second fresh run with no prior scratch marker",
+    "host timeout with verified cleanup",
+    "cancellation with verified cleanup",
+    "output overflow terminated and discarded",
+    "detached hung fixture stopped by independent in-container watchdog and removed",
+    "recovery removes an expired owned container and preserves a current one"
+  ],
+  "remaining": [
+    "gVisor Linux host and pinned Chromium compatibility/isolation checks",
+    "host-controlled enforcing preview proxy and independent egress witness",
+    "live grant dispatch, expiry/revocation and bounded evidence collection",
+    "customer-authorized preview journey and existing replay integration",
+    "production watchdog resistant to workload interference and automatic crash recovery"
+  ],
+  "boundaries": [
+    "No customer or browser code executes in this checkpoint.",
+    "No application/payment credentials, repository or host directory is supplied to the workload.",
+    "Only reviewed offline probes execute; no customer-ready flag is enabled.",
+    "No Docker daemon configuration changed; no image pulled or runtime installed.",
+    "Ordinary containers do not satisfy runner-host-v1 gVisor isolation."
+  ],
+  "sourceSha256": {
+    "runners/offline-policy.ts": "fc22675ce9a54b8784d2036c3d30e82eccbd73d9d14a8344ca0e6f7252ed4063",
+    "runners/offline-host.ts": "dc02ad57ace83693c434aabac56b8e27f9bc6000764280e24c711d68b6a9ce09",
+    "runners/offline-probes.ts": "4781b0d19ccbb2b12bf4ba2323d1bed948dcdb4de2aa8ae0cb75731b5a035161",
+    "scripts/check-runner.ts": "93a85b0d68c65b1130d833a4ac362dda37e3b688cbb9fb59e7d686054753d385",
+    "tests/offline-host.test.ts": "6bc927450f2f728aae21ccf232a2259d9e8e0ca488550db5a6d87afaf6123921",
+    "package.json": "9e6c1f7acb110c0c00a899adad6786e909ab1af3356243da22e1c54d8dd9088a",
+    "tsconfig.json": "8ea49e7bcb590f2138b0da0aa50656834946ad4569e2d5902ce4811f9992e1db",
+    "biome.json": "ec3a1a639b0fbc15073ab3faf5632a386863cb953d9a0b84dc04acdfd5b03b07"
+  }
+}

@@ -10,7 +10,8 @@
       "tsconfig.json",
       "next.config.ts",
       "playwright.config.ts",
-      "biome.json"
+      "biome.json",
+      "runners/offline-*.ts"
     ],
     "ignoreUnknown": true
   },

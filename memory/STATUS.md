@@ -4,6 +4,8 @@ Last updated: 2026-11-01 (Africa/Lagos).
 
 ## State
 
+**RUN-03 is in progress: the first offline host checkpoint is verified.** A trusted supervisor runs only reviewed owned Node probes in fresh network-disabled containers with OS memory/CPU/process/file/scratch limits, empty workload environments, timeouts, cancellation and verified deletion. Twelve live check groups and six refusal/recovery unit checks passed. This does not run a customer browser or satisfy the gVisor host contract. The current Docker engine has no `runsc`; customer readiness remains false. [Scope and next gates](../docs/RUN-03.md), [evidence](../docs/evidence/RUN-03.json).
+
 **RUN-02 is complete locally: View replay and sanitized trace download.** Findings and submitted evidence open a recorded step viewer at the first failed/blocked step, with expected/observed results, assertions and actual browser action/request metadata. Supported Playwright v10 ZIPs are rebuilt without page contents or private values; downloads and campaign exports carry the derivative hash/policy. Unknown formats stay private with a visible explanation. This inspects a recording; it does not re-execute a target or establish independent reproduction. [Guide](../docs/RUN-02.md), [evidence](../docs/evidence/RUN-02.json).
 
 **RUN-01 is connected and verified locally.** `npm run browser:demo` executes the owned invitation fixture in Chromium, uploads the actual trace/assertions/report through scoped HTTP routes, and opens the new finding pending builder review. The fixture build hash, observed responses, browser version, and timestamps come from execution. A repaired copy passes with the same driver; expiry, cancellation, revocation, and timeout are checked. Setup/accounts/claims remain administratively prepared in a disposable database; this is a fixed controlled journey, not hosted autonomous execution or an isolated customer runner. Raw traces remain private; RUN-02 now supplies metadata-only derivatives. [Run guide and limits](../docs/RUN-01.md).
@@ -57,7 +59,7 @@ Last updated: 2026-11-01 (Africa/Lagos).
 
 ## Next action
 
-**Next action (proposed): design and validate the first operated, isolated runner for authorized preview targets, starting with enforced egress and OS resource limits.** RUN-02 is complete. Customer execution remains gated on verified host controls; the current local driver is still a fixed owned-fixture journey.
+**Next action: establish a dedicated gVisor Linux runner and verify Chromium under its resource controls, then connect an enforcing preview proxy.** The user approved RUN-03 on 2026-11-01. Its first offline control checkpoint is verified; a local runtime check found no `runsc`. Do not substitute ordinary Docker for the customer sandbox or enable preview execution on the strength of these offline probes. RUN-01 remains the fixed owned-fixture browser journey.
 
 PILOT-01 (operations, privacy, security, and reviewer coverage) is still not started. Operating an isolated runner, deployment/remote CI, actual independent operators, and a specifically authorized funded payment experiment are separate production gates. VAL-02 still needs independent operator review and VAL-04 still needs actual paid resource provisioning; the hackathon checklist remains unmet.
 

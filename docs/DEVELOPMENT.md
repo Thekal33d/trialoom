@@ -2,6 +2,8 @@
 
 The application includes invitation-only accounts, workspace roles, authorized projects, pinned builds, and versioned draft briefs ([ALPHA-02](ALPHA-02.md)), operator connection and qualification ([ALPHA-03](ALPHA-03.md)), and the campaign ledger with atomic claims and leases ([ALPHA-04](ALPHA-04.md)), plus a durable smoke worker. `/workspace` holds real local account/project data. `/demo` remains explicitly synthetic: Canopy is an example name, and its before/after results summarize the existing invitation fixture. Builders can publish briefs, review submitted work, and export redacted evidence; operators can claim work through the API. Valid decisions create payables, but no live payment provider is configured locally.
 
+For the offline runner control checks and explicit customer-readiness gates, see [RUN-03](RUN-03.md): `npm run runner:check` and `npm run runner:doctor`.
+
 ## First run
 
 For actual Chromium execution submitted to the workspace, see [RUN-01](RUN-01.md). After building, `npm run browser:demo` runs the owned invitation fixture and opens its fresh result with [recorded replay](RUN-02.md); `npm run browser:demo -- --smoke` checks execution, HTTP ingestion, review/export, and interruption behavior. It uses disposable local data and clears payment configuration.

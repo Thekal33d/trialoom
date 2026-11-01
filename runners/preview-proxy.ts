@@ -15,13 +15,15 @@ export const previewLimits = Object.freeze({
   concurrent: 8,
   requests: 100,
   requestBytes: 2 * 1024 ** 2,
-  responseBytes: 1024 ** 2,
+  responseBytes: 2 * 1024 ** 2,
   totalResponseBytes: 8 * 1024 ** 2,
   durationMs: 60_000,
   idleMs: 5000,
   connectionMs: 15_000,
 });
 type Limits = { [Key in keyof typeof previewLimits]: number };
+type BudgetLimit = Exclude<keyof Limits, 'durationMs' | 'idleMs' | 'connectionMs'>;
+export type PreviewBudgetExceeded = { limit: BudgetLimit; maximum: number; observed: number };
 type Reason =
   | 'ALLOWED'
   | 'ORIGIN_DENIED'
@@ -66,6 +68,7 @@ export async function startPreviewProxy(options: PreviewProxyOptions) {
   let requestCount = 0;
   let inputBytes = 0;
   let outputBytes = 0;
+  let budgetExceeded: PreviewBudgetExceeded | null = null;
   const record = (origin: string | null, reason: Reason) => {
     // Never retain attacker-controlled hostnames, URLs, headers, or errors.
     const safeOrigin = origin && options.admission.origins.includes(origin) ? origin : null;
@@ -79,6 +82,11 @@ export async function startPreviewProxy(options: PreviewProxyOptions) {
     record(null, reason);
     for (const request of requests) request.destroy();
     for (const socket of sockets) socket.destroy();
+  };
+  const exhaust = (limit: BudgetLimit, observed: number) => {
+    if (closed) return;
+    budgetExceeded = { limit, maximum: limits[limit], observed };
+    terminate('BUDGET_EXHAUSTED');
   };
   const deny = (response: ServerResponse, origin: string | null, reason: Reason) => {
     record(origin, reason);
@@ -101,7 +109,7 @@ export async function startPreviewProxy(options: PreviewProxyOptions) {
     inputBytes +=
       Buffer.byteLength(`${incoming.method} ${incoming.url} HTTP/${incoming.httpVersion}\r\n`) +
       incoming.rawHeaders.reduce((sum, value) => sum + Buffer.byteLength(value) + 2, 2);
-    if (inputBytes > limits.requestBytes) terminate('BUDGET_EXHAUSTED');
+    if (inputBytes > limits.requestBytes) exhaust('requestBytes', inputBytes);
     return !closed;
   };
   const forbiddenHeaders = new Set([
@@ -121,7 +129,7 @@ export async function startPreviewProxy(options: PreviewProxyOptions) {
     if (closed) return response.destroy();
     if (!chargeHeaders(incoming)) return;
     requestCount++;
-    if (requestCount > limits.requests) return terminate('BUDGET_EXHAUSTED');
+    if (requestCount > limits.requests) return exhaust('requests', requestCount);
     const authority = new URL(origin).host;
     const hosts = incoming.rawHeaders
       .filter((_, index) => index % 2 === 0)
@@ -185,18 +193,18 @@ export async function startPreviewProxy(options: PreviewProxyOptions) {
         const chunks: Buffer[] = [];
         let size = Buffer.byteLength(JSON.stringify(answer.headers));
         outputBytes += size;
-        if (size > limits.responseBytes || outputBytes > limits.totalResponseBytes) {
-          answer.destroy();
-          terminate('BUDGET_EXHAUSTED');
-          return;
-        }
+        const overBudget = () => {
+          if (size > limits.responseBytes) exhaust('responseBytes', size);
+          else if (outputBytes > limits.totalResponseBytes)
+            exhaust('totalResponseBytes', outputBytes);
+          if (closed) answer.destroy();
+          return closed;
+        };
+        if (overBudget()) return;
         answer.on('data', (chunk: Buffer) => {
           size += chunk.length;
           outputBytes += chunk.length;
-          if (size > limits.responseBytes || outputBytes > limits.totalResponseBytes) {
-            answer.destroy();
-            terminate('BUDGET_EXHAUSTED');
-          } else chunks.push(chunk);
+          if (!overBudget()) chunks.push(chunk);
         });
         answer.once('error', () => deny(response, origin, 'UPSTREAM_FAILED'));
         answer.once('end', () => {
@@ -301,7 +309,8 @@ export async function startPreviewProxy(options: PreviewProxyOptions) {
     connections++;
     if (closed || connections > limits.connections || sockets.size >= limits.concurrent) {
       socket.destroy();
-      terminate('BUDGET_EXHAUSTED');
+      if (connections > limits.connections) exhaust('connections', connections);
+      else if (sockets.size >= limits.concurrent) exhaust('concurrent', sockets.size + 1);
       return;
     }
     sockets.add(socket);
@@ -329,6 +338,8 @@ export async function startPreviewProxy(options: PreviewProxyOptions) {
       requests: requestCount,
       inputBytes,
       outputBytes,
+      limits: { ...limits },
+      budgetExceeded: budgetExceeded && { ...budgetExceeded },
       observations: [...observations.values()].map((value) => ({ ...value })),
     }),
     async stop() {

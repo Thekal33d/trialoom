@@ -516,3 +516,12 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Updated PROJECT and the earlier runner guides to distinguish historical offline/compatibility checkpoints from the now-verified local application integration. Removed stale claims that live witness/evidence dispatch is still unimplemented; preserved production recovery, adversarial resources and independent validation as open gates. STATUS remains the current-session source of truth.
 - Checked local Markdown links, JSON evidence/source hashes, original PRD digest and Git diff. Documentation only; no additional runtime tests needed.
 - Commit subject: `docs: reconcile runner progress and remaining gates` (RUN-03).
+
+
+## 2026-11-01 — RUN-03: measured response limit and precise budget evidence
+
+- Reviewed the prior private trace using origins and numeric metadata only: both off-origin failures were Google Fonts stylesheets. A bounded same-origin HEAD read measured the failed script at 1,310,116 bytes. No raw trace strings, request paths, queries or credentials were retained in Git.
+- Increased the per-response cap from 1 to 2 MiB including headers; kept the aggregate at 8 MiB and all other caps. Proxy snapshots preserve the first exhausted budget and actual limits; the controller records a separate resource step with numeric bounds.
+- Validation: all 15 offline proxy groups passed, including the measured-size bundle, oversized streaming response, repeated bundles reaching the aggregate cap, and exact diagnostics for all six budgets. Two fresh gVisor browser checks and active proxy-loss refusal passed; owned containers/volume removed. Focused formatting and strict types passed. No app server or public browser run was needed for this checkpoint.
+- User explicitly approved the two Google Fonts domains for GET/HEAD; the permission integration is the next coherent step and remains uncommitted work.
+- Commit subject: `fix: diagnose and bound preview response budgets` (RUN-03).

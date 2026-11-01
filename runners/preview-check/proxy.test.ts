@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { createConnection } from 'node:net';
 import test from 'node:test';
 import { admitPreview, previewOrigin } from '../preview-policy.ts';
-import { type PreviewProxyOptions, startPreviewProxy } from '../preview-proxy.ts';
+import { type PreviewProxyOptions, previewLimits, startPreviewProxy } from '../preview-proxy.ts';
 import { fixture, identity, origin, publicIp, throughProxy } from './fixture.ts';
 
 const tls = await identity();
@@ -159,24 +159,51 @@ test('per-response and aggregate response budgets close the run', async (t) => {
   const large = await setup(t, { limits: { responseBytes: 1024 } });
   await assert.rejects(large.get('/large'));
   assert(large.proxy.snapshot().closed);
+  assert.equal(large.proxy.snapshot().budgetExceeded?.limit, 'responseBytes');
+  assert.equal(large.proxy.snapshot().budgetExceeded?.maximum, 1024);
+  assert((large.proxy.snapshot().budgetExceeded?.observed ?? 0) > 1024);
   const aggregate = await setup(t, { limits: { totalResponseBytes: 64 } });
   await assert.rejects(aggregate.get());
   assert(aggregate.proxy.snapshot().closed);
+  assert.equal(aggregate.proxy.snapshot().budgetExceeded?.limit, 'totalResponseBytes');
+  assert.equal(aggregate.proxy.snapshot().budgetExceeded?.maximum, 64);
+});
+test('reviewed bundle fits the bounded envelope; oversized responses and repeated bundles still stop', async (t) => {
+  const allowed = await setup(t);
+  assert.equal((await allowed.get('/bundle', { maxResponseBytes: 2 * 1024 ** 2 })).status, 200);
+  assert.equal(allowed.proxy.snapshot().budgetExceeded, null);
+  assert.deepEqual(allowed.proxy.snapshot().limits, previewLimits);
+  // Headers count too: a body exactly as large as the cap is refused.
+  await assert.rejects(allowed.get('/oversized'));
+  const first = allowed.proxy.snapshot().budgetExceeded;
+  assert.equal(first?.limit, 'responseBytes');
+  assert.equal(first?.maximum, 2 * 1024 ** 2);
+  await assert.rejects(allowed.get());
+  assert.deepEqual(allowed.proxy.snapshot().budgetExceeded, first);
+  const aggregate = await setup(t);
+  for (let i = 0; i < 6; i++)
+    assert.equal((await aggregate.get('/bundle', { maxResponseBytes: 2 * 1024 ** 2 })).status, 200);
+  await assert.rejects(aggregate.get('/bundle', { maxResponseBytes: 2 * 1024 ** 2 }));
+  assert.equal(aggregate.proxy.snapshot().budgetExceeded?.limit, 'totalResponseBytes');
+  assert.equal(aggregate.proxy.snapshot().budgetExceeded?.maximum, 8 * 1024 ** 2);
 });
 test('request and connection budgets refuse additional traffic', async (t) => {
   const limited = await setup(t, { limits: { requests: 1 } });
   assert.equal((await limited.get()).status, 200);
   await assert.rejects(limited.get());
   assert.equal(limited.upstream.hits.length, 1);
+  assert.equal(limited.proxy.snapshot().budgetExceeded?.limit, 'requests');
   const connections = await setup(t, { limits: { connections: 1 } });
   assert.equal((await connections.get()).status, 200);
   await assert.rejects(connections.get());
   assert.equal(connections.upstream.hits.length, 1);
+  assert.equal(connections.proxy.snapshot().budgetExceeded?.limit, 'connections');
 });
 test('oversized incoming HTTP data and concurrency overflow terminate access', async (t) => {
   const limited = await setup(t, { limits: { requestBytes: 180 } });
   await assert.rejects(limited.get('/', { extra: `X-Filler: ${'x'.repeat(512)}\r\n` }));
   assert(limited.proxy.snapshot().closed);
+  assert.equal(limited.proxy.snapshot().budgetExceeded?.limit, 'requestBytes');
   const concurrent = await setup(t, { limits: { concurrent: 1 } });
   const socket = createConnection(concurrent.path);
   socket.on('error', () => {});
@@ -184,6 +211,11 @@ test('oversized incoming HTTP data and concurrency overflow terminate access', a
   await assert.rejects(concurrent.get());
   socket.destroy();
   assert(concurrent.proxy.snapshot().closed);
+  assert.deepEqual(concurrent.proxy.snapshot().budgetExceeded, {
+    limit: 'concurrent',
+    maximum: 1,
+    observed: 2,
+  });
 });
 test('cancellation, deadline and stalled upstream close traffic without fallback', async (t) => {
   const cancel = new AbortController();

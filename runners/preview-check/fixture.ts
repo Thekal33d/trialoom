@@ -40,6 +40,12 @@ export async function fixture(tls: Awaited<ReturnType<typeof identity>>) {
       case '/large':
         res.end(Buffer.alloc(1024 ** 2, 120));
         return;
+      case '/bundle':
+        res.end(Buffer.alloc(1310116, 120));
+        return;
+      case '/oversized':
+        res.end(Buffer.alloc(2 * 1024 ** 2, 120));
+        return;
       case '/slow':
         return;
       case '/next':
@@ -120,6 +126,7 @@ export async function throughProxy(
     host?: string;
     method?: string;
     extra?: string;
+    maxResponseBytes?: number;
   } = {},
 ) {
   const socket = await connectTunnel(path, options.authority);
@@ -132,7 +139,8 @@ export async function throughProxy(
     let answer = '';
     client.on('data', (chunk) => {
       answer += chunk.toString();
-      if (answer.length > 128 * 1024) client.destroy(new Error('CLIENT_OVERSIZE'));
+      if (answer.length > (options.maxResponseBytes ?? 128 * 1024))
+        client.destroy(new Error('CLIENT_OVERSIZE'));
     });
     client.once('error', reject);
     client.setTimeout(3000, () => client.destroy(new Error('CLIENT_TIMEOUT')));

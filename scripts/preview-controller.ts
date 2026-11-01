@@ -7,6 +7,19 @@ import { previewHost, previewIdentity } from './preview-host.ts';
 
 export const previewAction = 'Load the approved homepage with GET/HEAD';
 const digest = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex');
+const budgetLabels = {
+  connections: 'Total connections',
+  concurrent: 'Concurrent connections',
+  requests: 'HTTP requests',
+  requestBytes: 'Request metadata bytes',
+  responseBytes: 'Bytes in one response, including headers',
+  totalResponseBytes: 'Total response bytes, including headers',
+} as const;
+const budgetSchema = z.object({
+  limit: z.enum(Object.keys(budgetLabels) as (keyof typeof budgetLabels)[]),
+  maximum: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+  observed: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+});
 const binding = z.object({
   campaignId: evidenceSchema.shape.campaignId,
   assignmentId: evidenceSchema.shape.assignmentId,
@@ -191,6 +204,7 @@ export async function executePreviewRun(options: {
     const output = outputSchema.parse(JSON.parse(await running));
     await check();
     const witness = await host.witness();
+    const exhausted = budgetSchema.nullable().parse(witness.budgetExceeded);
     assert(
       witness.closed && Array.isArray(witness.observations) && witness.observations.length <= 30,
     );
@@ -241,6 +255,13 @@ export async function executePreviewRun(options: {
     // No credentials or raw target strings in product-facing assertions.
     if ([...groups.values()].some((item) => item.decision === 'denied')) {
       output.outcome = 'blocked';
+    }
+    if (
+      witness.observations.some(
+        (item: { reason: string }) =>
+          !['ALLOWED', 'CANCELLED', 'DEADLINE', 'BUDGET_EXHAUSTED'].includes(item.reason),
+      )
+    ) {
       output.steps.push({
         index: output.steps.length + 1,
         action: 'Keep requests within the approved read-only scope',
@@ -252,6 +273,22 @@ export async function executePreviewRun(options: {
         name: 'scope.completed',
         passed: false,
         detail: 'Restricted requests prevented an unrestricted page validation.',
+      });
+    }
+    if (exhausted) {
+      output.outcome = 'blocked';
+      const label = budgetLabels[exhausted.limit];
+      output.steps.push({
+        index: output.steps.length + 1,
+        action: 'Stay within the browser network budget',
+        expected: `${label}: at most ${exhausted.maximum}`,
+        actual: `${label}: ${exhausted.observed}; the proxy stopped traffic at the limit`,
+        status: 'blocked',
+      });
+      output.assertions.push({
+        name: 'network.budget',
+        passed: false,
+        detail: `${label} exceeded the configured limit (${exhausted.observed} > ${exhausted.maximum}).`,
       });
     }
     const document: EvidenceInput = {

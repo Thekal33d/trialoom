@@ -628,6 +628,39 @@ test('released assignments and revoked hosts stop polling and stale-session writ
   }
 });
 
+test('a witnessed run blocked before target contact may report no contacted origins', async () => {
+  const campaign = await newCampaign('No contact', { minimumIsolation: 'witnessed' });
+  const host = await registerHost(db.pool, owner, workspaceId, {
+    ...conforming,
+    name: 'Empty witness',
+  });
+  const operator = await qualifiedOperator('iso-no-contact');
+  const work = await runOn(operator.session, campaign.campaignId, host.hostId);
+  await witness(host.credential, work.run.runId, 1, []);
+  const document = {
+    ...work.document([]),
+    termsContentHash: work.run.manifest.binding.termsContentHash,
+  };
+  await assert.rejects(submitEvidence(db.pool, work.grant, document), /contacted origin/);
+  const receipt = await submitEvidence(db.pool, work.grant, {
+    ...document,
+    outcome: 'blocked',
+    blockedReason: 'agent_limitation',
+    steps: [
+      {
+        index: 1,
+        action: 'Load target',
+        expected: 'Approved page',
+        actual: 'No target response',
+        status: 'blocked',
+      },
+    ],
+  });
+  assert.equal(receipt.egress.witnessed, true);
+  assert.deepEqual(receipt.egress.allowedOrigins, []);
+  assert.equal(receipt.decision, 'pending_review');
+});
+
 test('the reference proxy denies what the allowlist forbids and counts both', async () => {
   assert.equal(decide([allowed], allowed), 'allowed');
   assert.equal(decide([allowed], 'https://exfil.example.net'), 'denied');

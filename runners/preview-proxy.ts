@@ -87,7 +87,11 @@ export async function startPreviewProxy(options: PreviewProxyOptions) {
       response.destroy();
       return;
     }
-    response.writeHead(403, { 'content-type': 'text/plain', connection: 'close' });
+    response.writeHead(403, {
+      'content-type': 'text/plain',
+      connection: 'close',
+      'x-trialoom-proxy-denied': '1',
+    });
     response.end('Preview access denied.\n');
   };
   const chargeHeaders = (incoming: IncomingMessage) => {
@@ -111,6 +115,7 @@ export async function startPreviewProxy(options: PreviewProxyOptions) {
     'transfer-encoding',
     'upgrade',
     'alt-svc',
+    'x-trialoom-proxy-denied',
   ]);
   const forward = async (origin: string, incoming: IncomingMessage, response: ServerResponse) => {
     if (closed) return response.destroy();

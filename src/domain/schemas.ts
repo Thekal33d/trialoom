@@ -274,7 +274,7 @@ export const evidenceSchema = z
       .strict(),
     startedAt: z.iso.datetime(),
     finishedAt: z.iso.datetime(),
-    observedOrigins: z.array(z.string().max(2048)).min(1).max(20),
+    observedOrigins: z.array(z.string().max(2048)).max(20),
     steps: z
       .array(
         z
@@ -366,6 +366,10 @@ export const evidenceSchema = z
   .refine(
     (value) => (value.outcome === 'blocked') === (value.blockedReason !== undefined),
     'A blocked run needs a blocked reason, and only a blocked run may carry one.',
+  )
+  .refine(
+    (value) => value.outcome === 'blocked' || value.observedOrigins.length > 0,
+    'An executed run or product failure must report a contacted origin.',
   );
 export type EvidenceInput = z.infer<typeof evidenceSchema>;
 

@@ -1,0 +1,48 @@
+{
+  "task": "RUN-03",
+  "checkpoint": "local-application-integration",
+  "date": "2026-11-01",
+  "status": "local integration verified; production gates open",
+  "image": "sha256:cdcc8e4f8a687ac9637af2ac760560a77934a0dbe9e1d869a0bb78f2b37e632c",
+  "proxyCheckImage": "sha256:17ae37d1805d7ffbb49574e6b94214f84e2ed1136394d00f51f004671dfa95d5",
+  "checks": {
+    "database": 210,
+    "focusedAfterSchemaChange": 38,
+    "isolatedProxy": 14,
+    "ownedJourney": "passed; two steps; witnessed; metadata replay; pending review; zero payable",
+    "activeStops": [
+      "abandon",
+      "release",
+      "expire",
+      "revoke"
+    ],
+    "independentTimer": "removed active owned browser, proxy and channel"
+  },
+  "blokaz": {
+    "origin": "https://www.blokaz.xyz",
+    "homepageStatus": 200,
+    "visibleContent": true,
+    "outcome": "blocked",
+    "forwardedResponses": 6,
+    "offOriginDenials": 2,
+    "budgetExhausted": true,
+    "revisionConfirmed": false,
+    "traceReviewable": false,
+    "traceLimitation": "Playwright -1 no-response status rejected by existing sanitizer"
+  },
+  "sourceHashes": {
+    "scripts/preview-host.ts": "6b741170238cd0f8cc0e890def1e15b11b611c358ac5bf8e5ab63c1b378f3677",
+    "scripts/preview-controller.ts": "9090754709b3e428629922272d3d1525ef1950ab67ee0eb003f1bbe83b9e00d6",
+    "scripts/preview-fixture.ts": "478b72ed6fbb53f2ba484825a1b81a2cece9ace19dd842cada562e1ba07e15d8",
+    "scripts/preview-demo.ts": "cbb7b2d24d69748acf10b421ed6f3db75cc156fdc012516932fbf7527f7e393c",
+    "runners/preview-browser.ts": "4f673e1aaefbd13a7e4eec4060dade46765f5a96594a9ba4a53c8a562daafcce",
+    "runners/preview-broker.ts": "fd9a4cbf63b9f02ada3d8b5a3e160149a3e457273b812a812c3b26d6f5ed8581",
+    "runners/preview-channel.ts": "86f701a2a7adb49249d1a8f20dec1a0239be40f1bc4fe70641593b2eaf284d5a",
+    "runners/preview-policy.ts": "0b9b7f5a805f714e3266419edf99fc7e3810b5e7f1a0147549f262972df00a5c",
+    "runners/preview-proxy.ts": "eb89917d1f5682b20852417b0933634312522a0e7abd5b3aad2183f375076356",
+    "src/domain/schemas.ts": "d622ff362497514ed51b5c4431c50ec46d9779dc17c76cbaf53897bb531402a9",
+    "src/server/run-access.ts": "86d69587f961f608f61a1b1a82a2879047f6f879389a21e5007c311d1b7019fc",
+    "src/server/isolation.ts": "8ad7dd66cfffd0f71af464b0dc1db80a6d5dafc0b17cbf112d0a22c6d9dc30bf",
+    "db/migrations/0018_egress_batches.sql": "f6f49038248b22482e8c430cd04a21774ead13d01f66e7c2a9f6c966c6beb165"
+  }
+}

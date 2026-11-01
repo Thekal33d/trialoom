@@ -128,3 +128,5 @@ Generated screenshots and failure traces live under ignored `test-results/`. Tre
 Web requests never auto-migrate. Add migrations under `db/migrations/` using ascending four-digit prefixes. The migration runner serializes sessions with an advisory lock, verifies existing checksums, and commits each migration with its registry entry. Do not edit an applied migration; add a new one. Database pooling must retain one session for the migration lock.
 
 The initial database user has local development privileges. Accounts and roles are verified locally; production identity hardening/recovery, isolated database/process identities, backup/restore, artifact storage, runners, money handlers, deployment, and monitoring still require their own gates. Readiness currently checks the database schema, not complete deployment readiness. See [architecture](ARCHITECTURE.md) and [backlog](BACKLOG.md).
+
+For the integrated isolated browser walkthrough and authorized Blokaz homepage check, see [RUN-03 integration](RUN-03-INTEGRATION.md): `npm run browser:preview` (or `-- --smoke`).

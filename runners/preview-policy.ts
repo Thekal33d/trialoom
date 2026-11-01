@@ -20,14 +20,24 @@ export function previewOrigin(value: string): string {
 }
 
 /** Host-owned immutable admission. The sandbox cannot choose origins or DNS. */
-export async function admitPreview(origins: string[], resolver?: ResolveTarget) {
+export async function admitPreview(
+  origins: string[],
+  resolver?: ResolveTarget,
+  admitted?: Readonly<Record<string, readonly string[]>>,
+) {
   if (!origins.length || origins.length > 8 || new Set(origins).size !== origins.length)
     throw new Error('PREVIEW_ORIGINS_INVALID');
   const pins = new Map<string, readonly string[]>();
   for (const origin of origins) {
     previewOrigin(origin);
     const target = await validateTarget(origin, resolver);
-    pins.set(origin, Object.freeze([...target.addresses]));
+    const expected = admitted?.[origin];
+    if (
+      admitted &&
+      (!expected?.length || target.addresses.some((address) => !expected.includes(address)))
+    )
+      throw new Error('MANIFEST_ADDRESS_CHANGED');
+    pins.set(origin, Object.freeze([...(expected ?? target.addresses)]));
   }
   return Object.freeze({
     origins: Object.freeze([...pins.keys()]),

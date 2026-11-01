@@ -1,0 +1,118 @@
+import assert from 'node:assert/strict';
+import { createHash, X509Certificate } from 'node:crypto';
+import { access, rename, writeFile } from 'node:fs/promises';
+import { createServer, request } from 'node:https';
+import { boundedInput } from './preview-channel.ts';
+import { admitPreview, type PreviewAdmission } from './preview-policy.ts';
+import { startPreviewProxy } from './preview-proxy.ts';
+
+async function main() {
+  const input = await boundedInput(32768);
+  const { origin, addresses } = input.target;
+  assert(['owned', 'public'].includes(input.mode));
+  assert(
+    Number.isSafeInteger(input.durationMs) && input.durationMs <= 60000 && input.durationMs > 0,
+  );
+  const spki = createHash('sha256')
+    .update(
+      new X509Certificate(input.identity.cert).publicKey.export({ type: 'spki', format: 'der' }),
+    )
+    .digest('base64');
+  // The only loopback exception is a closed fixture in a network-disabled broker.
+  const owned =
+    input.mode === 'owned'
+      ? createServer(input.identity, (req, res) => {
+          res.setHeader('content-type', 'text/html');
+          res.setHeader('x-build-revision', 'owned-preview-v1');
+          res.end(
+            req.url === '/next'
+              ? '<!doctype html><h1>Next page</h1><p>Owned navigation completed.</p>'
+              : '<!doctype html><title>Owned preview</title><h1>Owned preview sample</h1><p>A controlled read-only journey.</p><a href="/next">Next page</a>',
+          );
+        })
+      : null;
+  let admission: PreviewAdmission;
+  let port = 0;
+  if (owned) {
+    assert.equal(origin, 'https://preview.example.com');
+    assert.deepEqual(addresses, ['127.0.0.1']);
+    await new Promise<void>((done) => owned.listen(0, '127.0.0.1', done));
+    const address = owned.address();
+    assert(address && typeof address === 'object');
+    port = address.port;
+    admission = Object.freeze({
+      origins: Object.freeze([origin]),
+      async destination(value: string) {
+        assert.equal(value, origin);
+        return { origin, hostname: 'preview.example.com', address: '127.0.0.1' };
+      },
+    });
+  } else {
+    const publicAdmission = await admitPreview([origin], undefined, { [origin]: addresses });
+    admission = Object.freeze({
+      origins: publicAdmission.origins,
+      async destination(value: string) {
+        const target = await publicAdmission.destination(value);
+        assert(addresses.includes(target.address), 'MANIFEST_ADDRESS_CHANGED');
+        return target;
+      },
+    });
+    await admission.destination(origin);
+  }
+  const proxy = await startPreviewProxy({
+    admission,
+    socketPath: '/channel/egress.sock',
+    identity: input.identity,
+    limits: { durationMs: input.durationMs },
+    ...(owned
+      ? {
+          upstreamCa: input.identity.cert,
+          transport: (options, listener) => {
+            assert.equal(options.hostname, '127.0.0.1');
+            return request({ ...options, port }, listener);
+          },
+        }
+      : {}),
+  });
+  await writeFile('/channel/ready.json', JSON.stringify({ origin, spki }), { mode: 0o600 });
+  let writing = Promise.resolve();
+  const save = () => {
+    writing = writing.then(async () => {
+      await writeFile('/scratch/status.tmp', JSON.stringify(proxy.snapshot()), { mode: 0o600 });
+      await rename('/scratch/status.tmp', '/scratch/status.json');
+    });
+    return writing;
+  };
+  await save();
+  let frozen = false;
+  const interval = setInterval(() => {
+    void (async () => {
+      if (frozen) return;
+      const requested = await access('/scratch/freeze').then(
+        () => true,
+        () => false,
+      );
+      if (requested) {
+        frozen = true;
+        await stop();
+      } else await save();
+    })().catch(() => process.exit(1));
+  }, 100);
+  const stop = async () => {
+    clearInterval(interval);
+    await proxy.stop();
+    await save();
+    owned?.closeAllConnections();
+    owned?.close();
+  };
+  process.once('SIGTERM', () => {
+    void stop().then(() => process.exit(0));
+  });
+  setTimeout(() => {
+    void stop().then(() => process.exit(0));
+  }, input.durationMs + 1000);
+}
+main().catch(() => {
+  process.stderr.write('PREVIEW_BROKER_FAILED\n');
+  process.exitCode = 1;
+});

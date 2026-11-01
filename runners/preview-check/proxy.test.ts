@@ -198,3 +198,12 @@ test('cancellation, deadline and stalled upstream close traffic without fallback
   const idle = await setup(t, { limits: { idleMs: 100 } });
   await assert.rejects(idle.get('/slow'));
 });
+
+test('manifest IP pins refuse a changed or partly changed DNS set', async () => {
+  await assert.rejects(
+    admitPreview([origin], async () => [publicIp, '93.184.216.35'], { [origin]: [publicIp] }),
+    /MANIFEST_ADDRESS_CHANGED/,
+  );
+  const admission = await admitPreview([origin], async () => [publicIp], { [origin]: [publicIp] });
+  assert.equal((await admission.destination(origin)).address, publicIp);
+});

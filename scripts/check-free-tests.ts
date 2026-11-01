@@ -85,6 +85,23 @@ try {
   assert(row.cleanup_at);
   assert(row.result.replay.actions.length > 0 && row.result.replay.requests.length > 0);
   assert.equal(row.target.addresses[0], '127.0.0.1');
+  await expect
+    .poll(
+      async () =>
+        (
+          await db.pool.query('SELECT status FROM buy_report_inputs WHERE free_test_id=$1', [
+            row.id,
+          ])
+        ).rows[0]?.status,
+    )
+    .toBe('skipped');
+  const report = (
+    await db.pool.query('SELECT * FROM buy_report_inputs WHERE free_test_id=$1', [row.id])
+  ).rows[0];
+  assert.equal(report.skip_reason, 'all_checks_passed');
+  assert.equal(report.result_hash, row.result_hash);
+  assert.equal(report.request_body, null);
+  assert.equal(report.request_hash, null);
   console.log(JSON.stringify({ event: 'free_check.replay_ready' }));
   for (const size of [
     { name: 'desktop', width: 1440, height: 1000 },
@@ -174,6 +191,7 @@ try {
     mode: 'offline-owned-proxy-fixture-v1',
     automaticDispatch: true,
     signupToReplay: true,
+    reportPreparation: { status: report.status, reason: report.skip_reason, providerCalls: 0 },
     actions: row.result.replay.actions.length,
     requests: row.result.replay.requests.length,
     recovery,

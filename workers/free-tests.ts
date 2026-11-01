@@ -3,6 +3,7 @@ import { configuredFreeOrigins, freePreviewRunner } from '../scripts/free-previe
 import { buildPreviewImage } from '../scripts/preview-host.ts';
 import { createPool, databaseUrl } from '../src/server/database.ts';
 import { dispatchFreeTest, freeRunnerHeartbeat } from '../src/server/free-test-dispatch.ts';
+import { prepareNextFreeTestReport } from '../src/server/free-test-reports.ts';
 import { freeTestsEnabled } from '../src/server/free-tests.ts';
 
 if (!freeTestsEnabled())
@@ -34,6 +35,10 @@ try {
   })().catch(() => abort.abort());
   do {
     const worked = await dispatchFreeTest(pool, runner, abort.signal);
+    // Local preparation is recoverable and cannot pay. A report failure must not hide a test.
+    await prepareNextFreeTestReport(pool).catch(() => {
+      console.error(JSON.stringify({ event: 'free_report.preparation_unavailable' }));
+    });
     if (process.argv.includes('--once')) break;
     if (!worked) await delay(1000, undefined, { signal: abort.signal });
   } while (!abort.signal.aborted);

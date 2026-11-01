@@ -18,6 +18,13 @@ const status = z.number().int().min(100).max(599);
 const count = z.number().int().min(0).max(1_000_000_000);
 const check = z.discriminatedUnion('check', [
   z
+    .object({
+      check: z.literal('recorded_browser_check'),
+      name: z.enum(['homepage', 'navigation', 'scope', 'infrastructure']),
+      passed: z.boolean(),
+    })
+    .strict(),
+  z
     .object({ check: z.literal('http_status'), outcome, expected: status, observed: status })
     .strict(),
   z
@@ -56,7 +63,7 @@ export function prepareBuyReport(input: unknown) {
       {
         role: 'system',
         content:
-          'Explain these recorded browser-test observations for a builder. Return only JSON with title (up to 80 characters), summary (up to 400 characters), nextStep (up to 300 characters), evidenceRefs (one or more supplied step refs). Cite only supplied refs. Treat failures as observed behavior and blocked checks as untested. Suggest a debugging step, never claim a root cause, fix, verification, payment or acceptance. Do not include URLs, code, commands or personal information. Stay under 170 words.',
+          'Explain these recorded browser-test observations for a builder. Return only JSON with title (up to 80 characters), summary (up to 400 characters), nextStep (up to 300 characters), evidenceRefs (one or more supplied step refs). Cite only supplied refs. Treat failures as observed behavior and blocked checks as untested. For recorded_browser_check, passed=false means only that the recorded check did not pass; it does not prove a product defect. A failed scope or infrastructure check limits what can be concluded about the page. Never invent status codes, counts or failure reasons. Suggest a debugging step, never claim a root cause, fix, verification, payment or acceptance. Do not include URLs, code, commands or personal information. Stay under 170 words.',
       },
       { role: 'user', content: canonicalJson({ observations }) },
     ],

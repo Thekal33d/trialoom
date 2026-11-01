@@ -1,0 +1,50 @@
+{
+  "task": "BUY-01",
+  "checkedAt": "2026-11-01T19:28:36.481Z",
+  "scope": "Local immutable report preparation from completed free-test evidence",
+  "templateVersion": "free-checks-v1",
+  "migration": "0022_buy_report_inputs.sql",
+  "focusedChecks": {
+    "binding": 9,
+    "providerBoundary": 6,
+    "freeExecution": 14,
+    "passed": 29
+  },
+  "verified": [
+    "One immutable request identity across concurrent owner retries",
+    "Original result hash and exact request body/hash preserved",
+    "All-passing checks skipped without a provider request",
+    "Incomplete capture refused; recovered evidence prepares without redispatch",
+    "Cancelled and interrupted runs excluded",
+    "Current owner authorization and tenant isolation",
+    "Database source binding and immutability",
+    "Closed boolean projection omits private content and invented details",
+    "Invalid check sets and corrupted source hashes refused"
+  ],
+  "ownedBrowserCheck": {
+    "mode": "offline-owned-proxy-fixture-v1",
+    "image": "sha256:e5e6d45bb4f3ed29fec696af18afe322343e6292ad6417c522b69dcf57a5453f",
+    "signupToReplay": true,
+    "automaticWorker": true,
+    "actions": 7,
+    "requests": 2,
+    "reportPreparation": "skipped",
+    "skipReason": "all_checks_passed",
+    "desktopMobileAccessibility": "passed",
+    "controllerRecovery": ["running -> interrupted", "captured -> completed"]
+  },
+  "lint": "passed",
+  "types": "passed",
+  "providerCalls": 0,
+  "customerLiabilityUnits": "0",
+  "publicTargetsContacted": false,
+  "remaining": [
+    "Separate sponsored budget and purchase journal",
+    "Explicitly authorized resource wallet and aggregate spend cap",
+    "Exact stored-request quote and paid dispatch",
+    "Uncertain-payment reconciliation and finalized receipt verification",
+    "Useful provider output and report UI",
+    "Hosted operations and genuine external user proof"
+  ],
+  "source": "https://github.com/celo-org/buy-skill/blob/main/skills/use-api-gateway/SKILL.md"
+}

@@ -65,7 +65,7 @@ Earlier dependency and blocked live checkpoints remain unchanged as historical e
 | Funded payment authority and the shared approval | Verified locally and on a Celo fork | [PILOT-05 design and limits](../docs/PILOT-05.md), [evidence](../docs/evidence/PILOT-05.json): one shared approval accounted as the contended object with a table-enforced ceiling, finality spending it rather than freeing it, a shortfall reported without cancelling a debt, the live adapter moving USDC through the product's own path on a disposable fork, the gas it cost read from the receipt and reported in the currency it was paid in, every approval re-read on a timer with a failed read kept apart from a shortfall, and what that read finds raised once and delivered as a signed notice that records whether anyone was told; no mainnet transaction and no funded wallet |
 | Celo / Remesso capability | Passed on local Celo fork | [Experiment](../spikes/payments/README.md), [19-check evidence](../docs/evidence/VAL-03.json); production integration pending |
 | buy resource capability | Local controls passed; provisioning pending | [Experiment](../spikes/resources/README.md), [quotes](../docs/evidence/VAL-04-quotes.json), [14-check fork evidence](../docs/evidence/VAL-04.json) |
-| Git remote and public repository | Not configured | Local checkpoint history only |
+| Git remote and public repository | GitLab origin configured; normal push pending | `https://gitlab.com/Otaiki1/trialoom.git`; template-only remote history merged locally. Hackathon-required public GitHub repository remains missing |
 | Event enrollment and deployment | Not performed | No entry or live demo |
 
 ## Next action

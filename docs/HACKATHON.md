@@ -6,7 +6,7 @@ Rechecked **2026-11-01** against [Agents on Open Rails](https://www.loops.house/
 
 Deadline: **2026-11-09 09:00 GMT / 10:00 Africa/Lagos**. Build with buy allocates $1,000 across five projects. Judging considers useful paid external-service calls and their growth, with payment proof and named services. Cheap repetitive calls do not qualify as useful integration.
 
-The rules require Celo mainnet, a public repository at registration, event-period code and an ERC-8004 agent identity. General rules require attribution, while the buy FAQ says no tag is needed for that track; x402 guidance requests PayTo addresses. Preserve payer, service payee and receipt evidence and resolve entry-specific attribution before claiming counted activity.
+The rules require Celo mainnet, a public GitHub repository at registration, event-period code and an ERC-8004 agent identity. General rules require attribution, while the buy FAQ says no tag is needed for that track; x402 guidance requests PayTo addresses. Preserve payer, service payee and receipt evidence and resolve entry-specific attribution before claiming counted activity.
 
 The independent-user qualifier excludes wallets created/funded by the entrant and requires earlier Celo activity. The FAQ also welcomes newcomers. Free email registrations are not proof of qualifying independent wallets. Do not invent traction or eligibility. Source: [official rules and FAQ](https://www.loops.house/agents-on-open-rails).
 
@@ -35,7 +35,7 @@ The [live buy catalog](https://gateway.usebuy.ai/v1/catalog), retrieved unsigned
 | Item | Current evidence |
 | --- | --- |
 | Track / enrollment | Build with buy selected / not enrolled |
-| Public repo / hosted demo | Not configured |
+| Public repo / hosted demo | GitLab origin configured; normal push pending. Required public GitHub repository and hosted demo not configured |
 | Agent identity / funded resource wallet | Not configured |
 | Real browser results / replay | Local owned fixture and authorized Blokaz ladder; [verified checkpoint](evidence/RUN-03-ladder-verified.json) |
 | Payment recovery | Local Celo fork only; [VAL-03](evidence/VAL-03.json), [VAL-04](evidence/VAL-04.json) |

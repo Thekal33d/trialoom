@@ -558,3 +558,12 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Submitted public attempt: homepage passed, eight responses forwarded, one first-party upstream script failure at about 5.05 seconds, no exhausted budget. Metadata replay has six actions and nine requests; hash, HTTP ingestion, independent witness and scope editor preservation passed. Visually inspected the replay. No ladder count agreement, accepted work or payable. A fresh retry stopped at broker startup without submission.
 - Current review session is retained at port 61193; private artifacts at `artifacts/preview-runs/49d3faa1215e3ceb/`. Failed disposable sessions and the latest owned smoke DB/raw evidence were cleaned. Existing older sessions untouched. Next: bounded startup/upstream diagnostics and clearer infrastructure classification, then rerun with the already approved scope.
 - Commit subject: `fix: preserve scoped CORS and validate live ladder responses` (RUN-03).
+
+
+## 2026-11-01 — RUN-03: bounded diagnostics and buffered-response timeout correction
+
+- Added closed broker-stage/reason/origin-index diagnostics and safe host propagation after early exit. Added at most 16 upstream failure records with fixed kind/phase, approved origin, IP family and bounded time. Raw stderr/error messages, addresses and response data stay out of diagnostics. Infrastructure blockage now has its own replay step; witness/claim equality is unchanged.
+- The new stalled-upstream check exposed a client-idle/response-buffering race. Corrected timer ownership: active upstream traffic uses the existing upstream idle limit, while admission/header/handshake idle checks and the 15-second absolute connection deadline remain. No cap increase or new request permission.
+- Validation: 21/21 isolated proxy groups, including healthy streamed progress, real stall and absolute cutoff; two Chromium journeys and proxy loss; three focused contract/diagnostic checks; actual owned startup refusal/cleanup and ladder success plus wrong-count/unexpected-origin/upstream controls. All negative controls remain blocked with zero payable. Lint/types and diff checks passed. Proxy checks preceded a TypeScript-only Socket cast; final owned image includes that cast.
+- Owned evidence/replay under ignored `artifacts/preview-runs/abc85fe718f4e587/`; disposable DB/raw evidence cleaned. The prior blocked public session remains retained. Live rerun is the next action.
+- Commit subject: `fix: bound runner diagnostics and preserve upstream progress` (RUN-03).

@@ -106,6 +106,13 @@ export async function startPreviewProxy(options: PreviewProxyOptions) {
   const sockets = new Set<Socket>();
   const requests = new Set<ClientRequest>();
   const observations = new Map<string, PreviewObservation>();
+  const upstreamFailures: {
+    origin: string;
+    kind: 'TIMEOUT' | 'TLS' | 'CONNECTION' | 'RESPONSE' | 'OTHER';
+    phase: 'CONNECT' | 'TLS' | 'HEADERS' | 'BODY';
+    addressFamily: 4 | 6;
+    elapsedMs: number;
+  }[] = [];
   let closed = false;
   let connections = 0;
   let requestCount = 0;
@@ -204,6 +211,10 @@ export async function startPreviewProxy(options: PreviewProxyOptions) {
     const paths = readOnlyRequests.get(origin);
     if (paths && (incoming.method !== 'GET' || !paths.has(incoming.url)))
       return deny(response, origin, 'REQUEST_DENIED');
+    // This response is buffered for size/redirect checks. Browser-side silence
+    // is expected while upstream bytes arrive; upstream idle and the outer
+    // absolute connection deadline continue to bound the active request.
+    incoming.socket.setTimeout(0);
     let destination: Awaited<ReturnType<PreviewAdmission['destination']>>;
     try {
       destination = await options.admission.destination(origin);
@@ -229,6 +240,22 @@ export async function startPreviewProxy(options: PreviewProxyOptions) {
       !hopHeaders.has('origin')
     )
       headers.origin = options.pageOrigin;
+    const started = performance.now();
+    let phase: 'CONNECT' | 'TLS' | 'HEADERS' | 'BODY' = 'CONNECT';
+    let failed = false;
+    const fail = (kind: (typeof upstreamFailures)[number]['kind']) => {
+      if (failed || closed || response.destroyed) return;
+      failed = true;
+      if (upstreamFailures.length < 16)
+        upstreamFailures.push({
+          origin,
+          kind,
+          phase,
+          addressFamily: destination.address.includes(':') ? 6 : 4,
+          elapsedMs: Math.min(60000, Math.max(0, Math.round(performance.now() - started))),
+        });
+      deny(response, origin, 'UPSTREAM_FAILED');
+    };
     const upstream = (options.transport ?? httpsRequest)(
       {
         hostname: destination.address,
@@ -245,6 +272,7 @@ export async function startPreviewProxy(options: PreviewProxyOptions) {
         timeout: limits.idleMs,
       },
       (answer) => {
+        phase = 'BODY';
         const chunks: Buffer[] = [];
         let size = Buffer.byteLength(JSON.stringify(answer.headers));
         outputBytes += size;
@@ -261,7 +289,7 @@ export async function startPreviewProxy(options: PreviewProxyOptions) {
           outputBytes += chunk.length;
           if (!overBudget()) chunks.push(chunk);
         });
-        answer.once('error', () => deny(response, origin, 'UPSTREAM_FAILED'));
+        answer.once('error', () => fail('RESPONSE'));
         answer.once('end', () => {
           void (async () => {
             if (closed || response.destroyed) return;
@@ -288,14 +316,41 @@ export async function startPreviewProxy(options: PreviewProxyOptions) {
             record(origin, 'ALLOWED');
             response.writeHead(answer.statusCode ?? 502, { ...clean, connection: 'close' });
             response.end(Buffer.concat(chunks));
-          })().catch(() => deny(response, origin, 'UPSTREAM_FAILED'));
+          })().catch(() => fail('OTHER'));
         });
       },
     );
     requests.add(upstream);
+    upstream.once('socket', (socket) => {
+      socket.once('connect', () => {
+        phase = 'TLS';
+      });
+      socket.once('secureConnect', () => {
+        phase = 'HEADERS';
+      });
+    });
     upstream.once('close', () => requests.delete(upstream));
-    upstream.once('timeout', () => upstream.destroy());
-    upstream.once('error', () => deny(response, origin, 'UPSTREAM_FAILED'));
+    upstream.once('timeout', () => {
+      fail('TIMEOUT');
+      upstream.destroy();
+    });
+    upstream.once('error', (error: NodeJS.ErrnoException) => {
+      const code = error.code ?? '';
+      fail(
+        [
+          'ERR_TLS_CERT_ALTNAME_INVALID',
+          'CERT_HAS_EXPIRED',
+          'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+          'DEPTH_ZERO_SELF_SIGNED_CERT',
+          'UNABLE_TO_GET_ISSUER_CERT_LOCALLY',
+          'SELF_SIGNED_CERT_IN_CHAIN',
+        ].includes(code)
+          ? 'TLS'
+          : ['ECONNRESET', 'ECONNREFUSED', 'ENETUNREACH', 'EHOSTUNREACH', 'EPIPE'].includes(code)
+            ? 'CONNECTION'
+            : 'OTHER',
+      );
+    });
     response.once('close', () => upstream.destroy());
     upstream.end();
   };
@@ -343,6 +398,7 @@ export async function startPreviewProxy(options: PreviewProxyOptions) {
             socket.destroy();
             return;
           }
+          socket.setTimeout(limits.idleMs, () => socket.destroy());
           inner.emit('connection', socket);
         },
       );
@@ -365,6 +421,9 @@ export async function startPreviewProxy(options: PreviewProxyOptions) {
       socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n');
       return;
     }
+    // TLS handshake and inner HTTP headers have their own idle limits. Keep
+    // the independent absolute connection timer installed below.
+    (socket as Socket).setTimeout(0);
     socket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
     tunnel.emit('connection', socket);
   });
@@ -404,6 +463,7 @@ export async function startPreviewProxy(options: PreviewProxyOptions) {
       limits: { ...limits },
       budgetExceeded: budgetExceeded && { ...budgetExceeded },
       observations: [...observations.values()].map((value) => ({ ...value })),
+      upstreamFailures: upstreamFailures.map((value) => ({ ...value })),
     }),
     async stop() {
       clearTimeout(deadline);

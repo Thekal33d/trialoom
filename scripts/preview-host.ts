@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { cp, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
+import { readBrokerFailure } from '../runners/preview-diagnostics.ts';
 
 const env = { PATH: process.env.PATH, HOME: process.env.HOME, NODE_ENV: 'test' as const };
 const machine = ['-m', 'trialoom-runner', '-u', 'root', '-w', '/root'];
@@ -41,6 +42,7 @@ export async function buildPreviewImage() {
       'runners/preview-browser.ts',
       'runners/preview-ladder.ts',
       'runners/preview-broker.ts',
+      'runners/preview-diagnostics.ts',
       'src/server/targets.ts',
       'src/domain/errors.ts',
       'src/domain/preview-scope.ts',
@@ -203,6 +205,7 @@ export function previewHost(image: string, publicNetwork: boolean, signal: Abort
       env,
     });
     const chunks: Buffer[] = [];
+    const errors: Buffer[] = [];
     let size = 0;
     let failed = false;
     const stop = () => {
@@ -221,11 +224,20 @@ export function previewHost(image: string, publicNetwork: boolean, signal: Abort
           size += chunk.length;
           if (size > cap) stop();
           else if (stream === child.stdout) chunks.push(chunk);
+          else if (name === broker) errors.push(chunk);
         });
       child.once('close', (code) => {
         clearTimeout(timer);
         signal.removeEventListener('abort', stop);
-        if (code !== 0 || failed || signal.aborted) reject(new Error('PREVIEW_PROCESS_STOPPED'));
+        if (code !== 0 || failed || signal.aborted)
+          reject(
+            new Error(
+              name === broker && !failed && !signal.aborted
+                ? (readBrokerFailure(Buffer.concat(errors).toString('utf8')) ??
+                    'PREVIEW_PROCESS_STOPPED')
+                : 'PREVIEW_PROCESS_STOPPED',
+            ),
+          );
         else resolve(Buffer.concat(chunks).toString('utf8'));
       });
     });
@@ -267,7 +279,7 @@ export function previewHost(image: string, publicNetwork: boolean, signal: Abort
       watchdog = true;
       create(broker, 'broker');
       create(browser, 'browser');
-      void start(broker, input, 16384).catch(() => {});
+      const brokerProcess = start(broker, input, 16384);
       for (let n = 0; n < 40; n++) {
         signal.throwIfAborted();
         try {
@@ -277,7 +289,10 @@ export function previewHost(image: string, publicNetwork: boolean, signal: Abort
           const state = inspect(broker).State;
           // Attaching through Orb is asynchronous; a created container has not failed.
           // Keep polling within the existing bound, but stop on an exited/dead broker.
-          assert(state.Running || state.Status === 'created', 'BROKER_NOT_READY');
+          if (!state.Running && state.Status !== 'created') {
+            await brokerProcess;
+            throw new Error('BROKER_NOT_READY');
+          }
         }
         await delay(100);
       }

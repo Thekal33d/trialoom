@@ -3,9 +3,11 @@ import { createHash, X509Certificate } from 'node:crypto';
 import { access, rename, writeFile } from 'node:fs/promises';
 import { createServer, request } from 'node:https';
 import { boundedInput } from './preview-channel.ts';
+import { type BrokerStage, brokerFailure } from './preview-diagnostics.ts';
 import { admitPreview, type PreviewAdmission } from './preview-policy.ts';
 import { startPreviewProxy } from './preview-proxy.ts';
 
+let stage: BrokerStage = 'INPUT';
 async function main() {
   const input = await boundedInput(32768);
   const { origin, addresses } = input.target;
@@ -16,7 +18,8 @@ async function main() {
   assert(['owned', 'public'].includes(input.mode));
   assert(
     !input.fixtureOutcome ||
-      (input.mode === 'owned' && ['mismatch', 'unexpected'].includes(input.fixtureOutcome)),
+      (input.mode === 'owned' &&
+        ['mismatch', 'unexpected', 'upstream'].includes(input.fixtureOutcome)),
   );
   assert(
     Number.isSafeInteger(input.durationMs) && input.durationMs <= 60000 && input.durationMs > 0,
@@ -31,6 +34,10 @@ async function main() {
     input.mode === 'owned'
       ? createServer(input.identity, (req, res) => {
           if (req.url === '/rankings?limit=25') {
+            if (input.fixtureOutcome === 'upstream') {
+              req.socket.destroy();
+              return;
+            }
             res.setHeader('content-type', 'application/json');
             res.end(
               JSON.stringify({ players: 2, standings: [{ fixture: true }, { fixture: true }] }),
@@ -73,6 +80,7 @@ async function main() {
       },
     });
   } else {
+    stage = 'ADMISSION';
     admission = await admitPreview(
       [origin, ...dependencies.map((item) => item.origin)],
       undefined,
@@ -83,6 +91,7 @@ async function main() {
     );
     await admission.destination(origin);
   }
+  stage = 'PROXY';
   const proxy = await startPreviewProxy({
     admission,
     pageOrigin: origin,
@@ -103,6 +112,7 @@ async function main() {
         }
       : {}),
   });
+  stage = 'READY';
   await writeFile(
     '/channel/ready.json',
     JSON.stringify({ origin, origins: admission.origins, spki }),
@@ -117,6 +127,7 @@ async function main() {
     return writing;
   };
   await save();
+  stage = 'RUNTIME';
   let frozen = false;
   const interval = setInterval(() => {
     void (async () => {
@@ -145,7 +156,7 @@ async function main() {
     void stop().then(() => process.exit(0));
   }, input.durationMs + 1000);
 }
-main().catch(() => {
-  process.stderr.write('PREVIEW_BROKER_FAILED\n');
+main().catch((error) => {
+  process.stderr.write(`${brokerFailure(error, stage)}\n`);
   process.exitCode = 1;
 });

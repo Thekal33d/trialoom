@@ -28,7 +28,7 @@ export async function admitPreview(
   if (!origins.length || origins.length > 8 || new Set(origins).size !== origins.length)
     throw new Error('PREVIEW_ORIGINS_INVALID');
   const pins = new Map<string, readonly string[]>();
-  for (const origin of origins) {
+  for (const [originIndex, origin] of origins.entries()) {
     previewOrigin(origin);
     const target = await validateTarget(origin, resolver);
     const expected = admitted?.[origin];
@@ -36,7 +36,7 @@ export async function admitPreview(
       admitted &&
       (!expected?.length || target.addresses.some((address) => !expected.includes(address)))
     )
-      throw new Error('MANIFEST_ADDRESS_CHANGED');
+      throw Object.assign(new Error('MANIFEST_ADDRESS_CHANGED'), { originIndex });
     pins.set(origin, Object.freeze([...(expected ?? target.addresses)]));
   }
   return Object.freeze({

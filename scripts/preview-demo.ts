@@ -31,6 +31,24 @@ try {
   await mkdir(directory, { recursive: true, mode: 0o700 });
   const image = await buildPreviewImage();
   console.log(JSON.stringify({ event: 'preview.image', image }));
+  if (smoke && mode === 'owned' && journey === 'ladder') {
+    const host = previewHost(image, false, abort.signal);
+    try {
+      await assert.rejects(
+        host.prepare({
+          mode: 'owned',
+          target: { origin: 'https://invalid.example.com', addresses: ['127.0.0.1'] },
+          identity: await previewIdentity('preview.example.com'),
+          durationMs: 10000,
+        }),
+        /PREVIEW_BROKER_FAILED:INPUT:ERR_ASSERTION:-/,
+      );
+    } finally {
+      await host.close();
+    }
+    assert.equal(host.present(), '');
+    console.log('PASS broker startup failure has a closed diagnostic and verified cleanup.');
+  }
   if (smoke && mode === 'owned' && !journey) {
     const host = previewHost(image, false, abort.signal);
     try {
@@ -188,7 +206,7 @@ try {
     `PASS scoped HTTP evidence, independent witness, recorded replay and no payable. Private screenshot: ${screenshot}`,
   );
   if (smoke && mode === 'owned' && journey === 'ladder') {
-    for (const fixtureOutcome of ['mismatch', 'unexpected'] as const) {
+    for (const fixtureOutcome of ['mismatch', 'unexpected', 'upstream'] as const) {
       const next = await setup.assignment(`Ladder check — ${fixtureOutcome}`);
       const checked = await executePreviewRun({
         apiOrigin: app.origin,
@@ -208,12 +226,20 @@ try {
             (item) => item.name === 'ladder.player-count' && item.passed,
           ),
         );
-      else
+      else if (fixtureOutcome === 'unexpected')
         assert(
           checked.document.assertions.some(
             (item) => item.name === 'scope.completed' && !item.passed,
           ),
         );
+      else {
+        assert(
+          checked.document.assertions.some(
+            (item) => item.name === 'infrastructure.available' && !item.passed,
+          ),
+        );
+        assert(!checked.document.assertions.some((item) => item.name === 'scope.completed'));
+      }
       assert.equal((await db.pool.query('SELECT count(*)::int AS n FROM payables')).rows[0].n, 0);
       console.log(`PASS owned ladder ${fixtureOutcome} stayed blocked; no payable.`);
     }

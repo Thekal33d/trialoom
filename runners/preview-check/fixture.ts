@@ -51,6 +51,19 @@ export async function fixture(
         return;
       case '/slow':
         return;
+      case '/progress': {
+        res.write('owned-progress\n');
+        let chunks = 1;
+        const timer = setInterval(() => {
+          res.write('owned-progress\n');
+          if (++chunks === 8) {
+            clearInterval(timer);
+            res.end();
+          }
+        }, 50);
+        res.once('close', () => clearInterval(timer));
+        return;
+      }
       case '/next':
         res.end('<h1>Next page</h1>');
         return;

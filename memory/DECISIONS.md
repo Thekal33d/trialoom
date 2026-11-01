@@ -136,3 +136,10 @@ The selected prepared journey is public ladder navigation plus an HTTP 200/JSON/
 The user explicitly approved the exact Supabase leaderboard GET in D043’s prepared scope. Preserve that approval across retries; fonts remain approved and auth/RPC remain excluded. The upstream API supplies its CORS permission only when the page Origin is present. Forward that header only if the browser supplied exactly the primary manifest origin and did not nominate it as a hop-by-hop header. Do not invent response CORS permissions or forward credentials. Keep the independent witness/claimed-origin equality check, which refused the earlier attempt.
 
 The live response has up to 25 `standings` rows and a separate integer `players` total. Compare the displayed count with that total; reject inconsistent counts, the previously assumed array shape and oversized bodies. A direct diagnostic API read is not evidence of successful browser rendering. Preserve the blocked replay and record upstream/startup failures separately from product defects; no acceptance or payment follows from this work.
+
+
+## D045 — 2026-11-01 — Accepted: separate admission idle time from buffered-response progress
+
+The proxy buffers upstream responses for byte and redirect validation. A client-side idle timer must not classify this intentional silence as inactivity while upstream bytes continue arriving. Keep idle checks for CONNECT, TLS handshake and HTTP headers; during the admitted fetch, enforce upstream idle plus the unchanged absolute connection/run deadlines and all byte caps. The streaming/stalled/absolute-deadline controls distinguish these cases.
+
+Startup and upstream diagnostics use closed codes and bounded numeric metadata, never raw errors, target paths, credentials or addresses. A witnessed infrastructure failure remains blocked and is displayed separately from requests needing scope review. No extra target, method, retry, DNS relaxation or acceptance authority is granted.

@@ -4,6 +4,9 @@ Last updated: 2026-11-01 (Africa/Lagos).
 
 ## State
 
+
+**RUN-03 reliability fix is locally verified.** Corrected the buffered-response idle timer while retaining the five-second upstream idle limit, 15-second absolute connection deadline and all resource/scope caps. Added closed broker startup codes, bounded upstream diagnostics and separate infrastructure replay classification. All 21 proxy groups, two Chromium/proxy-loss checks, three focused contract/diagnostic checks, owned ladder success and all three negative controls passed; lint/types passed. The public ladder has not yet been rerun with this fix. [Reliability notes](../docs/RUN-03-RELIABILITY.md), [checkpoint](../docs/evidence/RUN-03-reliability.json).
+
 **Active RUN-03 step: the exact live ladder read is approved; browser verification is still blocked by runner/network reliability.** The submitted attempt passed homepage rendering, forwarded eight responses, and recorded a required first-party script failing upstream after about 5.05 seconds; no budget was exhausted. Its sanitized replay is reviewable. A later retry stopped during broker startup before submission. The separate approved API diagnostic read returned 25 standings rows and total 3480; this does not establish UI count agreement. Fixed a reproduced asynchronous startup race, preserved only the manifest page’s CORS Origin, and corrected the driver’s API shape. All 19 proxy groups, two Chromium/proxy-loss checks, two response-contract tests, owned success/negative controls, lint/types and cleanup pass. No scope expansion, product defect, acceptance or payable. [Approved journey and findings](../docs/RUN-03-LADDER.md), [live checkpoint](../docs/evidence/RUN-03-ladder-live.json).
 
 
@@ -64,7 +67,7 @@ The earlier dependency replay has five browser actions and 42 request records (1
 
 ## Next action
 
-**Next action: diagnose the remaining broker-startup and upstream-load failures, then repeat the already approved live ladder journey.** Add bounded failure reasons, preserve DNS/TLS/resource controls, and distinguish infrastructure blockage from the generic scope-review message. Do not ask again for the settled exact GET/font permissions or add other URLs, RPC, auth or wallet operations. The current signed-in blocked replay is open at `http://127.0.0.1:61193/workspace`, backed by ignored `artifacts/preview-runs/49d3faa1215e3ceb/`. Its local disposable review session is retained; runner containers/volumes were removed. Earlier sessions remain untouched. Production recovery/adversarial resource gates and PILOT-01 remain open.
+**Next action: rerun the already approved live ladder journey with the verified reliability fix, and inspect any named startup/upstream failure.** Preserve DNS/TLS/resource controls. Do not ask again for the settled exact GET/font permissions or add other URLs, RPC, auth or wallet operations. The current signed-in blocked replay is open at `http://127.0.0.1:61193/workspace`, backed by ignored `artifacts/preview-runs/49d3faa1215e3ceb/`. Its local disposable review session is retained; runner containers/volumes were removed. Earlier sessions remain untouched. Production recovery/adversarial resource gates and PILOT-01 remain open.
 
 PILOT-01 (operations, privacy, security, and reviewer coverage) is still not started. Operating an isolated runner, deployment/remote CI, actual independent operators, and a specifically authorized funded payment experiment are separate production gates. VAL-02 still needs independent operator review and VAL-04 still needs actual paid resource provisioning; the hackathon checklist remains unmet.
 

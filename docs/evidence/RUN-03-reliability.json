@@ -1,0 +1,41 @@
+{
+  "task": "RUN-03",
+  "checkpoint": "reliability-controls",
+  "date": "2026-11-01",
+  "applicationImage": "sha256:cd0b736b378a5138cdfd24f97b74921d02086cd78672837982006b5b8d2a80e8",
+  "proxyCheckImage": "sha256:2ef7f20d74e03f3b0823401618a3ae3addfa00ce86ccde2391d8beb41aa1329c",
+  "proxyImageNote": "Proxy check preceded a TypeScript-only Socket cast; final owned application image includes it.",
+  "checks": {
+    "isolatedProxyGroups": 21,
+    "chromiumProxyJourneys": 2,
+    "proxyLoss": "passed",
+    "focusedDiagnosticAndContract": 3,
+    "startupRefusalDiagnosticAndCleanup": "passed",
+    "ownedLadder": "executed",
+    "wrongCount": "blocked",
+    "unexpectedOrigin": "blocked",
+    "upstreamFailure": "blocked, infrastructure classification without scope assertion",
+    "lint": "passed",
+    "typecheck": "passed",
+    "build": "reused existing application build; runner-only changes"
+  },
+  "unchangedLimits": {
+    "upstreamIdleMs": 5000,
+    "absoluteConnectionMs": 15000,
+    "perResponseBytes": 2097152,
+    "aggregateResponseBytes": 8388608
+  },
+  "liveRerun": "pending at this checkpoint",
+  "sourceHashes": {
+    "runners/preview-diagnostics.ts": "50c1b85b22b9b719a599ceb625d64637013016800319c03ef13a8f1c49a189fb",
+    "runners/preview-broker.ts": "823acbcd255a656c9f301fa200b477cd2f69d10dda830fae9f2bcc607ce0f225",
+    "runners/preview-policy.ts": "73905f3aff3858fd9afc094035bd70da24862e52f32a7fb891a8016dad57456f",
+    "runners/preview-proxy.ts": "bfee822341c7d8a91330d9785d9317c36407baa595cfb74f26fd22f04423cc20",
+    "runners/preview-check/fixture.ts": "9e1c3c2af389f49f7f1149b75a1fd03e7e1a0b85e560bd2163ac8711886fa1c2",
+    "runners/preview-check/proxy.test.ts": "53e97c84596ef0bf1767660988b657a01afa69ebdb3272fabb95a96d6e1c6e4b",
+    "scripts/preview-host.ts": "f63746a25f5ed13d45143df52adedee803fce32197b7d9e0f6a8f485ae5b9eaf",
+    "scripts/preview-controller.ts": "10c1c19978fa4c92b9a8c1f4f4f720f9b101c0d825e1ce42c7fff075f1395c88",
+    "scripts/preview-demo.ts": "5391158952e8ea2ac607521204c396ca3c75103fa3e72d577234b8f98e24baa7",
+    "tests/preview-diagnostics.test.ts": "31325cd49ff063036647d93a5e5c693d4703a5251eca23b78a15d179709df916"
+  }
+}

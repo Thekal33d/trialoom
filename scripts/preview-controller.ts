@@ -107,7 +107,7 @@ export async function executePreviewRun(options: {
   image: string;
   mode: 'owned' | 'public';
   journey?: 'ladder';
-  fixtureOutcome?: 'mismatch' | 'unexpected';
+  fixtureOutcome?: 'mismatch' | 'unexpected' | 'upstream';
   signal?: AbortSignal;
   hold?: boolean;
   onStarted?: () => Promise<void>;
@@ -311,9 +311,15 @@ export async function executePreviewRun(options: {
     if (
       witness.observations.some(
         (item: { reason: string }) =>
-          !['ALLOWED', 'CANCELLED', 'DEADLINE', 'BUDGET_EXHAUSTED', 'EXCLUDED_ORIGIN'].includes(
-            item.reason,
-          ),
+          ![
+            'ALLOWED',
+            'CANCELLED',
+            'DEADLINE',
+            'BUDGET_EXHAUSTED',
+            'EXCLUDED_ORIGIN',
+            'UPSTREAM_FAILED',
+            'DNS_DENIED',
+          ].includes(item.reason),
       )
     ) {
       output.steps.push({
@@ -327,6 +333,25 @@ export async function executePreviewRun(options: {
         name: 'scope.completed',
         passed: false,
         detail: 'Restricted requests prevented an unrestricted page validation.',
+      });
+    }
+    if (
+      witness.observations.some((item: { reason: string }) =>
+        ['UPSTREAM_FAILED', 'DNS_DENIED'].includes(item.reason),
+      )
+    ) {
+      output.steps.push({
+        index: output.steps.length + 1,
+        action: 'Load required resources through the isolated proxy',
+        expected: 'Approved resources load with valid DNS and TLS within the time limit',
+        actual: 'A required resource could not be loaded; this is an infrastructure blockage',
+        status: 'blocked',
+      });
+      output.assertions.push({
+        name: 'infrastructure.available',
+        passed: false,
+        detail:
+          'Resource loading failed. This does not establish a product defect or require broader scope.',
       });
     }
     if (exhausted) {

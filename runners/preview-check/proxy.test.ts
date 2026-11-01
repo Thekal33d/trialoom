@@ -90,6 +90,26 @@ test('CORS forwards only the actual manifest page origin; never credentials or a
     assert(!response.text.includes('"origin":'));
   }
 });
+test('buffered upstream progress may exceed idle time but remains within the absolute connection cap', async (t) => {
+  const { get, proxy } = await setup(t, { limits: { idleMs: 150, connectionMs: 1000 } });
+  const response = await get('/progress');
+  assert.equal(response.status, 200);
+  assert.equal(response.text.split('owned-progress').length - 1, 8);
+  assert.deepEqual(proxy.snapshot().upstreamFailures, []);
+  const capped = await setup(t, { limits: { idleMs: 150, connectionMs: 200 } });
+  await assert.rejects(capped.get('/progress'));
+});
+test('stalled upstream reports a bounded failure phase without request or error contents', async (t) => {
+  const { get, proxy } = await setup(t, { limits: { idleMs: 80 } });
+  assert.equal((await get('/slow?token=fixture-canary')).status, 403);
+  const failures = proxy.snapshot().upstreamFailures;
+  assert.equal(failures.length, 1);
+  assert.equal(failures[0].kind, 'TIMEOUT');
+  assert.equal(failures[0].phase, 'HEADERS');
+  assert.equal(failures[0].addressFamily, 4);
+  assert(failures[0].elapsedMs >= 80 && failures[0].elapsedMs <= 60000);
+  assert(!JSON.stringify(proxy.snapshot()).includes('fixture-canary'));
+});
 test('approved dependencies retain separate TLS and DNS pins; credentials and other origins stay blocked', async (t) => {
   const dependency = 'https://wrong.example.com';
   const dependencyTls = await identity('wrong.example.com');
@@ -336,7 +356,7 @@ test('cancellation, deadline and stalled upstream close traffic without fallback
   await assert.rejects(deadline.get('/slow'));
   assert(deadline.proxy.snapshot().closed);
   const idle = await setup(t, { limits: { idleMs: 100 } });
-  await assert.rejects(idle.get('/slow'));
+  assert.equal((await idle.get('/slow')).status, 403);
 });
 
 test('manifest IP pins refuse a changed or partly changed DNS set', async () => {

@@ -33,6 +33,7 @@ async function main() {
   const owned =
     input.mode === 'owned'
       ? createServer(input.identity, (req, res) => {
+          if (req.url === '/pending') return;
           if (req.url === '/rankings?limit=25') {
             if (input.fixtureOutcome === 'upstream') {
               req.socket.destroy();
@@ -51,11 +52,12 @@ async function main() {
               ? `<!doctype html><h1>Owned ladder preview</h1><p>A controlled read-only rankings journey.</p>
               <button onclick="document.querySelector('#ladder').hidden=false">LEADERBOARD</button>
               <section id="ladder" hidden><button onclick="document.querySelector('#data').hidden=false">THE LADDER</button>
-              <div id="data" hidden><h2>WHO IS WHERE</h2><p id="count">Loading the ladder...</p></div></section>
+              <div id="data" hidden><h2>WHO IS WHERE</h2><h3>CLASSIC PLAYERS</h3><p id="count">Loading the ladder...</p></div></section>
               <script>
               fetch('https://excluded.example.com/').catch(()=>{});
+              ${!input.fixtureOutcome ? "fetch('/pending').catch(()=>{});" : ''}
               ${input.fixtureOutcome === 'unexpected' ? "fetch('https://unknown.example.com/').catch(()=>{});" : ''}
-              fetch('/rankings?limit=25').then(r=>r.json()).then(data=>document.querySelector('#count').textContent=(data.players+${input.fixtureOutcome === 'mismatch' ? 1 : 0})+' CLASSIC PLAYERS');</script>`
+              fetch('/rankings?limit=25').then(r=>r.json()).then(data=>document.querySelector('#count').textContent=(data.players+${input.fixtureOutcome === 'mismatch' ? 1 : 0})+' CLIMBING');</script>`
               : req.url === '/next'
                 ? '<!doctype html><h1>Next page</h1><p>Owned navigation completed.</p>'
                 : '<!doctype html><title>Owned preview</title><h1>Owned preview sample</h1><p>A controlled read-only journey.</p><a href="/next">Next page</a>',

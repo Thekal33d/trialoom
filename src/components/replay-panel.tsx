@@ -196,6 +196,11 @@ export function ReplayPanel({
                   Requests keep their method, response status and timing. Addresses and contents are
                   withheld.
                 </p>
+                {record.trace.requests.some((request) => request.durationMs === -1) && (
+                  <p className="section-description">
+                    Some request durations were unavailable when recording ended.
+                  </p>
+                )}
                 <ol>
                   {record.trace.requests.map((request) => (
                     <li key={request.index}>

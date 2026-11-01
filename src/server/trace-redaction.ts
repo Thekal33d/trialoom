@@ -188,7 +188,9 @@ export function sanitizeBrowserTrace(bytes: Uint8Array, secrets: string[] = []) 
       const status = response.status === -1 ? -1 : number(response.status);
       if (!Number.isInteger(status) || status > 599) throw new Error('Invalid response status.');
       const startMs = time(snapshot._monotonicTime);
-      const durationMs = Math.round(number(snapshot.time));
+      // Playwright initializes HAR duration to -1 for unfinished requests.
+      // Preserve that exact unknown marker, never fabricate a zero duration.
+      const durationMs = snapshot.time === -1 ? -1 : Math.round(number(snapshot.time));
       if (durationMs > 86400000) throw new Error('Invalid request duration.');
       const method = httpMethods.has(String(request.method)) ? String(request.method) : 'OTHER';
       const index = replay.requests.length + 1;

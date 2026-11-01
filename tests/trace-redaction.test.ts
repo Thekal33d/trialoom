@@ -137,3 +137,25 @@ test('a failed network request preserves no-response status without exposing fai
     assert.equal(sanitizeBrowserTrace(zipSync(files)), null);
   }
 });
+
+test('unfinished requests preserve only the known unknown-duration marker, without private values', () => {
+  const files = unzipSync(traceFixture());
+  const event = JSON.parse(new TextDecoder().decode(files['trace.network']));
+  event.snapshot.time = -1;
+  event.snapshot.response.status = -1;
+  event.snapshot._failureText = traceCanary;
+  files['trace.network'] = strToU8(JSON.stringify(event));
+  const result = sanitizeBrowserTrace(zipSync(files), [traceCanary]);
+  assert(result);
+  assert.equal(result.replay.requests[0].durationMs, -1);
+  const clean = readTraceArchive(result.bytes);
+  assert.equal(JSON.parse(new TextDecoder().decode(clean.get('trace.network'))).snapshot.time, -1);
+  assert(
+    ![...clean.values()].some((value) => new TextDecoder().decode(value).includes(traceCanary)),
+  );
+  for (const time of [-2, -0.5, '-1', null, 86400001]) {
+    event.snapshot.time = time;
+    files['trace.network'] = strToU8(JSON.stringify(event));
+    assert.equal(sanitizeBrowserTrace(zipSync(files)), null);
+  }
+});

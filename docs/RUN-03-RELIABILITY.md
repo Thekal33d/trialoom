@@ -4,7 +4,13 @@
 
 The HTTPS proxy buffers responses before releasing them, so it can enforce byte caps and redirect policy. Its former client-side five-second idle timer could expire during an upstream transfer that was still making progress. The owned streaming fixture exercises this case separately from an actually stalled upstream.
 
-Keep the CONNECT/header/TLS-handshake idle guards while admitting the request. Once a valid request is being fetched, upstream traffic owns the five-second idle check. The original absolute connection deadline (15 seconds), run deadline and all byte/request/connection caps still apply. A stream making progress does not have unlimited time. No retry, TLS bypass, DNS relaxation or permission expansion is introduced.
+Keep the CONNECT/header/TLS-handshake idle guards while admitting the request. Once a valid request is being fetched, upstream traffic owns the five-second idle check. The original absolute connection deadline (15 seconds), run deadline and all byte/request/connection caps still apply. A stream making progress does not have unlimited time. No retry, TLS bypass or permission expansion is introduced.
+
+## DNS rotation and visible count
+
+The earlier full-answer comparison rejected Google Fonts when an unused address rotated, even though one original public pin remained. The reviewed rule validates every current answer as public, then connects only to an IP present in both the immutable manifest pins and that current answer. It never adds a new IP to the pins. Private/mixed answers, invalid original pins and an empty intersection fail closed; upstream TLS still verifies the approved hostname. The regression transport asserts the actual selected IP, including when a newly returned public IP sorts first. This replaces the earlier requirement that the entire answer remain a subset of the pins.
+
+The live trace reached Leaderboard → The Ladder and read HTTP 200, but the old driver waited for a count next to the separate `CLASSIC PLAYERS` heading. The actual counter is `${players} CLIMBING`. The driver now waits for that exact visible text using the validated response total; the owned fixture and wrong-count control use the same label. This shortens the journey by completing on real evidence rather than waiting for an impossible assertion. It does not suppress excluded requests or increase the connection cap.
 
 ## Failure diagnostics
 
@@ -12,8 +18,14 @@ Broker startup emits only a closed stage/reason and optional manifest-origin ind
 
 Proxy reports retain at most 16 upstream failures with an already-approved origin, a fixed failure kind and phase, IP family and bounded elapsed milliseconds. URLs, IP addresses, headers, bodies and error strings are omitted. Cancellation does not invent an upstream failure. DNS/upstream failures keep the journey blocked and produce an infrastructure replay step, separately from scope denials and exhausted budgets. Witness/claim equality and acceptance/payment rules remain unchanged.
 
+## Unfinished request timings
+
+Playwright initializes HAR request duration to `-1` when no duration is available. A passing public journey exposed two such entries; the sanitizer previously withheld the entire trace. Preserve only this exact numeric marker and explain unavailable durations in replay. Other negative/non-numeric values and excessive durations remain refused. All page data, resource bodies, URLs, headers, credentials and arbitrary error text are still omitted, and the generated metadata is rescanned. Closing the page before stopping the trace did not reliably finalize these timings and is not used as a workaround.
+
+The owned success fixture deliberately leaves one request pending. Its real application ingestion, sanitized archive and UI notice pass; wrong-count, unexpected-origin and upstream-failure controls remain blocked. The final public rerun had complete duration metadata, while the owned pending fixture verifies the unknown-duration path.
+
 ## Verification
 
 `npm run runner:proxy-check` covers streamed progress, real upstream stalls, absolute connection cutoff, existing DNS/TLS/scope/cookie/byte boundaries, two isolated Chromium journeys and proxy loss. `npm run browser:preview -- --smoke --ladder` exercises a diagnosed broker startup refusal, owned success and wrong-count/unexpected-origin/upstream-failure controls through actual application evidence and replay.
 
-The live journey uses the already-approved exact GET described in [RUN-03-LADDER.md](RUN-03-LADDER.md). A local fixture pass is not proof that the public ladder succeeded. The current result and outstanding work are recorded in [STATUS.md](../memory/STATUS.md).
+The live journey uses the already-approved exact GET described in [RUN-03-LADDER.md](RUN-03-LADDER.md). The final public rerun passed with visible/API count agreement at 3480, 25 forwarded responses, 35 excluded connections refused, no exhausted budget and no upstream failure. Its sanitized replay has 10 actions and 54 requests. See the [verified checkpoint](evidence/RUN-03-ladder-verified.json) and [remaining work](../memory/STATUS.md).

@@ -359,11 +359,27 @@ test('cancellation, deadline and stalled upstream close traffic without fallback
   assert.equal((await idle.get('/slow')).status, 403);
 });
 
-test('manifest IP pins refuse a changed or partly changed DNS set', async () => {
+test('DNS rotation selects only still-present original pins; new-only and mixed-private answers fail', async (t) => {
   await assert.rejects(
-    admitPreview([origin], async () => [publicIp, '93.184.216.35'], { [origin]: [publicIp] }),
+    admitPreview([origin], async () => ['1.1.1.1'], { [origin]: [publicIp] }),
     /MANIFEST_ADDRESS_CHANGED/,
   );
-  const admission = await admitPreview([origin], async () => [publicIp], { [origin]: [publicIp] });
+  let addresses = ['1.1.1.1', publicIp];
+  const admission = await admitPreview([origin], async () => addresses, { [origin]: [publicIp] });
   assert.equal((await admission.destination(origin)).address, publicIp);
+  const { get, upstream } = await setup(t, { admission });
+  assert.equal((await get()).status, 200);
+  // The fixture transport asserts it receives the original pinned IP, not 1.1.1.1.
+  assert.equal(upstream.connections(), 1);
+  addresses = [publicIp, '127.0.0.1'];
+  assert.equal((await get()).status, 403);
+  addresses = ['1.1.1.1'];
+  assert.equal((await get()).status, 403);
+  assert.equal(upstream.connections(), 1);
+  await assert.rejects(
+    admitPreview([origin], async () => [publicIp], {
+      [origin]: [publicIp, '127.0.0.1'],
+    }),
+    /MANIFEST_ADDRESS_CHANGED/,
+  );
 });

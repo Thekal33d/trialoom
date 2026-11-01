@@ -1,5 +1,5 @@
 import { isIP } from 'node:net';
-import { type ResolveTarget, validateTarget } from '../src/server/targets.ts';
+import { isPublicAddress, type ResolveTarget, validateTarget } from '../src/server/targets.ts';
 
 export function previewOrigin(value: string): string {
   const url = new URL(value);
@@ -34,7 +34,10 @@ export async function admitPreview(
     const expected = admitted?.[origin];
     if (
       admitted &&
-      (!expected?.length || target.addresses.some((address) => !expected.includes(address)))
+      (!expected?.length ||
+        expected.length > 32 ||
+        !expected.every(isPublicAddress) ||
+        !target.addresses.some((address) => expected.includes(address)))
     )
       throw Object.assign(new Error('MANIFEST_ADDRESS_CHANGED'), { originIndex });
     pins.set(origin, Object.freeze([...(expected ?? target.addresses)]));
@@ -47,9 +50,11 @@ export async function admitPreview(
       // Re-resolve, but connect to a validated IP literal: no second DNS lookup
       // between the decision and the actual upstream connection.
       const current = await validateTarget(origin, resolver);
-      if (current.addresses.some((address) => !pinned.includes(address)))
-        throw new Error('DNS_CHANGED');
-      return { origin, hostname: new URL(origin).hostname, address: current.addresses[0] };
+      // DNS may rotate unused CDN addresses. Never expand the immutable pins:
+      // connect only to an originally admitted address still in this public answer.
+      const address = current.addresses.find((value) => pinned.includes(value));
+      if (!address) throw new Error('DNS_CHANGED');
+      return { origin, hostname: new URL(origin).hostname, address };
     },
   });
 }

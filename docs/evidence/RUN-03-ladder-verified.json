@@ -1,0 +1,180 @@
+{
+  "task": "RUN-03",
+  "relatedTask": "RUN-02",
+  "checkpoint": "verified-live-ladder",
+  "date": "2026-11-01",
+  "precedingCommit": "0c10cf8",
+  "commitSubject": "fix: verify the live ladder through pinned DNS and safe replay",
+  "applicationRunnerImage": "sha256:e5e6d45bb4f3ed29fec696af18afe322343e6292ad6417c522b69dcf57a5453f",
+  "proxyCheckImage": "sha256:8623e706d1237b569326c3f0dbf01f4c236b2cc8cb1b249c53dbd6bde1d0814e",
+  "proxyImageNote": "Proxy checks include the final DNS rule. The application image additionally contains the owned pending-request fixture; proxy/policy source is unchanged between these checks.",
+  "scope": {
+    "target": "https://www.blokaz.xyz/",
+    "readOnlyOrigins": [
+      "https://fonts.googleapis.com",
+      "https://fonts.gstatic.com"
+    ],
+    "exactGet": "https://ghpftgmgszleutscfgqe.supabase.co/functions/v1/api/levels/leaderboard?limit=25",
+    "excludedOrigins": [
+      "https://api.web3auth.io",
+      "https://forno.celo.org",
+      "https://1rpc.io"
+    ],
+    "credentials": false
+  },
+  "live": {
+    "submittedAt": "2026-11-01T14:03:28.496Z",
+    "outcome": "executed",
+    "decision": "pending_review",
+    "revisionConfirmed": false,
+    "steps": [
+      {
+        "index": 1,
+        "action": "Open the approved homepage in a fresh Chromium context",
+        "expected": "Successful HTTPS response and visible page content",
+        "actual": "HTTP 200; visible content rendered",
+        "status": "passed"
+      },
+      {
+        "index": 2,
+        "action": "Open Leaderboard, then The Ladder",
+        "expected": "The public ladder opens and its displayed player count matches the approved API read",
+        "actual": "HTTP 200; 3480 players in the response and displayed count",
+        "status": "passed"
+      },
+      {
+        "index": 3,
+        "action": "Keep the services excluded by this brief blocked",
+        "expected": "No connection to explicitly excluded services",
+        "actual": "35 connection attempts refused; excluded features were not tested",
+        "status": "passed"
+      }
+    ],
+    "assertions": [
+      {
+        "name": "homepage.rendered",
+        "passed": true,
+        "detail": "HTTP 200; body content rendered in Chromium."
+      },
+      {
+        "name": "ladder.player-count",
+        "passed": true,
+        "detail": "Rendered count 3480 agrees with the GET response (SHA-256 66afadd4a2af8bb2d3519c4efb446854eb8877d2efb7b284913dbabe44949539). Player identities are withheld."
+      },
+      {
+        "name": "scope.exclusions",
+        "passed": true,
+        "detail": "Declared excluded services stayed blocked; this does not verify those features."
+      }
+    ],
+    "contentHash": "6c41f976bc8113de3fd088836c561d48d0792df44136e698101baed00484a08c",
+    "witness": {
+      "closed": true,
+      "connections": 60,
+      "requests": 25,
+      "inputBytes": 27238,
+      "outputBytes": 2976576,
+      "limits": {
+        "connections": 64,
+        "concurrent": 8,
+        "requests": 100,
+        "requestBytes": 2097152,
+        "responseBytes": 2097152,
+        "totalResponseBytes": 8388608,
+        "durationMs": 50000,
+        "idleMs": 5000,
+        "connectionMs": 15000
+      },
+      "budgetExceeded": null,
+      "observations": [
+        {
+          "origin": "https://www.blokaz.xyz",
+          "reason": "ALLOWED",
+          "count": 19
+        },
+        {
+          "origin": "https://fonts.googleapis.com",
+          "reason": "ALLOWED",
+          "count": 3
+        },
+        {
+          "origin": null,
+          "reason": "EXCLUDED_ORIGIN",
+          "count": 35
+        },
+        {
+          "origin": "https://fonts.gstatic.com",
+          "reason": "ALLOWED",
+          "count": 2
+        },
+        {
+          "origin": "https://ghpftgmgszleutscfgqe.supabase.co",
+          "reason": "ALLOWED",
+          "count": 1
+        },
+        {
+          "origin": null,
+          "reason": "CANCELLED",
+          "count": 1
+        }
+      ],
+      "upstreamFailures": []
+    },
+    "trace": {
+      "reviewable": true,
+      "rawSha256": "a0c2a0f3803167ac02696af92b2b5715cd22281f284e343a651c94d95cb76d4b",
+      "sanitizedSha256": "0b7906b2fb2dca3b82e8964d0aa9ec04459b6c8046f4813154725daa7b0d2ef7",
+      "actions": 10,
+      "requests": 54,
+      "noResponse": 29,
+      "unknownDuration": 0,
+      "payables": 0,
+      "acceptedUnits": "0"
+    }
+  },
+  "checks": {
+    "isolatedProxyGroups": 21,
+    "chromiumProxyJourneys": 2,
+    "proxyLoss": "passed",
+    "focusedTraceArchiveContractDiagnosticTests": 12,
+    "ingestionExportDatabaseTests": 32,
+    "startupRefusalDiagnosticAndCleanup": "passed",
+    "ownedLadderWithPendingRequest": "executed; sanitized trace and unavailable-duration UI notice verified",
+    "wrongCount": "blocked",
+    "unexpectedOrigin": "blocked",
+    "upstreamFailure": "blocked with infrastructure classification",
+    "scopeEditorPreservation": "passed",
+    "storedSanitizedHashAndRegeneratedEntries": "passed",
+    "replayScreenshots": "owned and public visually inspected",
+    "runnerContainersAndChannelVolumesRemaining": 0,
+    "lint": "passed",
+    "typecheck": "passed",
+    "build": "passed with three pre-existing storage tracing warnings"
+  },
+  "limits": [
+    "Fixed read-only journey, not independent reproduction or a full target audit",
+    "Ranking order, individual player records, scores and chain state are untested",
+    "Deployed source revision is unconfirmed",
+    "No acceptance, payment, push or deployment",
+    "Local disposable review session; durable production recovery, adversarial resource checks and PILOT-01 remain open"
+  ],
+  "sourceHashes": {
+    "runners/preview-policy.ts": "d8d92b789ba079fb51cd39d665a79d547fe1b3e33f9275a6138ae68184365f38",
+    "runners/preview-proxy.ts": "bfee822341c7d8a91330d9785d9317c36407baa595cfb74f26fd22f04423cc20",
+    "runners/preview-diagnostics.ts": "50c1b85b22b9b719a599ceb625d64637013016800319c03ef13a8f1c49a189fb",
+    "runners/preview-ladder.ts": "6f7155fc12a2b403efa7bc9a1e20f82960f1894a2a1cc84c898e028e5c6daa67",
+    "runners/preview-broker.ts": "2237fb9c3eccf1ecd6c75c91fce247d2bfcad624137e3fa46c3df02efe2a9bc3",
+    "runners/preview-browser.ts": "77ccf1cb539f6990f6a6e52e7b67ba72fce85438a05139570437d2c527501cf6",
+    "runners/preview-check/proxy.test.ts": "81c8120e2e94fe9e4e35841e117bec83e0d867d513e1d59dcd5cba7cac492e95",
+    "runners/preview-check/fixture.ts": "9e1c3c2af389f49f7f1149b75a1fd03e7e1a0b85e560bd2163ac8711886fa1c2",
+    "scripts/preview-controller.ts": "10c1c19978fa4c92b9a8c1f4f4f720f9b101c0d825e1ce42c7fff075f1395c88",
+    "scripts/preview-host.ts": "f63746a25f5ed13d45143df52adedee803fce32197b7d9e0f6a8f485ae5b9eaf",
+    "scripts/preview-demo.ts": "fe1f551ab3539e552ba11524cbf20f1a3025b9905dd698e661222f69050078de",
+    "src/domain/replay.ts": "2a16e74ab180bf3e7bdfe285b54520f5c16b903736a8cbc06c9a78c6fb9a6ccf",
+    "src/components/replay-panel.tsx": "2010e64e53b545951c04152cec1e0e1ff74507f5948f3aed80230ed15f69ae3b",
+    "src/server/trace-redaction.ts": "46cce7921f8f2a1c68bfa577faf8c1d5b0cd4395fa820eec6ecc640901c4dc7e",
+    "tests/trace-redaction.test.ts": "59d22e415fdc91a025c38365e4ce5a06294c83dbe5172d9cc509ed8de11ce906",
+    "tests/preview-diagnostics.test.ts": "31325cd49ff063036647d93a5e5c693d4703a5251eca23b78a15d179709df916",
+    "tests/preview-ladder.test.ts": "8244ce25334640527c443c736949c201993389f4cbb9a6b927a2f8ce1b24311d"
+  }
+}

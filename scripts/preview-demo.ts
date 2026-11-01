@@ -191,6 +191,17 @@ try {
   if (recorded.trace) {
     assert(recorded.trace.actions.length > 0 && recorded.trace.requests.length > 0);
     assert.equal(recorded.trace.sha256, trace.redacted_sha256);
+    if (
+      recorded.trace.requests.some((request: { durationMs: number }) => request.durationMs === -1)
+    ) {
+      await replay.getByText(/^HTTP responses ·/).click();
+      await expect(
+        replay.getByText('Some request durations were unavailable when recording ended.', {
+          exact: true,
+        }),
+      ).toBeVisible();
+      await replay.getByText(/^HTTP responses ·/).click();
+    }
     if (recorded.trace.requests.some((request: { status: number }) => request.status <= 0)) {
       await replay.getByText(/^HTTP responses ·/).click();
       await expect(replay.getByText('No HTTP response', { exact: true }).first()).toBeVisible();

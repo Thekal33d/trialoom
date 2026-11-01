@@ -143,3 +143,15 @@ The live response has up to 25 `standings` rows and a separate integer `players`
 The proxy buffers upstream responses for byte and redirect validation. A client-side idle timer must not classify this intentional silence as inactivity while upstream bytes continue arriving. Keep idle checks for CONNECT, TLS handshake and HTTP headers; during the admitted fetch, enforce upstream idle plus the unchanged absolute connection/run deadlines and all byte caps. The streaming/stalled/absolute-deadline controls distinguish these cases.
 
 Startup and upstream diagnostics use closed codes and bounded numeric metadata, never raw errors, target paths, credentials or addresses. A witnessed infrastructure failure remains blocked and is displayed separately from requests needing scope review. No extra target, method, retry, DNS relaxation or acceptance authority is granted.
+
+
+## D046 — 2026-11-01 — Accepted: connect only through the intersection of current DNS and immutable pins
+
+Live Google Fonts DNS inspection showed one unchanged original address and one rotated address. Replace full-answer subset equality with selection from the intersection: validate every current address as public, validate the original bounded pins, and dial only an original pin that is still returned. New addresses are never admitted or dialed; new-only, private/mixed and invalid-pin cases remain refused. Hostname-verified TLS, exact GET/origin permissions and all resource caps remain unchanged. Tests verify the actual transport receives the original IP even when an unapproved new public IP sorts first. This intentionally supersedes the earlier partly-changed-answer refusal while preserving immutable connection authority.
+
+The live trace also established that the numeric total is labeled CLIMBING; CLASSIC PLAYERS is a separate heading. Correct the visible assertion and owned fixture to the observed label. An API read alone remains insufficient: exact visible count agreement is still required.
+
+
+## D047 — 2026-11-01 — Accepted: preserve Playwright's exact unavailable-duration marker
+
+Supported Playwright v10 network records can have numeric `time: -1` when recording ends before duration is available. Preserve this exact sentinel in the metadata-only derivative and explain it in replay; do not fabricate a zero duration or discard the request. Reject other negative, non-numeric or excessive durations. The closed scalar projection, archive bounds, omission of private source content and post-projection rescan remain unchanged. The existing schema already represents duration as a number; the sanitizer policy remains `playwright-metadata-v1`. An owned pending request verifies actual ingestion and the UI notice, and canary/invalid-value tests verify the privacy boundary.

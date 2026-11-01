@@ -30,10 +30,6 @@ export async function readLadder(page: Page, read: Promise<Response | null>) {
     'LADDER_READ_BLOCKED',
   );
   const result = ladderResponse(await response.body());
-  await page.waitForFunction((expected) => {
-    // biome-ignore lint/performance/useDomNodeTextContent: compare rendered count, excluding hidden content.
-    const text = document.body.innerText.replace(/\s+/g, ' ');
-    return new RegExp(`\\b${expected}\\s+CLASSIC PLAYERS\\b`).test(text);
-  }, result.count);
+  await page.getByText(`${result.count} CLIMBING`, { exact: true }).waitFor();
   return result;
 }

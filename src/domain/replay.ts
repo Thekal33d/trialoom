@@ -13,6 +13,7 @@ export type TraceReplay = {
     /** -1 is Playwright's no-response marker; 0 also means no HTTP response. */
     status: number;
     startMs: number;
+    /** -1 means the request duration was not available when recording ended. */
     durationMs: number;
   }[];
 };

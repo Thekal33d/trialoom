@@ -38,3 +38,9 @@ test-results/
 .vscode/
 
 # Keep package-manager lockfiles and reviewed, sanitized demo evidence tracked.
+
+# Event skills written by `npx loopshouse add`. Regenerable in one command, and
+# their embedded deadlines and sponsor data are snapshots that go stale, so the
+# repository does not carry a second copy of them.
+.claude/skills/loops-*/
+.agents/skills/loops-*/

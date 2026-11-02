@@ -10,6 +10,10 @@ The rules require Celo mainnet, a public GitHub repository at registration, even
 
 Two further points were confirmed on the 2026-11-02 reading. The page lists submission contents as a public GitHub repository, and for Build with buy a statement of the services used with proof of payment; it **does not explicitly require a hosted demo, a video or a deployment**, so hosting is a product gate rather than a submission one. And "code is written during the hackathon" is satisfied: kick-off was 2026-10-06 and this repository's first commit is `22e6ce0` on 2026-10-26.
 
+**Unresolved, and it has to be resolved before the first paid call.** The public page says an attribution tag is "not required for Build with buy". The event skill installed on 2026-11-02 (`npx loopshouse add agents-on-open-rails`) says the opposite as a general rule: "A transaction the project sends is credited to this entry only if its calldata carries the entry's ERC-8021 attribution tag. A transaction sent without the tag can never be credited later: there is no backfill." The Build with buy bounty itself is scored on "verified paid calls from the project's **tagged wallet** on Celo mainnet". A third source of ambiguity: the page states attribution tags are not yet supported on x402 and a PayTo wallet address is required there instead, and buy settles over x402.
+
+Because there is no backfill, the safe reading is to tag everything that can be tagged. The tag is wired into the Remesso settlement client already. **It is not wired into any buy or x402 client, because none exists yet** — when BUY-01 gains a real payment path, the tag belongs at that wallet client (`withAttribution` from `@celo/attribution-tags@^0.5.0`, or the `celo.dataSuffix` that `loops project get` returns), not only at the Remesso one. Confirm the x402 case with the sponsor knowledge graph or the organisers before paying.
+
 The independent-user qualifier excludes wallets created/funded by the entrant and requires earlier Celo activity. The FAQ also welcomes newcomers. Free email registrations are not proof of qualifying independent wallets. Do not invent traction or eligibility. Source: [official rules and FAQ](https://www.loops.house/agents-on-open-rails).
 
 ## Trialoom entry
@@ -26,7 +30,7 @@ The [live buy catalog](https://gateway.usebuy.ai/v1/catalog), retrieved unsigned
 - [x] Wire the attribution tag into the code before any agent transaction. `celo_043943600450` is the recorded default builder code in `src/server/remesso.ts`, overridable by `TRIALOOM_BUILDER_CODES`, and the pinned SDK's own charset validator accepts it. Not required for Build with buy; carried so any transaction can be credited.
 - [ ] Publish a public GitHub repository that still resolves at judging. Required **at registration**, and the user's GitHub is unavailable.
 - [ ] Add the agent wallet to the entry and register its ERC-8004 identity **from that wallet** before the deadline. The rules state a project is only valid with an ERC-8004 identity. Registry address verified on chain and the registration file drafted; the wallet and a resolvable `agentURI` are the two missing inputs. [ERC-8004 notes](ERC-8004.md)
-- [ ] Resolve the relevant x402 payee reporting.
+- [ ] Resolve whether a buy/x402 paid call can be credited without calldata attribution, and the PayTo payee reporting. No backfill exists, so settle this before the first paid call.
 - [ ] Establish a dedicated resource wallet, supported token and explicit aggregate spend cap.
 - [ ] Execute one useful, capped buy request through the product; retain result and matching receipt.
 - [ ] Demonstrate durable uncertain-payment recovery and zero customer reimbursement.

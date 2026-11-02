@@ -1,40 +1,36 @@
 # Trialoom
 
-**Test. Fix. Ship.**
+**You authorize a preview URL. Trialoom tests it in a sandbox and shows you what it saw.**
 
-Trialoom is being built as a marketplace where builders buy browser testing, reproducible bug reports, and independently verified repairs from agent operators. The first product milestone is one complete **test → reproduce → fix → verify → pay** loop for an existing web application.
+A builder signs up, authorizes a web app they control, and asks for a bounded browser test. Trialoom runs it in an isolated browser whose only route out is a proxy that denies every origin outside the run's allowlist, then returns the observed results, the findings, and a recorded replay you can step through. The first release is a **public free beta**: no wallet, no deposit, no spending approval.
 
-The project is being developed with the Celo agentic hackathon in mind. USDC on Celo and Remesso are the PRD's proposed operator settlement path; buy is a candidate provider for paid execution resources. Integration behavior still needs validation.
+Trialoom pays for services it does not own — it sponsors an external explanation of a test result through [buy](https://gateway.usebuy.ai/v1/catalog) — which is why it is entered in the **Build with buy** track of [Agents on Open Rails](https://www.loops.house/agents-on-open-rails). Attribution tag `celo_043943600450`.
 
-## Start here
+The longer objective, from the original [PRD](docs/PRD.md), is the complete loop: **test → reproduce → fix → independently verify → pay**. The marketplace half of that is built and exercised locally; the free beta is the part being released first ([D049](docs/FREE-BETA.md)).
 
-| File | Purpose |
+## What is actually true today
+
+| | |
 | --- | --- |
-| [Project memory](memory/PROJECT.md) | Durable product context, constraints, and user preferences |
-| [Current status](memory/STATUS.md) | What exists, current milestone, blockers, and the next action |
-| [Decisions](memory/DECISIONS.md) | Accepted choices, proposals, and unresolved questions |
-| [Build log](memory/BUILD_LOG.md) | Dated work history and validation evidence |
-| [Product requirements](docs/PRD.md) | Original user-supplied PRD, preserved verbatim |
-| [Roadmap](docs/ROADMAP.md) | Milestones and exit gates |
-| [Development guide](docs/DEVELOPMENT.md) | Local setup, commands, checks, and scaffold boundaries |
-| [Architecture](docs/ARCHITECTURE.md) | Selected stack, process/data boundaries, and implementation gates |
-| [Backlog](docs/BACKLOG.md) | Work IDs, dependencies, status, acceptance conditions |
-| [Hackathon alignment](docs/HACKATHON.md) | Dated requirements, proposed track, evidence checklist |
-| [Validation register](docs/VALIDATION.md) | Capability experiments and all twelve PRD release scenarios |
-| [Agent instructions](AGENTS.md) | Working and commit protocol for future coding sessions |
-| [Claude entry point](CLAUDE.md) | Loads the shared agent instructions |
+| **Runs a real browser** | Isolated Chromium in gVisor, egress through a proxy that refuses anything off the allowlist. An approved live journey on a third-party site loaded the page, navigated two levels, and checked a visible player count against the API response — 25 responses forwarded, 35 connections refused. [Checkpoint](docs/evidence/RUN-03-ladder-verified.json) |
+| **Survives being killed** | Ten real SIGKILL cases across running, captured and delivery boundaries. A fresh process reconciles the original witness, uploads and submission; an incomplete capture is cleaned up and marked interrupted, never re-dispatched. [Recovery guide](docs/RUN-03-RECOVERY.md) |
+| **Replay you can read** | Recorded steps open at the first failure with expected and observed results. Traces are rebuilt without page contents or private values; anything it cannot sanitize stays private with a reason. [RUN-02](docs/RUN-02.md) |
+| **Signup to result, locally** | Public email-first signup, a free workspace, atomic per-account and per-origin quotas, and an automatic runner. [FREE-02](docs/FREE-02.md) |
+| **Money that refuses to lie** | A database-enforced ceiling, one shared token approval accounted across every brief that draws on it, inclusion and finality kept apart, and a payout that reconciles its key rather than sending twice. [PILOT-05](docs/PILOT-05.md) |
 
-The local [browser/evidence experiment](spikes/browser-evidence/README.md) reproduces a seeded invitation defect twice, exports sanitized traces, and verifies a regression repair. The [Remesso experiment](spikes/payments/README.md) proves USDC policy payments and crash recovery on a local Celo fork. The Next.js application now has [invited accounts, workspace roles, authorized projects, pinned builds, and immutable draft terms](docs/ALPHA-02.md) plus [operator connection and qualification](docs/ALPHA-03.md), a [campaign ledger with atomic claims and leases](docs/ALPHA-04.md), [scoped run grants with evidence ingestion](docs/ALPHA-05.md), [clustered findings with recorded decisions](docs/ALPHA-06.md), [a quoted and independently verified repair workflow](docs/ALPHA-07.md), [payables settled through an idempotent outbox](docs/ALPHA-08.md), [capped resource purchases reimbursed at their eligible cost](docs/ALPHA-09.md), [exports plus a queue of what is waiting](docs/ALPHA-10.md), [one command that drives the whole loop](docs/ALPHA-11.md), and [instrumentation of the pilot's own decision targets](docs/PILOT-04.md), backed by PostgreSQL. No funded payment authority and no resource wallet are configured, so accepted work is recorded as owed, every payout is blocked with a visible reason, and no resource has been bought from a real provider; Trialoom does not yet run the sandboxed runner host, though [egress is witnessed by a registered host's proxy rather than reported by the agent](docs/PILOT-03.md); it issues no repository access and never merges or deploys a repair, and production infrastructure and provider integrations remain pending.
+## What is not true yet
 
-## Run the application
+- **Nothing is deployed and no domain exists.** Everything above runs locally.
+- **No mainnet transaction has ever been made.** Payment recovery is proven on a disposable Celo fork, and the live adapter has moved USDC only there.
+- **No paid `buy` output exists.** The provider seam is verified and report inputs are bound; no purchase has been made. [BUY-01](docs/BUY-01.md)
+- **No ERC-8004 identity is registered.** The registry address is verified and the registration file is drafted. [ERC-8004](docs/ERC-8004.md)
+- **No independent operator** has reproduced a repair, so that gate stays open.
 
-For fresh evidence from an actual browser execution, follow [the real browser walkthrough](docs/RUN-01.md): `npm run browser:demo` tests the owned invitation app and opens its newly submitted result with [recorded replay and a sanitized trace download](docs/RUN-02.md).
+Claims in this repository are meant to be checkable. Each one links to a dated checkpoint, and where an input does not exist the record says so instead of reporting a number.
 
-The [RUN-03 host checkpoints](docs/RUN-03.md) add `npm run runner:check` for offline controls and `npm run runner:gvisor-check` for two owned Chromium journeys in a dedicated gVisor environment. The [restricted proxy check](docs/RUN-03-PROXY.md), `npm run runner:proxy-check`, verifies the only-egress socket path and HTTPS policy. Customer preview execution still requires live grant, witness and evidence integration.
+## Run it
 
-For a prepared hands-on sample, follow [Try Trialoom locally](docs/TRY-TRIALOOM.md). `npm run playground` opens a signed-in practice workspace, a sample app with a reproducible bug, and a short guide. It uses a disposable database and no real money.
-
-With Node 24 and a running Docker engine:
+With Node 24 and Docker running:
 
 ```sh
 npm ci --ignore-scripts
@@ -44,16 +40,28 @@ npm run db:migrate
 npm run dev
 ```
 
-Create your first local owner invitation with `npm run workspace:invite -- owner@example.com My workspace`, then open the private URL in the file printed by the command. It sends no email. [Your workspace](http://127.0.0.1:3000/workspace) lets you manage projects and draft work briefs. The separate [sample workspace](http://127.0.0.1:3000/demo) supports evidence comparison and a labelled report download. Published work and review decisions are available locally; no live payments are configured. See the [development guide](docs/DEVELOPMENT.md) for setup, production builds, worker commands, checks, and troubleshooting.
+Then pick one:
 
-## Capability experiments
+```sh
+npm run playground      # a signed-in practice workspace with a seeded bug
+npm run browser:demo    # drive a real Chromium test and open its result
+npm run loop            # the whole marketplace loop, asserted, in 44 steps
+```
 
-With Node 24, run `npm ci --ignore-scripts`, `npm run browser:install`, `npm test`, then `npm run spike:reproduce`. Run `npm run spike:verify` to prove the same regression fails on the original fixture and passes on a patched copy. See the experiment README for trace inspection and limits.
+`npm run loop` drives one seeded campaign from publication to a finalized payout against a disposable database and the real server modules, and exits non-zero on the first failed assertion — it is a check as much as a demonstration. [Try Trialoom locally](docs/TRY-TRIALOOM.md) is the guided version.
 
-With Anvil installed, `npm run spike:payments` exercises local payment recovery without spending mainnet funds.
+## Checks
 
-The [buy experiment](spikes/resources/README.md) adds unsigned live quotes (`npm run spike:resource-quotes`) and a local x402 recovery test (`npm run spike:resources`). Its signed requests reach only a simulated provider. Actual browser/VM provisioning remains pending, and the live adapter stays disabled.
+```sh
+npm run check      # lint, strict types, capability checks
+npm run test:db    # database behaviour against a disposable database
+npm run test:e2e   # desktop and mobile browser checks, with accessibility scans
+```
 
-## Working rhythm
+`npm run payments:fork` additionally drives a real payable through the live Remesso adapter against a disposable Anvil fork of Celo: a real policy, exactly the owed amount reaching the payee in one signed transaction, and the gas it cost read from the receipt. It refuses to run with a real signing key in the environment.
 
-Read the project memory and current status before changing the project. Complete one coherent step, run the checks appropriate to it, update the tracking files, and commit that step. Keep proposed work distinct from verified behavior. Git history is the authoritative record of commits.
+## Where things are written down
+
+Current state is [memory/STATUS.md](memory/STATUS.md); history is [memory/BUILD_LOG.md](memory/BUILD_LOG.md); accepted choices are [memory/DECISIONS.md](memory/DECISIONS.md). The [backlog](docs/BACKLOG.md) carries work IDs and acceptance conditions, the [roadmap](docs/ROADMAP.md) the milestones, the [validation register](docs/VALIDATION.md) the PRD's release scenarios, and [docs/evidence/](docs/evidence/) the dated checkpoints with source hashes. [docs/HACKATHON.md](docs/HACKATHON.md) records the event requirements as verified against the live source, with the date of each reading.
+
+[AGENTS.md](AGENTS.md) is the working protocol: finish a coherent step, run its checks, update the tracking files, commit that step, and keep proposed work distinct from verified behaviour.

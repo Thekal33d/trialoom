@@ -25,12 +25,13 @@ The [live buy catalog](https://gateway.usebuy.ai/v1/catalog), retrieved unsigned
 - [x] Enrol and obtain the attribution tag (2026-11-02).
 - [x] Wire the attribution tag into the code before any agent transaction. `celo_043943600450` is the recorded default builder code in `src/server/remesso.ts`, overridable by `TRIALOOM_BUILDER_CODES`, and the pinned SDK's own charset validator accepts it. Not required for Build with buy; carried so any transaction can be credited.
 - [ ] Publish a public GitHub repository that still resolves at judging. Required **at registration**, and the user's GitHub is unavailable.
-- [ ] Add the agent wallet to the entry and register its ERC-8004 identity **from that wallet** before the deadline. The rules state a project is only valid with an ERC-8004 identity.
+- [ ] Add the agent wallet to the entry and register its ERC-8004 identity **from that wallet** before the deadline. The rules state a project is only valid with an ERC-8004 identity. Registry address verified on chain and the registration file drafted; the wallet and a resolvable `agentURI` are the two missing inputs. [ERC-8004 notes](ERC-8004.md)
 - [ ] Resolve the relevant x402 payee reporting.
 - [ ] Establish a dedicated resource wallet, supported token and explicit aggregate spend cap.
 - [ ] Execute one useful, capped buy request through the product; retain result and matching receipt.
 - [ ] Demonstrate durable uncertain-payment recovery and zero customer reimbursement.
 - [ ] Observe a genuine external user benefiting from the result; describe user provenance accurately.
+- [x] Write the repository's front door: what is true today, what is not, how to run it, and where each claim's checkpoint lives.
 - [ ] Complete public-safe demo, setup instructions, limitations and final commit.
 - [ ] Submit and retain confirmation before the deadline.
 
@@ -40,7 +41,7 @@ The [live buy catalog](https://gateway.usebuy.ai/v1/catalog), retrieved unsigned
 | --- | --- |
 | Track / enrollment | Build with buy selected; **enrolled 2026-11-02**, attribution tag `celo_043943600450` issued and wired in |
 | Public repo / hosted demo | User push to GitLab verified at `633c2cf` on 2026-11-01; both histories preserved. GitLab visibility not independently verified. User's GitHub is currently unavailable; required public GitHub repository and hosted demo remain missing |
-| Agent identity / funded resource wallet | Not configured. ERC-8004 identity is mandatory for a valid entry and does not exist yet |
+| Agent identity / funded resource wallet | Not configured. ERC-8004 identity is mandatory and does not exist yet; the Celo mainnet registry `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432` is verified against the chain and [`public/agent.json`](../public/agent.json) is drafted with the unfilled fields left empty rather than guessed. [Notes](ERC-8004.md) |
 | Real browser results / replay | Local owned fixture and authorized Blokaz ladder; [verified checkpoint](evidence/RUN-03-ladder-verified.json) |
 | Payment recovery | Local Celo fork only; [VAL-03](evidence/VAL-03.json), [VAL-04](evidence/VAL-04.json) |
 | Useful buy output / mainnet receipt | Pending; [unsigned quote/input boundary](BUY-01.md) verified, with no payment |

@@ -1,0 +1,11 @@
+{
+  "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+  "name": "Trialoom",
+  "description": "Trialoom runs a bounded browser test against a web app its owner authorized, and returns observed results, findings and a recorded replay. It executes in an isolated runner whose only route out is a proxy that denies any origin outside the run allowlist, and it pays for the external services it uses rather than owning them.",
+  "image": "",
+  "services": [],
+  "x402Support": false,
+  "active": false,
+  "registrations": [],
+  "supportedTrust": []
+}

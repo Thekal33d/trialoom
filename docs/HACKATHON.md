@@ -1,12 +1,14 @@
 # Celo hackathon alignment
 
-Rechecked **2026-11-01** against [Agents on Open Rails](https://www.loops.house/agents-on-open-rails), reached through [Builder Arena](https://www.loops.house/builder-arena). Selected by the user: **Build with buy**. User confirmed Trialoom is **not enrolled**.
+Rechecked **2026-11-02** against [Agents on Open Rails](https://www.loops.house/agents-on-open-rails), reached through [Builder Arena](https://www.loops.house/builder-arena). Selected by the user: **Build with buy**. The user **enrolled on 2026-11-02** and was issued attribution tag `celo_043943600450`. Nothing in the rules changed between the two readings.
 
 ## Current official requirements
 
 Deadline: **2026-11-09 09:00 GMT / 10:00 Africa/Lagos**. Build with buy allocates $1,000 across five projects. Judging considers useful paid external-service calls and their growth, with payment proof and named services. Cheap repetitive calls do not qualify as useful integration.
 
 The rules require Celo mainnet, a public GitHub repository at registration, event-period code and an ERC-8004 agent identity. General rules require attribution, while the buy FAQ says no tag is needed for that track; x402 guidance requests PayTo addresses. Preserve payer, service payee and receipt evidence and resolve entry-specific attribution before claiming counted activity.
+
+Two further points were confirmed on the 2026-11-02 reading. The page lists submission contents as a public GitHub repository, and for Build with buy a statement of the services used with proof of payment; it **does not explicitly require a hosted demo, a video or a deployment**, so hosting is a product gate rather than a submission one. And "code is written during the hackathon" is satisfied: kick-off was 2026-10-06 and this repository's first commit is `22e6ce0` on 2026-10-26.
 
 The independent-user qualifier excludes wallets created/funded by the entrant and requires earlier Celo activity. The FAQ also welcomes newcomers. Free email registrations are not proof of qualifying independent wallets. Do not invent traction or eligibility. Source: [official rules and FAQ](https://www.loops.house/agents-on-open-rails).
 
@@ -20,9 +22,11 @@ The [live buy catalog](https://gateway.usebuy.ai/v1/catalog), retrieved unsigned
 
 - [x] Select Build with buy and record the public-free-beta scope.
 - [x] Refresh event rules and inspect the free live catalog.
-- [ ] Prepare and review public repository contents, then publish/register the actual entry.
-- [ ] Record participating wallet and ERC-8004 identity; verify the current registration route before any transaction.
-- [ ] Resolve entry attribution and the relevant x402 payee reporting.
+- [x] Enrol and obtain the attribution tag (2026-11-02).
+- [x] Wire the attribution tag into the code before any agent transaction. `celo_043943600450` is the recorded default builder code in `src/server/remesso.ts`, overridable by `TRIALOOM_BUILDER_CODES`, and the pinned SDK's own charset validator accepts it. Not required for Build with buy; carried so any transaction can be credited.
+- [ ] Publish a public GitHub repository that still resolves at judging. Required **at registration**, and the user's GitHub is unavailable.
+- [ ] Add the agent wallet to the entry and register its ERC-8004 identity **from that wallet** before the deadline. The rules state a project is only valid with an ERC-8004 identity.
+- [ ] Resolve the relevant x402 payee reporting.
 - [ ] Establish a dedicated resource wallet, supported token and explicit aggregate spend cap.
 - [ ] Execute one useful, capped buy request through the product; retain result and matching receipt.
 - [ ] Demonstrate durable uncertain-payment recovery and zero customer reimbursement.
@@ -34,9 +38,9 @@ The [live buy catalog](https://gateway.usebuy.ai/v1/catalog), retrieved unsigned
 
 | Item | Current evidence |
 | --- | --- |
-| Track / enrollment | Build with buy selected / not enrolled |
+| Track / enrollment | Build with buy selected; **enrolled 2026-11-02**, attribution tag `celo_043943600450` issued and wired in |
 | Public repo / hosted demo | User push to GitLab verified at `633c2cf` on 2026-11-01; both histories preserved. GitLab visibility not independently verified. User's GitHub is currently unavailable; required public GitHub repository and hosted demo remain missing |
-| Agent identity / funded resource wallet | Not configured |
+| Agent identity / funded resource wallet | Not configured. ERC-8004 identity is mandatory for a valid entry and does not exist yet |
 | Real browser results / replay | Local owned fixture and authorized Blokaz ladder; [verified checkpoint](evidence/RUN-03-ladder-verified.json) |
 | Payment recovery | Local Celo fork only; [VAL-03](evidence/VAL-03.json), [VAL-04](evidence/VAL-04.json) |
 | Useful buy output / mainnet receipt | Pending; [unsigned quote/input boundary](BUY-01.md) verified, with no payment |

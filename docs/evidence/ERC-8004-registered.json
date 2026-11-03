@@ -1,0 +1,60 @@
+{
+  "task": "HACK-01",
+  "checkpoint": "ERC-8004 agent identity registered on Celo mainnet",
+  "verifiedOn": "2026-11-03",
+  "timezone": "Africa/Lagos",
+  "result": "agent id 10031 held by the entry's agent wallet, with its registration file published on chain",
+  "registry": {
+    "address": "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
+    "chainId": 42220,
+    "caip": "eip155:42220:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432"
+  },
+  "agentWallet": "0xf8Ff4F7C83404e04506785b7DFDf838CA75C22ae",
+  "agentId": 10031,
+  "transactions": [
+    {
+      "call": "register()",
+      "hash": "0x166580bbce26ee891a1abcda53ef5c45369dcf2e7b2cbfe8bb21c78d22fb2e3a",
+      "block": 81803914,
+      "status": "success",
+      "gasUsed": 106883,
+      "costCelo": "0.0216438075",
+      "feeCurrency": "CELO"
+    },
+    {
+      "call": "setAgentURI(10031, data:application/json;base64,…)",
+      "hash": "0xd9c32336b34ecc49fab0a32d0d80e9dace46722641f32b9cb276718faace1983",
+      "block": 81803917,
+      "status": "success",
+      "gasUsed": 675343,
+      "costCelo": "0.1367569575",
+      "feeCurrency": "CELO"
+    }
+  ],
+  "verifiedReads": {
+    "ownerOf(10031)": "0xf8Ff4F7C83404e04506785b7DFDf838CA75C22ae",
+    "balanceOf(agentWallet)": 1,
+    "bothSentFromTheAgentWallet": true,
+    "bothSentToTheRegistry": true,
+    "tokenURIScheme": "data:application/json;base64",
+    "tokenURIBytes": 853,
+    "tokenURIBodySha256": "88d1e42145c1b41dd7a2f68818671e32541eba3ab508903251ee96c1442962e3",
+    "repositoryFileMatchesChain": true
+  },
+  "totalGasCelo": "0.158400765",
+  "celoRemaining": "9.841599235",
+  "observations": [
+    "setAgentURI cost 675,343 gas against register()'s 106,883 — about six times as much — because the 853-byte data: URI is stored on chain. Replacing it with a hosted https: URI later would be far cheaper.",
+    "The simulated agent id was 10026 in the morning and 10031 when the console ran, as five other identities were registered in between. The id was read from the token's own Transfer log rather than from the simulation, which is why the published file names the right one.",
+    "`loops project get` still reported hasIdentity: null at this reading, minutes after the second transaction. The chain is the record; the platform's indexing lag is not evidence of anything missing."
+  ],
+  "remaining": [
+    "image, services and active stay empty until FREE-03 hosting exists; setAgentURI can be called again to publish a hosted URI",
+    "x402Support stays false: Trialoom pays for services, it does not charge over x402"
+  ],
+  "sourceSha256": {
+    "public/agent.json": "9628b367c84df4180fe3dbdc7cb16535077c801426f01dc03ba528efa240888d",
+    "src/server/identity.ts": "e5614470d1fa8003e6a7b76c4b2d2a5ccaa38e86513ba20b3a08f0e752e34f11",
+    "scripts/register-identity.ts": "b1931b1dd31680b33b44cbee06670038d334fdac19492ef550ecb24da6705335"
+  }
+}

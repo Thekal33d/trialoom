@@ -45,12 +45,54 @@ A public user supplies none of this. `purchaseSponsoredReport` takes a report in
 
 Thirteen checks cover it, each verified to fail against the defect it describes: three deliberate mutations (reconciliation overwriting `delivery`, the daily allowance unenforced, an uncertain outcome freeing its reservation) were each caught by the check that names them.
 
+## Paying: the x402 client
+
+Added 2026-11-03 ([`src/server/buy-x402.ts`](../src/server/buy-x402.ts)). **Verified against the live gateway and the token contract; no payment has been made**, because `TRIALOOM_SPONSOR_AGENT_KEY` is unset, the sponsored ceiling is 0 and the wallet holds no USDC.
+
+**A payment here is a signature, not a transaction.** USDC on Celo implements EIP-3009: the payer signs `transferWithAuthorization` off chain and buy's facilitator submits it and pays the gas. Read from the token on 2026-11-03 rather than taken from documentation:
+
+```
+name                                 USDC
+version                              2
+decimals                             6
+DOMAIN_SEPARATOR                     0xb2ce31d2838445fa765a491f550e7c78ac7280ab0f3bc9d6063a86df9c3fb578
+TRANSFER_WITH_AUTHORIZATION_TYPEHASH 0x7c7c6cdb67a18743f49ec6fa9b35f50d52ed05cbed4cc592e13b44501c1a2267
+```
+
+The typehash equals the canonical EIP-3009 one, `authorizationState` answers, and the domain rebuilt from the quote's own `extra` (`{"name":"USDC","version":"2"}`) reproduces `DOMAIN_SEPARATOR` exactly. The adapter performs that last comparison **before every signature**: a quote can claim any domain it likes, and signing against an unverified one is how a signature ends up valid somewhere nobody intended.
+
+### What the live gateway answers
+
+An unsigned request on 2026-11-03 returns HTTP 402 with the v1 envelope in the body and a v2 envelope in a `payment-required` header, listing three offers — USDC, USDT (`Tether USD`, version 1) and USAT (`Tether America USD`, version 1) — all at 10,000 base units to `0x20faAca5F980E29639A0FCC6dcA6988E18ed333B`. Only the USDC offer at the pinned payee is taken; the others are ignored.
+
+Which request header the gateway reads was settled by probing with a **deliberately expired authorization from a throwaway key**, so verification had to fail before anything could settle:
+
+| header | answer |
+| --- | --- |
+| none | `payment_required` |
+| `X-PAYMENT` with the v1 payload | `verify_payment_failed: expired` |
+| `PAYMENT-SIGNATURE` with the v2 payload | `invalid PAYMENT-SIGNATURE: accepted is missing` |
+
+The v1 path reached the validity-window check, which means the signature recovered and the domain and authorization fields parsed. That is what the adapter implements. The v2 path is available and additionally wants the chosen requirement echoed back as `accepted`; it is recorded here rather than implemented, because it has not been verified end to end.
+
+### The nonce is the payment's identity
+
+The EIP-3009 nonce is derived from the purchase's intent key, so the same purchase always signs the same authorization. The token refuses an authorization it has already used, which makes a double payment impossible **at the token** rather than only in our bookkeeping — and it makes reconciliation exact: `authorizationState(sponsor, nonce)` is a direct question. Used means settled. Unused inside the validity window means pending. Unused past it means it can never settle, which is `unsettled` and frees the reservation.
+
+### Attribution cannot ride on this, and does not need to
+
+Because the facilitator sends the transaction, this wallet's calldata never exists, and Celo's own documentation says facilitator-side tagging of x402 settlements is not live yet. The adapter therefore attaches **no** attribution tag, deliberately and with the reason in its source. The on-chain `Transfer` still has our wallet as its `from`, and the submission records that wallet. See [HACKATHON.md](HACKATHON.md).
+
+### Checks
+
+Eight checks against a fake gateway and a stub JSON-RPC server: the pinned offer taken from the live three-offer envelope, a changed payee or asset refused, the `X-PAYMENT` payload structurally correct with its signature verified against the token's domain, a mismatched domain never signed, a 402 classified as refused while a 5xx and a dropped connection are uncertain, and each settlement reading. Three were verified against deliberately broken code: trusting the quoted domain, a random nonce, and treating a 402 as uncertain.
+
 ## Remaining implementation and live proof
 
 1. ~~Add a dedicated sponsored purchase ledger and trusted worker~~ — done, above.
-2. Configure a dedicated sponsor signer and explicitly authorized wallet/token/aggregate cap. The wallet is named (`0xf8Ff4F7C83404e04506785b7DFDf838CA75C22ae`) and **holds 0 USDC**, so there is nothing to spend; no signer is configured and `authorizeSponsoredBudget` has never been called outside a disposable test database. A public user already cannot supply a recipient, endpoint, model, raw prompt, wallet or amount.
-3. ~~Re-quote the stored exact request, reserve durably before dispatch, and hold an unknown settlement without repurchasing~~ — implemented and checked against a fake adapter. **A real adapter does not exist**: `unconfiguredSponsor` refuses everything, and nothing has spoken to the gateway with a signer.
-4. Verify a finalized exact token transfer against Celo. The journal classifies usable output, paid-but-unusable output and unresolved settlement separately, but `resolve` has no chain reader behind it, so no reading has ever been taken. A 2xx response or provider header alone is not finality proof.
+2. Fund the wallet and authorize a cap. The signer exists and is unconfigured by default (`TRIALOOM_SPONSOR_AGENT_KEY`); the wallet `0xf8Ff4F7C83404e04506785b7DFDf838CA75C22ae` **holds 0 USDC**, and `authorizeSponsoredBudget` has never been called outside a disposable test database. A public user already cannot supply a recipient, endpoint, model, raw prompt, wallet or amount.
+3. ~~Re-quote the stored exact request, reserve durably before dispatch, and hold an unknown settlement without repurchasing~~ — implemented and checked. ~~A real adapter does not exist~~ — it does now, and its request format is verified against the live gateway. **Nothing has been paid**: no signer is configured and the ceiling is 0.
+4. ~~Verify a finalized exact token transfer against Celo~~ — `resolve` reads `authorizationState` from the token itself, so a settlement answer is a chain reading rather than the provider's word. **No reading of a real payment has been taken**, because none exists. The journal classifies usable output, paid-but-unusable output and unresolved settlement separately. A 2xx response or provider header alone is not finality proof.
 5. Display the explanation beside the deterministic report in the product, and keep receipt evidence. The record exists (`sponsored_outputs`, advisory and immutable); no interface shows it yet. Prove one request benefits a real external user before making integration or bounty claims.
 
 FREE-02 now connects signup, automatic bounded execution and replay locally. Hosted operations remain open. The existing ALPHA-09 resource flow reimburses resources from a builder campaign; routing free calls through it would violate the free-beta promise.

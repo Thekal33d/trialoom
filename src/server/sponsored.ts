@@ -70,7 +70,18 @@ export type SponsoredAdapter = {
   name: string;
   quote(request: SponsoredRequest): Promise<SponsoredQuote | SponsoredRefusal>;
   purchase(request: SponsoredRequest & { quote: SponsoredQuote }): Promise<SponsoredOutcome>;
-  resolve(request: { intentKey: string; payee: string }): Promise<SponsoredSettlement>;
+  /**
+   * The purchase's own identity and terms, so a settlement reading can be an
+   * exact question rather than a search: the intent key fixes the on-chain
+   * authorization, and the window says whether an unused one is still pending
+   * or can never settle.
+   */
+  resolve(request: {
+    intentKey: string;
+    payee: string;
+    amountUnits: string;
+    expiresAt: string;
+  }): Promise<SponsoredSettlement>;
 };
 
 /**
@@ -524,6 +535,8 @@ export async function reconcileSponsoredPurchase(
       settlement = await adapter.resolve({
         intentKey: purchase.intent_key,
         payee: purchase.payee_address,
+        amountUnits: purchase.quoted_units,
+        expiresAt: new Date(purchase.quote_expires_at).toISOString(),
       });
     } catch (error) {
       settlement = {

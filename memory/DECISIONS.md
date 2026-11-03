@@ -210,3 +210,17 @@ Two allowances are read under the budget's row lock in the same transaction that
 Work state and payment state are separate columns. `delivery` records whether anything usable arrived and is never rewritten by reconciliation, which rewrites `state` and clears `reason`; without it, the fact that money bought an unusable answer would be erased at the moment the money was recorded as spent. An uncertain settlement is never repurchased: the reservation is held, the token is asked, and an unresolved reading reschedules without spending the job's attempt limit, since retiring the job would strand the reservation with nothing left to free it.
 
 The budget is seeded at zero and the only adapter in this build refuses everything, so nothing can be bought until someone deliberately funds the sponsor wallet and authorizes a ceiling. [BUY-01](../docs/BUY-01.md).
+
+## D055 — 2026-11-03 — Accepted: pay buy over x402 by signature, and do not pretend to tag it
+
+`src/server/buy-x402.ts` implements `SponsoredAdapter` against buy's gateway. Verified against the live endpoint and the token contract on 2026-11-03, with nothing paid: no signer is configured, the sponsored ceiling is 0 and the wallet holds no USDC.
+
+A payment is a **signature, not a transaction**. USDC on Celo implements EIP-3009, so the sponsor signs `transferWithAuthorization` off chain and buy's facilitator submits it and pays the gas. Two things follow and both are load-bearing.
+
+First, **the quoted EIP-712 domain is checked against the token's own `DOMAIN_SEPARATOR` before every signature.** A quote can claim any domain; signing against an unverified one is how a signature becomes valid somewhere nobody intended. The offer's `{"name":"USDC","version":"2"}` reproduces the deployed separator exactly, and the adapter re-derives and compares rather than trusting it.
+
+Second, **this wallet never sends a transaction, so an ERC-8021 tag cannot ride on the payment.** Celo's documentation says facilitator-side tagging of x402 settlements is not live. The adapter deliberately attaches no tag and says why in its source; attaching one that would be dropped is worse than none. Crediting has to be by wallet address, which is what the entry records and what the sponsor SDK means by crediting `sender` rather than the transaction's `from`.
+
+The authorization nonce is derived from the purchase's intent key, so one purchase always signs one authorization. The token refuses a reused authorization, which makes a double payment impossible at the token rather than only in our bookkeeping, and it makes `resolve` exact: `authorizationState` used means settled, unused inside the window means pending, unused past it means it can never settle.
+
+The wire format was settled by probing the live gateway with a deliberately expired authorization from a throwaway key, so verification had to fail before anything could settle. `X-PAYMENT` with the v1 payload answered `verify_payment_failed: expired` — reaching the validity check, so signature and domain parsed — and that is what is implemented. The v2 `PAYMENT-SIGNATURE` header is read too and additionally wants the chosen requirement echoed as `accepted`; it is recorded, not implemented, because it has not been verified end to end. [BUY-01](../docs/BUY-01.md), [entry record](../docs/HACKATHON.md).

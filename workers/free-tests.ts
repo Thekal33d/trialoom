@@ -1,6 +1,7 @@
 import { setTimeout as delay } from 'node:timers/promises';
 import { configuredFreeOrigins, freePreviewRunner } from '../scripts/free-preview-runner.ts';
 import { buildPreviewImage } from '../scripts/preview-host.ts';
+import { configuredSponsor } from '../src/server/buy-x402.ts';
 import { createPool, databaseUrl } from '../src/server/database.ts';
 import { dispatchFreeTest, freeRunnerHeartbeat } from '../src/server/free-test-dispatch.ts';
 import { prepareNextFreeTestReport } from '../src/server/free-test-reports.ts';
@@ -22,6 +23,10 @@ service.on('end', lost);
 try {
   owned = (await service.query('SELECT pg_try_advisory_lock(42120703) AS held')).rows[0].held;
   if (!owned) throw new Error('FREE_WORKER_ALREADY_RUNNING');
+  const sponsor = configuredSponsor();
+  console.log(
+    JSON.stringify({ event: 'free_runner.sponsor', adapter: sponsor?.name ?? 'unconfigured' }),
+  );
   const origins = configuredFreeOrigins();
   const runner = freePreviewRunner(await buildPreviewImage(), origins);
   await freeRunnerHeartbeat(pool, origins);
@@ -42,8 +47,8 @@ try {
     });
     // Asked before trying, so an unfunded build does not loop refusing the same
     // report. Buying is never allowed to interfere with delivering the test.
-    if (await sponsorBudgetFunded(pool).catch(() => false))
-      await purchaseNextSponsoredReport(pool).catch(() => {
+    if (sponsor && (await sponsorBudgetFunded(pool).catch(() => false)))
+      await purchaseNextSponsoredReport(pool, sponsor).catch(() => {
         console.error(JSON.stringify({ event: 'sponsored_report.purchase_unavailable' }));
       });
     if (process.argv.includes('--once')) break;

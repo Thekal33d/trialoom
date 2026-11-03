@@ -9,12 +9,15 @@ import { pathToFileURL } from 'node:url';
 test('a host CLI that ignores SIGTERM cannot outlive the command deadline', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'trialoom-command-'));
   const pidPath = join(directory, 'pid');
+  // A shell, not Node: the fixture has to record its pid before the deadline
+  // fires, and Node's own start-up can lose that race on a loaded machine —
+  // which failed this check twice without anything being wrong with it.
   await writeFile(
     join(directory, 'orb'),
-    `#!${process.execPath}
-require('node:fs').writeFileSync(${JSON.stringify(pidPath)}, String(process.pid));
-process.on('SIGTERM', () => {});
-setInterval(() => {}, 1000);
+    `#!/bin/sh
+echo $$ > ${JSON.stringify(pidPath)}
+trap '' TERM
+while :; do sleep 1; done
 `,
     { mode: 0o700 },
   );

@@ -1,6 +1,7 @@
 import { setTimeout } from 'node:timers/promises';
 import { sweepExpiredAssignments } from '../src/server/assignments.ts';
 import { verifyScheduled } from '../src/server/authority.ts';
+import { configuredSponsor } from '../src/server/buy-x402.ts';
 import { createPool, databaseUrl } from '../src/server/database.ts';
 import { releaseSettledAssignments } from '../src/server/decisions.ts';
 import { processOne } from '../src/server/jobs.ts';
@@ -15,6 +16,11 @@ const pool = createPool(databaseUrl());
 // its nonce floor belong to one client, and a fresh one per job would
 // re-initialize that storage every time.
 const payments = configuredPayments(pool);
+// The sponsor signs x402 authorizations with its own key; it shares nothing
+// with the settlement signer, and absence is said out loud rather than looking
+// like a payment path that happens to pay nobody.
+const sponsor = configuredSponsor();
+console.log(JSON.stringify({ event: 'worker.sponsor', adapter: sponsor?.name ?? 'unconfigured' }));
 console.log(
   JSON.stringify({
     event: 'worker.payments',
@@ -57,7 +63,8 @@ try {
       'notice.deliver': (client, lease) => deliverNotice(client, lease, webhookTransport),
       // A sponsored call holds its budget reservation until this answers. No
       // sponsor wallet is funded either, so nothing has been bought to settle.
-      'sponsored.reconcile': (client, lease) => reconcileSponsoredPurchase(client, lease),
+      'sponsored.reconcile': (client, lease) =>
+        reconcileSponsoredPurchase(client, lease, sponsor ?? undefined),
     });
     if (once) break;
     if (!worked) await setTimeout(1000, undefined, { signal: controller.signal });

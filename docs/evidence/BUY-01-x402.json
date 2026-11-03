@@ -1,0 +1,119 @@
+{
+  "task": "BUY-01",
+  "checkedAt": "2026-11-03T02:40:00.000Z",
+  "timezone": "Africa/Lagos",
+  "scope": "An x402 client that signs EIP-3009 authorizations for buy's Celo gateway",
+  "module": "src/server/buy-x402.ts",
+  "paymentsMade": 0,
+  "signerConfigured": false,
+  "sponsorBudgetCeilingUnits": "0",
+  "walletUsdcUnits": "0",
+  "tokenReadings": {
+    "address": "0xcebA9300f2b948710d2653dD7B07f33A8B32118C",
+    "chainId": 42220,
+    "name": "USDC",
+    "version": "2",
+    "decimals": 6,
+    "domainSeparator": "0xb2ce31d2838445fa765a491f550e7c78ac7280ab0f3bc9d6063a86df9c3fb578",
+    "transferWithAuthorizationTypehash": "0x7c7c6cdb67a18743f49ec6fa9b35f50d52ed05cbed4cc592e13b44501c1a2267",
+    "typehashMatchesCanonicalEip3009": true,
+    "domainRebuiltFromOfferMatchesChain": true,
+    "authorizationStateCallable": true
+  },
+  "liveQuote": {
+    "url": "https://gateway.usebuy.ai/cencori/v1/chat/completions",
+    "status": 402,
+    "bodyVersion": 1,
+    "headerVersion": 2,
+    "headerName": "payment-required",
+    "offers": [
+      {
+        "asset": "0xcebA9300f2b948710d2653dD7B07f33A8B32118C",
+        "extra": {
+          "name": "USDC",
+          "version": "2"
+        },
+        "amount": "10000",
+        "pinned": true
+      },
+      {
+        "asset": "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e",
+        "extra": {
+          "name": "Tether USD",
+          "version": "1"
+        },
+        "amount": "10000",
+        "pinned": false
+      },
+      {
+        "asset": "0xD2ab3C9A02DBBAB236BfEC45D1d755DF4267F771",
+        "extra": {
+          "name": "Tether America USD",
+          "version": "1"
+        },
+        "amount": "10000",
+        "pinned": false
+      }
+    ],
+    "payTo": "0x20faAca5F980E29639A0FCC6dcA6988E18ed333B"
+  },
+  "headerProbe": {
+    "method": "a deliberately expired authorization signed by a throwaway key, so verification had to fail before settlement",
+    "spent": "0",
+    "results": [
+      {
+        "header": "none",
+        "error": "payment_required"
+      },
+      {
+        "header": "X-PAYMENT (v1 payload)",
+        "error": "verify_payment_failed: expired",
+        "conclusion": "read and verified; signature and domain parsed"
+      },
+      {
+        "header": "PAYMENT-SIGNATURE (v2 payload)",
+        "error": "invalid PAYMENT-SIGNATURE: accepted is missing",
+        "conclusion": "read; needs the chosen requirement echoed back"
+      }
+    ],
+    "implemented": "X-PAYMENT v1"
+  },
+  "attribution": {
+    "tagAttached": false,
+    "reason": "The facilitator submits the transaction, so this wallet has no calldata to tag, and Celo's documentation states facilitator-side tagging of x402 settlements is not live yet.",
+    "creditPath": "the agent wallet address recorded on the entry, as the Transfer event's from"
+  },
+  "focusedChecks": {
+    "x402Client": 8,
+    "sponsoredJournal": 14,
+    "databaseSuiteTotal": 281
+  },
+  "mutationProbes": [
+    {
+      "defect": "trust the quoted EIP-712 domain without checking the token",
+      "caughtBy": "a quoted domain the token does not agree with is never signed"
+    },
+    {
+      "defect": "a random authorization nonce instead of the intent key",
+      "caughtBy": "a paid request carries a correctly signed authorization for exactly the quote"
+    },
+    {
+      "defect": "treat a 402 refusal as an uncertain settlement",
+      "caughtBy": "a refused payment is refused, and a failed gateway is uncertain"
+    }
+  ],
+  "lint": "passed, 186 files",
+  "types": "passed",
+  "remaining": [
+    "Fund the sponsor wallet with USDC and authorize a ceiling; one report costs 10,000 base units",
+    "One real paid call, its output attached to the report, and its settlement read back from the token",
+    "Confirm with the organisers that Build with buy credits by wallet rather than by calldata tag",
+    "Show the explanation beside the report in the product"
+  ],
+  "sourceSha256": {
+    "src/server/buy-x402.ts": "49118727a3a4ca1e9458f1d0eb61af7062d78426c8212848505c93121a54a0a2",
+    "src/server/buy-report.ts": "7d67e95d0448291f15bb3744dad1553322cf5451e4ba61562071b5646cdcc8f2",
+    "src/server/sponsored.ts": "fabaf9efeeeb6d1291894e2fe61f3156840690c950daf7a4d379607cc905413e",
+    "tests/buy-x402.test.ts": "e5d3c4990a6d771cd3afbe0746b7a5d2ab588d5720e1d8184b9c56c8582bfe91"
+  }
+}

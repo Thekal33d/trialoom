@@ -143,7 +143,7 @@ async function boundedJson(response: Response, maximum: number) {
 }
 
 const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
-const offerSchema = z.object({
+export const offerSchema = z.object({
   scheme: z.literal('exact'),
   network: z.literal('celo'),
   resource: z.literal(buyReportService.url),
@@ -153,6 +153,30 @@ const offerSchema = z.object({
   maxTimeoutSeconds: z.number().int().min(30).max(300),
   extra: z.object({ name: z.literal('USDC'), version: z.literal('2') }).strict(),
 });
+
+export type BuyOffer = z.infer<typeof offerSchema>;
+
+/**
+ * The one Celo USDC offer this platform will pay, out of the several the
+ * gateway lists. The payee and asset are pinned, so a changed recipient is a
+ * refusal rather than a payment somewhere new.
+ */
+export function pinnedOffer(envelope: unknown): BuyOffer {
+  const parsed = z
+    .object({ x402Version: z.literal(1), accepts: z.array(z.unknown()).min(1).max(12) })
+    .parse(envelope);
+  const offer = parsed.accepts
+    .map((item) => offerSchema.safeParse(item))
+    .filter((item) => item.success)
+    .map((item) => item.data)
+    .find(
+      (item) =>
+        item.asset.toLowerCase() === buyReportService.token.toLowerCase() &&
+        item.payTo.toLowerCase() === buyReportService.payee.toLowerCase(),
+    );
+  if (!offer) throw new Error('No matching pinned Celo USDC offer');
+  return offer;
+}
 
 /** This path cannot pay: it has no signer and never attaches a payment header. */
 export async function quoteBuyReport(input: unknown, transport: typeof fetch = fetch) {

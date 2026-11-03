@@ -44,7 +44,8 @@
     "runner:proxy-check": "node scripts/check-preview-proxy.ts",
     "browser:preview": "PLAYWRIGHT_BROWSERS_PATH=.cache/ms-playwright node --env-file-if-exists=.env scripts/preview-demo.ts",
     "runner:recovery-check": "node --env-file-if-exists=.env scripts/check-preview-recovery.ts",
-    "buy:quote-report": "node scripts/quote-buy-report.ts"
+    "buy:quote-report": "node scripts/quote-buy-report.ts",
+    "identity:register": "node --env-file-if-exists=.env scripts/register-identity.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",

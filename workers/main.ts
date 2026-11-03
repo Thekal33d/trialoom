@@ -8,6 +8,7 @@ import { deliverNotice, webhookTransport } from '../src/server/notices.ts';
 import { configuredPayments } from '../src/server/remesso.ts';
 import { reconcilePurchase } from '../src/server/resources.ts';
 import { dispatchPayout } from '../src/server/settlement.ts';
+import { reconcileSponsoredPurchase } from '../src/server/sponsored.ts';
 
 const pool = createPool(databaseUrl());
 // Built once rather than per job: the provider's journals, its signer lock and
@@ -54,6 +55,9 @@ try {
       // happen to open the queue. A workspace with no destination registered
       // keeps the notice, marked as having reached nobody.
       'notice.deliver': (client, lease) => deliverNotice(client, lease, webhookTransport),
+      // A sponsored call holds its budget reservation until this answers. No
+      // sponsor wallet is funded either, so nothing has been bought to settle.
+      'sponsored.reconcile': (client, lease) => reconcileSponsoredPurchase(client, lease),
     });
     if (once) break;
     if (!worked) await setTimeout(1000, undefined, { signal: controller.signal });

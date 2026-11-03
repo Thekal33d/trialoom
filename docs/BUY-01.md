@@ -22,13 +22,36 @@ Migration `0022_buy_report_inputs.sql` stores one immutable input per free test,
 
 Prepared inputs fix the exact canonical request body, request hash, projection hash and original result hash before any future purchase. Concurrent preparation returns the same identity; changed inputs cannot replace it. Database ownership/source guards and immutability protect the binding. The future purchase ledger must reference this record and preserve its exact request through quoting and dispatch. [Binding checks](evidence/BUY-01-binding.json).
 
+## Sponsored purchase journal
+
+Added 2026-11-03 (`0023_sponsored_purchases.sql`, [`src/server/sponsored.ts`](../src/server/sponsored.ts)). **The code path from a prepared report to a settled payment exists and is checked; nothing has been bought, because no sponsor wallet is funded.** `sponsored_budgets` is seeded at zero, so the default adapter refuses every purchase with `sponsor_wallet_unavailable` and the worker does not even try until `sponsorBudgetFunded` is true.
+
+The journal is deliberately not the ALPHA-09 resource ledger. That one ends in a builder reimbursement; this one has **no column, nullable or otherwise, that reaches `payables`**. A free test's explanation cannot become a customer charge because there is nowhere to record one.
+
+What the database enforces rather than the worker remembering:
+
+- **One prepared report, one purchase.** `report_input_id` is `UNIQUE`, and a trigger refuses any purchase whose report input is not `prepared`, is for another account, or carries a different request hash. An all-passing test is recorded as `skipped` with no request body, so it can never be bought.
+- **A ceiling that cannot be exceeded.** `quoted_units <= ceiling_units` and `cost_units <= ceiling_units` are checks; the per-report ceiling is 10,000 base units, the reviewed quote. A settled cost above it is held as uncertain with its reservation intact rather than clamped, because recording less than was taken would hide it.
+- **Two allowances, both atomic.** The platform's own headroom and one account's daily spend are read under the budget's row lock inside the same transaction that reserves, so a race cannot spend the same headroom twice. A purchase holds its whole ceiling until it reconciles, then holds what it cost.
+- **Identity is immutable.** The intent key, report, request hash, ceiling, token, payee and spend day never change, and a recorded cost or transaction hash is never rewritten.
+
+Work state and payment state are kept apart by a `delivery` column. Reconciliation rewrites `state` and clears `reason`; it does not touch `delivery`, so a purchase that paid for an answer nobody can use still says `unusable` after the money is recorded as spent. An explanation that fails `parseBuyExplanation` — a reference to evidence that was never supplied, unsafe text, a truncated response — is exactly that case: the cost is recorded, no output row is written, and the purchase is `failed` with `output_unusable`.
+
+An uncertain answer is never bought again. The reservation is held, the outbox job asks the token whether value moved, and an unresolved answer reschedules without spending the attempt limit — retiring the job would strand the reservation with nothing left to free it. Only a settled or unsettled reading moves money out of reserve.
+
+The request that was prepared is the request that is paid for. Before quoting, the body is rebuilt from the input's own observations and compared against the hash the immutable row fixed; a body that no longer reproduces refuses with `REQUEST_CHANGED` rather than sending something else.
+
+A public user supplies none of this. `purchaseSponsoredReport` takes a report input id and an adapter — no model, endpoint, payee, wallet or amount — and every one of those comes from the pinned `buyReportService` constant.
+
+Thirteen checks cover it, each verified to fail against the defect it describes: three deliberate mutations (reconciliation overwriting `delivery`, the daily allowance unenforced, an uncertain outcome freeing its reservation) were each caught by the check that names them.
+
 ## Remaining implementation and live proof
 
-1. Add a dedicated sponsored purchase ledger and trusted worker, one intent per prepared report, with atomic platform and per-user allowances. Keep accepted existing marketplace liabilities separate and create no customer payable.
-2. Configure a dedicated resource signer and explicitly authorized wallet/token/aggregate cap. A public user cannot supply a recipient, endpoint, model, raw prompt, wallet or amount.
-3. Re-quote the stored exact request and validate funding; durably reserve and record public authorization fields before the single paid dispatch. Preserve response integrity and payment identity across process failures. Unknown settlement holds the reservation and must never automatically repurchase.
-4. Verify a finalized exact token transfer and authorization against Celo; separately classify usable output, paid-but-unusable output and unresolved settlement. A 2xx response or provider header alone is not finality proof.
-5. Persist/display the explanation with the deterministic report and keep useful-output/receipt evidence. Prove one request benefits a real external user before making integration or bounty claims.
+1. ~~Add a dedicated sponsored purchase ledger and trusted worker~~ — done, above.
+2. Configure a dedicated sponsor signer and explicitly authorized wallet/token/aggregate cap. The wallet is named (`0xf8Ff4F7C83404e04506785b7DFDf838CA75C22ae`) and **holds 0 USDC**, so there is nothing to spend; no signer is configured and `authorizeSponsoredBudget` has never been called outside a disposable test database. A public user already cannot supply a recipient, endpoint, model, raw prompt, wallet or amount.
+3. ~~Re-quote the stored exact request, reserve durably before dispatch, and hold an unknown settlement without repurchasing~~ — implemented and checked against a fake adapter. **A real adapter does not exist**: `unconfiguredSponsor` refuses everything, and nothing has spoken to the gateway with a signer.
+4. Verify a finalized exact token transfer against Celo. The journal classifies usable output, paid-but-unusable output and unresolved settlement separately, but `resolve` has no chain reader behind it, so no reading has ever been taken. A 2xx response or provider header alone is not finality proof.
+5. Display the explanation beside the deterministic report in the product, and keep receipt evidence. The record exists (`sponsored_outputs`, advisory and immutable); no interface shows it yet. Prove one request benefits a real external user before making integration or bounty claims.
 
 FREE-02 now connects signup, automatic bounded execution and replay locally. Hosted operations remain open. The existing ALPHA-09 resource flow reimburses resources from a builder campaign; routing free calls through it would violate the free-beta promise.
 

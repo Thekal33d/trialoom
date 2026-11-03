@@ -5,6 +5,7 @@ import { createPool, databaseUrl } from '../src/server/database.ts';
 import { dispatchFreeTest, freeRunnerHeartbeat } from '../src/server/free-test-dispatch.ts';
 import { prepareNextFreeTestReport } from '../src/server/free-test-reports.ts';
 import { freeTestsEnabled } from '../src/server/free-tests.ts';
+import { purchaseNextSponsoredReport, sponsorBudgetFunded } from '../src/server/sponsored.ts';
 
 if (!freeTestsEnabled())
   throw new Error('Set TRIALOOM_FREE_TESTS=true to enable the bounded local runner.');
@@ -39,6 +40,12 @@ try {
     await prepareNextFreeTestReport(pool).catch(() => {
       console.error(JSON.stringify({ event: 'free_report.preparation_unavailable' }));
     });
+    // Asked before trying, so an unfunded build does not loop refusing the same
+    // report. Buying is never allowed to interfere with delivering the test.
+    if (await sponsorBudgetFunded(pool).catch(() => false))
+      await purchaseNextSponsoredReport(pool).catch(() => {
+        console.error(JSON.stringify({ event: 'sponsored_report.purchase_unavailable' }));
+      });
     if (process.argv.includes('--once')) break;
     if (!worked) await delay(1000, undefined, { signal: abort.signal });
   } while (!abort.signal.aborted);

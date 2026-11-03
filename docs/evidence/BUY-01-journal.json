@@ -1,0 +1,67 @@
+{
+  "task": "BUY-01",
+  "checkedAt": "2026-11-03T01:40:00.000Z",
+  "timezone": "Africa/Lagos",
+  "scope": "Sponsored budget and purchase journal against immutable report inputs, with uncertain-settlement recovery",
+  "migration": "0023_sponsored_purchases.sql",
+  "module": "src/server/sponsored.ts",
+  "adapter": "unconfiguredSponsor",
+  "focusedChecks": {
+    "sponsoredJournal": 14,
+    "databaseSuiteTotal": 273,
+    "passed": 273
+  },
+  "verified": [
+    "An unfunded budget refuses before any provider is asked, writing no purchase and reserving nothing",
+    "A funded purchase dispatches exactly the body the immutable input fixed",
+    "The ceiling is held in reserve until reconciliation, then replaced by the actual cost",
+    "One prepared report authorizes one purchase, including under five concurrent attempts",
+    "An all-passing report is unbuyable through the function and refused by the database trigger",
+    "A per-account daily allowance bounds one account without blocking another",
+    "Quotes above the ceiling, near expiry, or in another token, network or payee are refused before dispatch",
+    "An uncertain answer is never repurchased and keeps its reservation until the chain answers",
+    "An unsettled transfer frees the reservation and costs nothing",
+    "Paid-but-unusable output is recorded as paid and still says unusable after settling",
+    "A settled cost above the authorized ceiling is held as uncertain rather than clamped",
+    "No payable, campaign, assignment or resource purchase is ever created",
+    "Purchase identity, ceiling, payee, request hash and recorded cost are immutable"
+  ],
+  "mutationProbes": [
+    {
+      "defect": "reconciliation overwrites delivery",
+      "caughtBy": "paid output that cannot be used is recorded as paid, and stays unusable after settling"
+    },
+    {
+      "defect": "per-account daily allowance not enforced",
+      "caughtBy": "a daily allowance bounds one account without blocking another"
+    },
+    {
+      "defect": "an uncertain outcome frees its reservation",
+      "caughtBy": "an uncertain answer is never bought again, and keeps its reservation until the chain answers"
+    }
+  ],
+  "lint": "passed, 184 files",
+  "types": "passed",
+  "providerCalls": 0,
+  "signerConfigured": false,
+  "sponsorBudgetCeilingUnits": "0",
+  "customerLiabilityUnits": "0",
+  "mainnetTransactions": 0,
+  "observedFailures": [
+    "tests/preview-command.test.ts failed once under full-suite load reading the fixture pid file before it was written, and passed in isolation and on a clean full re-run. A pre-existing timing flake in the preview host command deadline check, untouched by this work and not investigated here."
+  ],
+  "remaining": [
+    "A real buy adapter with a configured signer; unconfiguredSponsor refuses everything",
+    "A funded sponsor wallet: 0xf8Ff4F7C83404e04506785b7DFDf838CA75C22ae holds 0 USDC",
+    "A chain reader behind resolve, so a settlement reading is an actual reading",
+    "The explanation shown beside the report in the product",
+    "One useful paid call with a matching mainnet receipt, and a genuine external user"
+  ],
+  "sourceSha256": {
+    "db/migrations/0023_sponsored_purchases.sql": "b283f226ee0ed91a8457808c132ff56ba232dc4f94d9cfa2eb83b0a8c6c37e56",
+    "src/server/sponsored.ts": "b087dd1bcf4769016a716c8ee7ce810a8f64d53a72b29b7ee327fdf623f30a97",
+    "tests/sponsored.test.ts": "abe7aa9e7bb21b7e9a7fc764cc51238c032f9a0eb55c7918a7ec58c3421ccccd",
+    "workers/main.ts": "65edd7cef6b1581bfbb721e947947bf9a9d49eb290dc70fc03dda1eddcfad2ce",
+    "workers/free-tests.ts": "bf33bee2c7f74083423c6612ba46d88e7db9676e991689ea0a4c27c28cc857ea"
+  }
+}

@@ -33,4 +33,5 @@ coverage/
 *.tsbuildinfo
 .DS_Store
 Dockerfile
+Dockerfile.worker
 .dockerignore

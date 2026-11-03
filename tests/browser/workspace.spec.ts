@@ -96,7 +96,11 @@ test('health, readiness, and demo security headers are explicit', async ({ reque
   expect(health.status()).toBe(200);
   // This suite runs the invited build, so the endpoint must report that mode
   // and must not claim testing is available.
-  expect(await health.json()).toMatchObject({ mode: 'invited-alpha', testing: 'unavailable' });
+  expect(await health.json()).toMatchObject({
+    mode: 'invited-alpha',
+    testing: 'unavailable',
+    privileged: false,
+  });
   expect((await request.get('/api/ready')).status()).toBe(200);
   const page = await request.get('/demo');
   expect(page.headers()['x-content-type-options']).toBe('nosniff');

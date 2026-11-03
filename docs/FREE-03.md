@@ -43,11 +43,14 @@ Until that exists, a hosted deployment can serve signup, the workspace and the r
 
 The web process needs `DATABASE_URL`, `BETTER_AUTH_URL` (must be `https:` for any non-loopback host — [`src/server/auth/config.ts`](../src/server/auth/config.ts) refuses otherwise, and secure cookies key off it), `BETTER_AUTH_SECRET`, `TRIALOOM_EVIDENCE_DIR` on a persistent volume, and `TRIALOOM_PUBLIC_SIGNUP`. Mail delivery needs `RESEND_API_KEY` and `TRIALOOM_EMAIL_FROM` on a verified sending domain; signup refuses rather than falling back to a fake sender. The worker needs `DATABASE_URL`, and nothing else unless payment or sponsored purchasing is deliberately enabled. Full annotations are in [`.env.example`](../.env.example).
 
-Build the two images:
+Build the two images. They are two files rather than two targets of one file because Railway builds a Dockerfile's last stage and offers no way to select a target:
 
 ```sh
-docker build --target app -t trialoom-app .
-docker build --target worker -t trialoom-worker .
+docker build -t trialoom-app .
+```
+
+```sh
+docker build -f Dockerfile.worker -t trialoom-worker .
 ```
 
 Migrations are an explicit release step, never a side effect of a request or of worker start:
@@ -56,17 +59,39 @@ Migrations are an explicit release step, never a side effect of a request or of 
 docker run --rm -e DATABASE_URL=... trialoom-worker node scripts/migrate.ts
 ```
 
+## Railway, chosen 2026-11-03
+
+The user chose Railway for the web process, the worker and Postgres. It cannot host the runner, so hosted execution stays out of scope until a Linux host exists. Checked against Railway's live documentation on 2026-11-03.
+
+**What fits with no code change.** Automatic SSL certificates and custom domains cover HTTPS, and `authSettings()` already refuses a non-HTTPS `BETTER_AUTH_URL` on a non-loopback host. Private networking is dual-stack for environments created after 2025-10-16 and encrypted with Wireguard, so `DATABASE_URL` over `<service>.railway.internal` needs neither TLS nor a change to `createPool`. Migrations belong in the **pre-deploy command**, which Railway runs in a separate container with the service's variables and whose failure fails the deploy while the previous version keeps serving — exactly the release gate `scripts/migrate.ts` wants. The pre-deploy container has no volume access, which does not matter because migrations touch only Postgres.
+
+**What had to change.**
+
+- **Two Dockerfiles.** Railway's build configuration exposes `builder`, `dockerfilePath`, `buildCommand`, `watchPatterns` and `railpackVersion`, and no build target. The web service builds the default [`Dockerfile`](../Dockerfile); the worker service sets `RAILWAY_DOCKERFILE_PATH=Dockerfile.worker`.
+- **An entrypoint that refuses to serve as root.** Railway mounts volumes as root and documents `RAILWAY_RUN_UID=0` for images running as a non-root user — which would make the internet-facing process root for the sake of one directory. [`scripts/container-entrypoint.sh`](../scripts/container-entrypoint.sh) accepts the privilege, fixes the mount point to `1000:1000` mode `700`, then re-executes itself unprivileged, so the application never runs privileged on any host. It also refuses to start when a configured evidence directory cannot be written, because discovering that on the first stored artifact loses private evidence that cannot be regenerated, and says out loud when no directory is configured and artifacts would therefore be lost on redeploy.
+- **`/api/health` reports `privileged`,** so the result is checkable from outside instead of trusted. Verified: started with `--user 0:0` against a root-owned volume, `/proc/1/status` reports `Uid: 1000 1000 1000 1000` and health reports `privileged: false`.
+
+**Configuration is not written as `railway.json`.** Config as Code is deprecated in favour of Infrastructure as Code, with legacy files working only until 2026-12-01.
+
+**Cost.** The free tier is 1 vCPU and 0.5 GB RAM with $1 of monthly credit, which will not run this. Hobby is $5/month including $5 of usage, with per-service ceilings far above what is needed.
+
+**A gate this makes load-bearing.** Railway attaches a volume to one service only, so the web process and the worker cannot share the private evidence store on a volume. It does not bite yet, because a deployment without hosted execution produces no evidence and the demo routes serve static fixture data. The moment execution is hosted, the S3-compatible private object storage that [ARCHITECTURE.md](ARCHITECTURE.md) already records as the intended store stops being deferrable.
+
+**Two things to verify after the first deploy, not assumed.** Whether a custom Start Command preserves the image's `ENTRYPOINT` — if Railway replaces it, the privilege drop is bypassed and `/api/health` will report `privileged: true`, which is why it reports it. And whether the no-target, non-privileged and one-volume-per-service limits still hold: those rest partly on staff replies and community threads rather than formal documentation, and Railway has hinted at a future VM-based runtime that would change the runner answer.
+
 ## Remaining gates
 
 Nothing below is done. Several need an account or a payment and are the user's to decide.
 
 | Gate | Owner | State |
 | --- | --- | --- |
-| A host and a domain | User | Not chosen. Decides the orchestration shape and whether execution can be hosted at all |
+| A host | User | **Railway, chosen 2026-11-03.** Nothing provisioned yet |
+| A domain | User | Not held. A Railway-provided domain would serve as `demoUrl` |
 | TLS termination and HTTPS redirect | Us, once a host exists | Not started |
 | Verified sending domain for signup mail | User | Not started. Signup is unusable without it |
 | Secret storage and separate process credentials | Us, once a host exists | Images are separate; no secret store chosen |
-| Linux runner host adapter and a server gVisor bootstrap | Us | Not started. Gates hosted execution, and with it the free-beta promise |
+| Linux runner host adapter and a server gVisor bootstrap | Us | Not started, and not reachable on Railway: its containers are non-privileged. Gates hosted execution, and with it the free-beta promise |
+| S3-compatible private evidence store | Us | Not started. Required once execution is hosted, because a Railway volume attaches to one service only |
 | Backup and a verified restore | Us | Not started |
 | Monitoring and alerting | Us | Not started |
 | Retention and deletion of private evidence | Us | Not started |

@@ -1,0 +1,33 @@
+# syntax=docker/dockerfile:1
+#
+# The worker process. Not reachable from the internet; it claims leased jobs
+# from the same database as the web image built by Dockerfile.
+#
+# It runs the TypeScript sources directly under Node's own type stripping, so
+# it needs real node_modules rather than a traced bundle, and it is therefore a
+# much larger image than the web process. Keeping them separate is what lets
+# the web image stay free of project source.
+FROM node:24-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c AS base
+ENV NODE_ENV=production
+WORKDIR /srv/trialoom
+
+FROM base AS runtime-modules
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+FROM base AS worker
+COPY --from=runtime-modules --chown=node:node /srv/trialoom/node_modules ./node_modules
+COPY --chown=node:node package.json tsconfig.json next-env.d.ts ./
+COPY --chown=node:node src ./src
+COPY --chown=node:node workers ./workers
+COPY --chown=node:node scripts ./scripts
+COPY --chown=node:node runners ./runners
+COPY --chown=node:node db ./db
+RUN cp scripts/container-entrypoint.sh /usr/local/bin/trialoom-entrypoint \
+  && chmod 0755 /usr/local/bin/trialoom-entrypoint
+USER node
+ENTRYPOINT ["/usr/local/bin/trialoom-entrypoint"]
+# Migrations are a release step, not a side effect of worker start. As a
+# Railway pre-deploy command, or directly:
+#   docker run --rm trialoom-worker node scripts/migrate.ts
+CMD ["node", "workers/main.ts"]

@@ -14,6 +14,10 @@ export function GET() {
       service: 'trialoom',
       mode: signupEnabled() ? 'public-beta' : 'invited-alpha',
       testing: freeTestsEnabled() ? 'enabled' : 'unavailable',
+      // Reported so the claim is checkable from outside rather than trusted.
+      // A host that mounts storage as root may start this process privileged;
+      // the container entrypoint drops back, and this says whether it did.
+      privileged: process.getuid?.() === 0,
     },
     { headers: { 'Cache-Control': 'no-store' } },
   );

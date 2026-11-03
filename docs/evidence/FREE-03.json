@@ -1,23 +1,42 @@
 {
   "task": "FREE-03",
-  "checkedAt": "2026-11-03T18:40:00.000Z",
+  "checkedAt": "2026-11-03T20:15:00.000Z",
   "timezone": "Africa/Lagos",
-  "scope": "Deployable web and worker container images, verified from an empty database. No host, domain or deployment exists.",
-  "artifacts": ["Dockerfile", ".dockerignore", "next.config.ts", "src/app/api/health/route.ts", "src/server/storage.ts"],
+  "scope": "Deployable web and worker container images, verified from an empty database and under Railway-like conditions. Railway chosen for the web process, worker and Postgres; nothing provisioned.",
+  "artifacts": [
+    "Dockerfile",
+    "Dockerfile.worker",
+    ".dockerignore",
+    "next.config.ts",
+    "scripts/container-entrypoint.sh",
+    "src/app/api/health/route.ts",
+    "src/server/storage.ts"
+  ],
   "baseImage": "node:24-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c",
   "images": {
-    "app": { "size": "435MB", "applicationContent": "63MB", "runsAs": "uid=1000(node)" },
-    "worker": { "size": "1.11GB", "nodeModules": "578MB", "runsAs": "uid=1000(node)" }
+    "app": {
+      "size": "435MB",
+      "applicationContent": "63MB",
+      "runsAs": "uid=1000(node)"
+    },
+    "worker": {
+      "size": "1.11GB",
+      "nodeModules": "578MB",
+      "runsAs": "uid=1000(node)"
+    }
   },
   "verified": [
-    "Both targets build with no warning and no error",
+    "Both images build from their own Dockerfile's last stage, with no warning and no error, which is how Railway builds",
     "23 migrations applied from the worker image onto an empty database, 0001 through 0023_sponsored_purchases.sql",
     "/api/ready returns 200 against that database",
     "/api/ready returns 503 DATABASE_NOT_READY with no database configured, exposing no detail",
     "/api/health returns 200 with no DATABASE_URL configured at all, so liveness does not touch the database",
     "/api/health reports the mode read from configuration, not a label written into the source",
+    "Started with --user 0:0 against a root-owned volume, the entrypoint drops privileges: /proc/1/status reports Uid 1000 1000 1000 1000, the volume becomes 1000:1000 mode 700, and /api/health reports privileged false",
+    "A configured evidence directory that cannot be written refuses to start with a structured reason and exit code 1",
+    "An unconfigured evidence directory starts and says out loud that artifacts are lost on redeploy",
     "/ returns 307 to /sign-up with public signup enabled; /sign-up returns 200",
-    "The web image carries .next, node_modules, public, package.json and server.js, and no src/, docs/, tests/, db/ or scripts/"
+    "The web image carries .next, node_modules, public, package.json and server.js, and no project source"
   ],
   "resolved": {
     "finding": "The bundler was tracing the whole project into the standalone server output because src/server/storage.ts resolves the private evidence directory at run time, which would copy every source file and all of public/ into the deployed server directory.",
@@ -25,13 +44,38 @@
     "fix": "The three dynamic filesystem calls are explicitly opted out of tracing; that directory is a mounted volume holding private evidence, never content to bundle.",
     "foundBy": "Building the image. npm run build in the repository shows the warnings but not the consequence."
   },
-  "suites": { "lint": 188, "strictTypes": "pass", "databaseChecks": 285, "browserChecks": 58, "browserSkipped": 4 },
+  "suites": {
+    "lint": 188,
+    "strictTypes": "pass",
+    "databaseChecks": 285,
+    "browserChecks": 58,
+    "browserSkipped": 4
+  },
   "notDone": [
-    "No host, domain or TLS termination",
+    "Nothing is provisioned on Railway and no domain is held",
     "No verified sending domain, so signup mail is unusable",
     "No secret store, backup, verified restore, monitoring, retention or abuse control",
-    "Hosted execution is unavailable: the runner host adapter shells out to the macOS-only orb CLI, and gVisor must be registered on the Docker daemon that starts the browser",
+    "Hosted execution is unavailable: Railway containers are non-privileged, and the runner host adapter shells out to the macOS-only orb CLI",
+    "An S3-compatible private evidence store becomes required once execution is hosted, because a Railway volume attaches to one service only",
     "A deployment without hosted execution must report testing unavailable rather than queue tests that cannot run"
   ],
-  "decision": "D056"
+  "decision": [
+    "D056",
+    "D057"
+  ],
+  "host": {
+    "chosen": "Railway",
+    "chosenOn": "2026-11-03",
+    "covers": [
+      "web process",
+      "worker",
+      "Postgres"
+    ],
+    "cannotHost": "the gVisor test runner, because Railway containers are non-privileged",
+    "provisioned": false
+  },
+  "toVerifyOnFirstDeploy": [
+    "Whether a custom Start Command preserves the image ENTRYPOINT; if it does not, the privilege drop is bypassed and /api/health reports privileged true",
+    "Whether the no-build-target, non-privileged-container and one-volume-per-service limits still hold, since they rest partly on staff replies and community threads"
+  ]
 }

@@ -1,6 +1,6 @@
 # Build backlog
 
-Last updated: 2026-11-01. Source: [PRD](PRD.md). Milestones: [ROADMAP.md](ROADMAP.md).
+Last updated: 2026-11-03. Source: [PRD](PRD.md). Milestones: [ROADMAP.md](ROADMAP.md).
 
 States: **Ready**, **In progress**, **Blocked**, **Not started**, **Done**, **Deferred**. Ready means dependencies permit work. Done requires acceptance evidence and a checkpoint commit. Dependencies identify tasks, not elapsed time.
 
@@ -30,7 +30,7 @@ The user selected public signup, free bounded testing and the Build with buy bou
 | FREE-01 | Verified public signup and free workspace | Done (local) | FREE-00 | Email-first atomic signup, one free workspace, concurrent three-project cap, paid/operator/invitation boundaries; 60 DB and 20 desktop/mobile checks; [guide](FREE-01.md). Real delivery/recovery/edge controls remain FREE-03 |
 | FREE-02 | Bounded free test and automatic runner | In progress | FREE-01, RUN-03 | Local signup-to-replay verified with real gVisor Chromium, atomic limits, automatic dispatch, cancellation and two SIGKILL recovery cases; 14 focused checks, zero customer liability. [Guide](FREE-02.md), [checkpoint](evidence/FREE-02.json). RUN-03 resource/whole-host gates still open |
 | BUY-01 | Sponsored buy report explanation | In progress | FREE-00, RUN-02 | Completed free-test evidence binds to immutable exact report inputs; all-passing checks skipped, automatic preparation/recovery and nine binding checks pass. Six provider-boundary checks and earlier unsigned 0.01 USDC quote retained ([guide](BUY-01.md)); the sponsored budget, purchase journal and uncertain-settlement recovery are implemented and covered by fourteen checks, three of them verified against deliberately broken code ([checkpoint](evidence/BUY-01-journal.json)). A real signing adapter, a funded wallet, a chain-read settlement, useful output and the report UI are still pending; the ledger has no route to a payable, so zero customer reimbursement is structural rather than a rule |
-| FREE-03 | Hosted staging and launch operations | Not started | FREE-01, FREE-02 | HTTPS/app/worker/Postgres/private evidence; real mail/recovery; backup restore, roles, monitoring, retention and abuse controls |
+| FREE-03 | Hosted staging and launch operations | In progress | FREE-01, FREE-02 | Separate web/worker images build and were verified from an empty database: 23 migrations applied from the worker image, readiness 200/503 correct, liveness answers with no database, non-root. [Guide](FREE-03.md), [D056](../memory/DECISIONS.md). No host, domain, TLS, verified mail sender, secret store, backup, monitoring, retention or abuse control exists. Hosted execution additionally needs a Linux runner adapter and a server gVisor bootstrap, because the host adapter shells out to the macOS-only `orb` |
 | FREE-04 | Real-user release and submission | Not started | FREE-02, BUY-01, FREE-03, HACK-01 | Real signup-to-replay journey, useful paid output, demo/repo/identity and submission confirmation |
 
 ## Hands-on trial

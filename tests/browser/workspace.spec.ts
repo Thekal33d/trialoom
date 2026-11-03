@@ -94,7 +94,9 @@ for (const path of ['/demo', '/demo/evidence', '/demo/payments', '/demo/guide'])
 test('health, readiness, and demo security headers are explicit', async ({ request }) => {
   const health = await request.get('/api/health');
   expect(health.status()).toBe(200);
-  expect(await health.json()).toMatchObject({ mode: 'invited-alpha' });
+  // This suite runs the invited build, so the endpoint must report that mode
+  // and must not claim testing is available.
+  expect(await health.json()).toMatchObject({ mode: 'invited-alpha', testing: 'unavailable' });
   expect((await request.get('/api/ready')).status()).toBe(200);
   const page = await request.get('/demo');
   expect(page.headers()['x-content-type-options']).toBe('nosniff');

@@ -2,6 +2,9 @@ import type { NextConfig } from 'next';
 
 const config: NextConfig = {
   poweredByHeader: false,
+  // A container runs the traced server bundle, not this repository: the image
+  // then carries no build toolchain and no devDependencies.
+  output: 'standalone',
   serverExternalPackages: ['pg'],
   async headers() {
     return [

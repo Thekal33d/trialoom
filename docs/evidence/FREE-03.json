@@ -1,0 +1,37 @@
+{
+  "task": "FREE-03",
+  "checkedAt": "2026-11-03T18:40:00.000Z",
+  "timezone": "Africa/Lagos",
+  "scope": "Deployable web and worker container images, verified from an empty database. No host, domain or deployment exists.",
+  "artifacts": ["Dockerfile", ".dockerignore", "next.config.ts", "src/app/api/health/route.ts", "src/server/storage.ts"],
+  "baseImage": "node:24-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c",
+  "images": {
+    "app": { "size": "435MB", "applicationContent": "63MB", "runsAs": "uid=1000(node)" },
+    "worker": { "size": "1.11GB", "nodeModules": "578MB", "runsAs": "uid=1000(node)" }
+  },
+  "verified": [
+    "Both targets build with no warning and no error",
+    "23 migrations applied from the worker image onto an empty database, 0001 through 0023_sponsored_purchases.sql",
+    "/api/ready returns 200 against that database",
+    "/api/ready returns 503 DATABASE_NOT_READY with no database configured, exposing no detail",
+    "/api/health returns 200 with no DATABASE_URL configured at all, so liveness does not touch the database",
+    "/api/health reports the mode read from configuration, not a label written into the source",
+    "/ returns 307 to /sign-up with public signup enabled; /sign-up returns 200",
+    "The web image carries .next, node_modules, public, package.json and server.js, and no src/, docs/, tests/, db/ or scripts/"
+  ],
+  "resolved": {
+    "finding": "The bundler was tracing the whole project into the standalone server output because src/server/storage.ts resolves the private evidence directory at run time, which would copy every source file and all of public/ into the deployed server directory.",
+    "history": "Recorded as three storage tracing warnings in every checkpoint since PRACTICE-01 and treated as cosmetic.",
+    "fix": "The three dynamic filesystem calls are explicitly opted out of tracing; that directory is a mounted volume holding private evidence, never content to bundle.",
+    "foundBy": "Building the image. npm run build in the repository shows the warnings but not the consequence."
+  },
+  "suites": { "lint": 188, "strictTypes": "pass", "databaseChecks": 285, "browserChecks": 58, "browserSkipped": 4 },
+  "notDone": [
+    "No host, domain or TLS termination",
+    "No verified sending domain, so signup mail is unusable",
+    "No secret store, backup, verified restore, monitoring, retention or abuse control",
+    "Hosted execution is unavailable: the runner host adapter shells out to the macOS-only orb CLI, and gVisor must be registered on the Docker daemon that starts the browser",
+    "A deployment without hosted execution must report testing unavailable rather than queue tests that cannot run"
+  ],
+  "decision": "D056"
+}

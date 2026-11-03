@@ -121,7 +121,7 @@ Generated screenshots and failure traces live under ignored `test-results/`. Tre
 
 | Route | Meaning |
 | --- | --- |
-| `/api/health` | Process is alive; reports invited-alpha mode |
+| `/api/health` | Process is alive; reports this deployment's configured mode and whether testing is enabled. Never touches the database |
 | `/api/ready` | Database is reachable and migration 0003 is registered; otherwise HTTP 503 with a generic code |
 | `/api/demo/report` | Download of reviewed fixture summary; never private evidence or payment authorization |
 

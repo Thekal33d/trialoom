@@ -1,0 +1,36 @@
+# The build context is the tracked tree minus credentials, private data and
+# regenerated output. It is deliberately not narrowed any further: `next build`
+# type-checks the whole project, so a file left out of the context fails the
+# build with a missing module rather than a useful error. Keeping the project
+# off the deployed image is the bundler's job, not this file's -- see the
+# turbopackIgnore note in src/server/storage.ts.
+
+# Credentials and local configuration.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.keystore
+secrets/
+
+# Local execution evidence may contain private customer data.
+artifacts/
+test-results/
+playwright-report/
+*.log
+
+# Regenerated inside the image, or build state nothing imports.
+node_modules/
+.next/
+.cache/
+.git/
+.github/
+.claude/
+.agents/
+coverage/
+*.tsbuildinfo
+.DS_Store
+Dockerfile
+.dockerignore

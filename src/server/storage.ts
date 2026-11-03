@@ -10,7 +10,12 @@ import { AppError } from '../domain/errors.ts';
  * recorded in the architecture; that service is not provisioned.
  */
 export function evidenceRoot(env: NodeJS.ProcessEnv = process.env): string {
-  return resolve(env.TRIALOOM_EVIDENCE_DIR ?? 'artifacts/evidence');
+  // turbopackIgnore on this and the two calls below: the operator chooses this
+  // directory at run time and it holds private evidence, so it is a mounted
+  // volume, never content to bundle. Without the opt-out the bundler concludes
+  // it must trace the whole project and copies every source file and all of
+  // public/ into the server output.
+  return resolve(/* turbopackIgnore: true */ env.TRIALOOM_EVIDENCE_DIR ?? 'artifacts/evidence');
 }
 const key = /^[a-f0-9]{64}$/;
 function pathFor(root: string, digest: string) {
@@ -27,7 +32,10 @@ export async function putObject(
   const root = evidenceRoot(env);
   const digest = digestOf(bytes);
   const target = pathFor(root, digest);
-  await mkdir(join(root, digest.slice(0, 2)), { recursive: true, mode: 0o700 });
+  await mkdir(join(/* turbopackIgnore: true */ root, digest.slice(0, 2)), {
+    recursive: true,
+    mode: 0o700,
+  });
   // Write then rename so a reader never sees a partial artifact.
   const staged = `${target}.${randomUUID()}.part`;
   await writeFile(staged, bytes, { mode: 0o600 });
@@ -39,7 +47,7 @@ export async function getObject(
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<Buffer> {
   try {
-    return await readFile(pathFor(evidenceRoot(env), digest));
+    return await readFile(/* turbopackIgnore: true */ pathFor(evidenceRoot(env), digest));
   } catch {
     throw new AppError('ARTIFACT_UNAVAILABLE', 'That stored artifact could not be read.', 503);
   }

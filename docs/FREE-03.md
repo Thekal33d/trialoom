@@ -79,6 +79,95 @@ The user chose Railway for the web process, the worker and Postgres. It cannot h
 
 **Two things to verify after the first deploy, not assumed.** Whether a custom Start Command preserves the image's `ENTRYPOINT` — if Railway replaces it, the privilege drop is bypassed and `/api/health` will report `privileged: true`, which is why it reports it. And whether the no-target, non-privileged and one-volume-per-service limits still hold: those rest partly on staff replies and community threads rather than formal documentation, and Railway has hinted at a future VM-based runtime that would change the runner answer.
 
+## Provisioning runbook
+
+Written 2026-11-03 against Railway CLI 5.68.0 and Railway's live documentation. Nothing here has been run: every step creates billable resources or publishes something on the user's account, so these are the user's commands.
+
+**Deploy by CLI upload, not by connecting a repository.** Railway's git integration is GitHub-centric — `railway add --repo` and `railway service source connect --repo` both describe GitHub — and this project's GitHub account is suspended. `railway up` uploads the working directory instead, which sidesteps the question entirely and also means unpushed commits deploy without pushing anything.
+
+**Two safety rules before the first command.**
+
+- **Never pass `--no-gitignore` to `railway up`.** The upload respects `.gitignore` by default and always skips `.git` and `node_modules`; `git check-ignore` confirms `.env` is ignored, so the database password, the authentication secret and any signing key stay on the machine. `--no-gitignore` would upload all of it.
+- **Do not create a `.railwayignore`.** It is unnecessary here — the tracked tree is 345 files and 4.3 MB — and copying `.dockerignore` into one has been reported to exclude the Dockerfile itself.
+
+### 1. Project and database
+
+```sh
+railway init --name trialoom
+```
+
+```sh
+railway add --database postgres
+```
+
+Railway deploys databases private by default. Leave it that way: `DATABASE_URL` is then the internal connection string, reachable over the project's Wireguard-encrypted private network, and no public TCP proxy exists to find. Enabling public access would populate `DATABASE_PUBLIC_URL` and bill egress.
+
+### 2. Two services
+
+```sh
+railway add --service worker && railway add --service web
+```
+
+### 3. The worker carries the schema authority
+
+The web image is Next's traced bundle and contains no project source, so **it cannot run migrations at all.** That is worth keeping: the internet-facing process has no way to alter the schema. Migrations run from the worker image.
+
+```sh
+railway variable set DATABASE_URL='${{Postgres.DATABASE_URL}}' RAILWAY_DOCKERFILE_PATH=Dockerfile.worker --service worker --skip-deploys
+```
+
+```sh
+railway up --service worker
+```
+
+Then, in the dashboard — this is the one step with no CLI equivalent — set **worker → Settings → Deploy → Pre-deploy Command** to `node scripts/migrate.ts` and redeploy. Railway runs it in a separate container with the service's variables, and a failure fails the deploy while the previous version keeps serving. The pre-deploy container has no volume access, which does not matter because migrations touch only Postgres.
+
+### 4. The web service
+
+```sh
+railway up --service web
+```
+
+```sh
+railway domain --service web --port 3000
+```
+
+`/api/health` answers before the authentication origin is configured, because liveness reads no database and calls no auth. Curl it now: it is the earliest point at which the privilege drop is visible.
+
+```sh
+railway variable set BETTER_AUTH_URL=https://REPLACE.up.railway.app DATABASE_URL='${{Postgres.DATABASE_URL}}' TRIALOOM_PUBLIC_SIGNUP=false --service web --skip-deploys
+```
+
+```sh
+openssl rand -hex 32 | railway variable set BETTER_AUTH_SECRET --stdin --service web
+```
+
+`--stdin` keeps the secret out of the command line and out of shell history. Railway also supports **sealed** variables, whose values are never shown in the UI or returned by the API; sealing is a dashboard action and cannot be undone.
+
+`TRIALOOM_PUBLIC_SIGNUP=false` makes `/` redirect to `/demo`, the seeded sample walkthrough. That needs no sending domain and no runner, so it is the honest first deployment. Turning signup on requires `RESEND_API_KEY` and `TRIALOOM_EMAIL_FROM` on a verified domain first; signup refuses rather than falling back to a fake sender.
+
+`TRIALOOM_EVIDENCE_DIR` is deliberately left unset. No volume is attached, nothing executes, and the entrypoint logs `container.evidence_ephemeral` so the state is visible rather than assumed. Attaching a volume later also requires `RAILWAY_RUN_UID=0`, which the entrypoint then turns back into an unprivileged process.
+
+### 5. Verify, rather than assume
+
+```sh
+curl -s https://REPLACE.up.railway.app/api/health
+```
+
+Expect `mode: "invited-alpha"`, `testing: "unavailable"` and — the one that matters — **`privileged: false`**. If it reports `privileged: true`, Railway replaced the image's `ENTRYPOINT` and the privilege drop was bypassed; that is exactly why the field exists.
+
+```sh
+curl -s https://REPLACE.up.railway.app/api/ready
+```
+
+Expect `{"status":"ready"}`. A 503 `DATABASE_NOT_READY` means the pre-deploy migration has not run.
+
+```sh
+railway service logs --service web
+```
+
+Expect `container.dropping_privileges` when started as root, or `container.evidence_ephemeral` otherwise. `container.evidence_unwritable` means a configured evidence directory could not be written and the process refused to start.
+
 ## Remaining gates
 
 Nothing below is done. Several need an account or a payment and are the user's to decide.

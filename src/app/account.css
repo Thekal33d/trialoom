@@ -761,3 +761,33 @@ button:disabled {
     gap: 0.5rem;
   }
 }
+
+/* The bought explanation, deliberately quieter than the observed checks above
+   it: it is advisory text, and it should never read as a second result. */
+.free-explanation {
+  background: var(--green-soft);
+  border-radius: 0.5rem;
+  margin-top: 1rem;
+  padding: 1rem 1.25rem;
+}
+.free-explanation h4,
+.free-explanation h5 {
+  margin: 0;
+}
+.free-explanation h5 {
+  color: var(--muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  margin-top: 1rem;
+  text-transform: uppercase;
+}
+.free-explanation p {
+  margin: 0.5rem 0 0;
+}
+.free-explanation .free-explanation-title {
+  font-family: var(--display);
+  font-weight: 600;
+}
+.free-explanation .replay-privacy {
+  margin-bottom: 0;
+}

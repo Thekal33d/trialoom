@@ -1,5 +1,9 @@
 'use client';
-import { activeFreeTest, type FreeTestSummary } from '@/domain/free-tests';
+import {
+  activeFreeTest,
+  type FreeTestExplanation,
+  type FreeTestSummary,
+} from '@/domain/free-tests';
 import type { ProjectSummary } from './live-types';
 
 const phases = {
@@ -11,7 +15,7 @@ const phases = {
   interrupted: 'Test interrupted',
   cancelled: 'Cancelled',
 };
-const checks = {
+const checks: Record<string, string> = {
   homepage: 'Page returned a successful response and rendered visible content',
   navigation: 'Sample next-page navigation rendered',
   scope: 'Requests stayed within the approved scope',
@@ -25,13 +29,80 @@ const actionNames: Record<string, string> = {
   click: 'Follow link',
   waitForSelector: 'Wait for element',
 };
+/**
+ * What was bought to explain this test, beside the observations it was bought
+ * against. The explanation is advisory text from a service Trialoom pays for;
+ * it is never a result, and the panel is built so that it cannot be mistaken
+ * for one — the observed checks stay above it, every claim it makes points at
+ * one of them by reference, and the states where nothing useful arrived say so
+ * rather than showing an empty space.
+ */
+function Explanation({ explanation }: { explanation: FreeTestExplanation }) {
+  if (explanation.state === 'skipped') return null;
+  const named = (ref: string) => explanation.observations.find((item) => item.ref === ref) ?? null;
+  return (
+    <section className="free-explanation" aria-label="Explanation of this result">
+      <div className="section-heading">
+        <h4>What this looks like</h4>
+        <span className="neutral-label">Not a test result</span>
+      </div>
+      {explanation.state === 'pending' && (
+        <p className="section-description">
+          Trialoom is buying an explanation of these observations. It will appear here; the checks
+          above are the result either way.
+        </p>
+      )}
+      {explanation.state === 'unavailable' && (
+        <p className="section-description">
+          No explanation was obtained for this test. The checks above are unaffected, and nothing
+          was charged to you.
+        </p>
+      )}
+      {explanation.state === 'unusable' && (
+        <p className="section-description">
+          Trialoom paid for an explanation of these observations and the answer could not be used,
+          so it is not shown. The checks above are unaffected, and nothing was charged to you.
+        </p>
+      )}
+      {explanation.state === 'ready' && explanation.body && (
+        <>
+          <p className="free-explanation-title">{explanation.body.title}</p>
+          <p>{explanation.body.summary}</p>
+          <p>
+            <strong>Try next.</strong> {explanation.body.nextStep}
+          </p>
+          <h5>Derived only from</h5>
+          <ul className="free-checks">
+            {explanation.body.evidenceRefs.map((ref) => {
+              const observation = named(ref);
+              return (
+                <li key={ref}>
+                  <strong>{observation?.passed ? 'Passed' : 'Blocked'}</strong>
+                  <span>{observation ? checks[observation.name] : ref}</span>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="replay-privacy">
+            Written by an external service Trialoom paid for, from the checks listed above and
+            nothing else. No URL, page content, trace or account detail left this product. It is a
+            suggestion, not a finding, and it cannot change a result.
+          </p>
+        </>
+      )}
+    </section>
+  );
+}
+
 export function FreeTestHistory({
   tests,
+  explanations,
   projects,
   busy,
   onCancel,
 }: {
   tests: FreeTestSummary[];
+  explanations: Record<string, FreeTestExplanation>;
   projects: ProjectSummary[];
   busy: boolean;
   onCancel: (id: string) => void;
@@ -97,6 +168,7 @@ export function FreeTestHistory({
                       </li>
                     ))}
                   </ul>
+                  {explanations[test.id] && <Explanation explanation={explanations[test.id]} />}
                   <details className="replay-details free-replay">
                     <summary>View replay</summary>
                     <p className="section-description">

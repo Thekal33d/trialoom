@@ -20,6 +20,7 @@ import {
   spentToday,
   sponsorBudgetFunded,
   sponsorLimits,
+  workspaceExplanations,
 } from '../src/server/sponsored.ts';
 import { disposableDatabase } from './helpers/database.ts';
 import { seedFreeAccount } from './helpers/free-account.ts';
@@ -455,6 +456,87 @@ test('a sponsored purchase never reaches a customer, and its identity cannot be 
     db.pool.query('DELETE FROM sponsored_purchases WHERE id=$1', [row.id]),
     /immutable/i,
   );
+});
+
+const testIdOf = async (reportId: string) =>
+  (
+    await db.pool.query<{ free_test_id: string }>(
+      'SELECT free_test_id FROM buy_report_inputs WHERE id=$1',
+      [reportId],
+    )
+  ).rows[0].free_test_id;
+
+test('nothing to explain, nothing bought yet, and paid-but-unusable each say so', async () => {
+  const view = () => workspaceExplanations(db.pool, account.workspaceId);
+  // All four checks pass: there is nothing to explain, and that is a result.
+  const passing = await preparedReport(account, {
+    ...result,
+    outcome: 'completed',
+    checks: result.checks.map((check) => ({ ...check, passed: true })),
+  });
+  assert.equal(passing.status, 'skipped');
+  assert.equal((await view())[await testIdOf(passing.id)].state, 'skipped');
+
+  const report = await preparedReport();
+  const reportTest = await testIdOf(report.id);
+  assert.equal((await view())[reportTest].state, 'pending');
+  // The observations carry the same positional refs an explanation will cite.
+  const observed = (await view())[reportTest].observations;
+  assert.deepEqual(
+    observed.map((item) => item.ref),
+    ['step-1', 'step-2', 'step-3', 'step-4'],
+  );
+  assert.equal(observed.find((item) => item.name === 'navigation')?.passed, false);
+
+  await authorizeSponsoredBudget(db.pool, 100_000n, 100_000n, 'test funding');
+  await purchaseSponsoredReport(
+    db.pool,
+    report.id,
+    adapter({
+      status: 'usable',
+      costUnits: '9000',
+      output: explanation(['step-9']),
+      detail: 'paid',
+    }),
+  );
+  // Paid for, unusable, and shown as that rather than as an empty panel.
+  assert.equal((await view())[reportTest].state, 'unusable');
+  assert.equal((await view())[reportTest].body, null);
+});
+
+test('a delivered explanation names only observations shown beside it', async () => {
+  const view = () => workspaceExplanations(db.pool, account.workspaceId);
+  await authorizeSponsoredBudget(db.pool, 100_000n, 100_000n, 'test funding');
+
+  // A refusal is permanent for that report: one report authorizes one purchase.
+  const refused = await preparedReport();
+  await purchaseSponsoredReport(
+    db.pool,
+    refused.id,
+    adapter({ status: 'refused', reason: 'provider_refused', detail: 'gateway said no' }),
+  );
+  assert.equal((await view())[await testIdOf(refused.id)].state, 'unavailable');
+
+  const good = await preparedReport();
+  await purchaseSponsoredReport(
+    db.pool,
+    good.id,
+    adapter({
+      status: 'usable',
+      costUnits: '9000',
+      output: explanation(['step-2']),
+      detail: 'paid',
+    }),
+  );
+  const ready = (await view())[await testIdOf(good.id)];
+  assert.equal(ready.state, 'ready');
+  assert.match(ready.body?.title ?? '', /Navigation check/);
+  assert(ready.body?.evidenceRefs.length);
+  for (const ref of ready.body?.evidenceRefs ?? [])
+    assert(
+      ready.observations.some((item) => item.ref === ref),
+      `${ref} must name an observation shown beside it`,
+    );
 });
 
 test('the prepared request is rebuilt and checked before it is paid for', async () => {

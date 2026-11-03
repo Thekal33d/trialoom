@@ -5,6 +5,7 @@ import { AppError } from '../domain/errors.ts';
 import type { FreeTestsView } from '../domain/free-tests.ts';
 import { type Actor, audit, requireRole } from './access.ts';
 import { transaction } from './database.ts';
+import { workspaceExplanations } from './sponsored.ts';
 
 const requestSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('sample'), requestId: z.uuid() }).strict(),
@@ -66,6 +67,7 @@ export async function freeTestsView(
       )
     ).rows;
     return {
+      explanations: await workspaceExplanations(db, workspaceId),
       available: enabled && service?.ready === true,
       allowedOrigins: enabled
         ? projectOrigins.filter((origin) => service?.allowed_origins.includes(origin))

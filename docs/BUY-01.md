@@ -107,9 +107,26 @@ Five were verified against deliberately broken code: trusting the quoted domain,
 2. Fund the wallet and authorize a cap. The signer exists and is unconfigured by default (`TRIALOOM_SPONSOR_AGENT_KEY`); the wallet `0xf8Ff4F7C83404e04506785b7DFDf838CA75C22ae` **holds 0 USDC**, and `authorizeSponsoredBudget` has never been called outside a disposable test database. A public user already cannot supply a recipient, endpoint, model, raw prompt, wallet or amount.
 3. ~~Re-quote the stored exact request, reserve durably before dispatch, and hold an unknown settlement without repurchasing~~ — implemented and checked. ~~A real adapter does not exist~~ — it does now, and its request format is verified against the live gateway. **Nothing has been paid**: no signer is configured and the ceiling is 0.
 4. ~~Verify a finalized exact token transfer against Celo~~ — `resolve` reads `authorizationState` from the token itself, so a settlement answer is a chain reading rather than the provider's word. **No reading of a real payment has been taken**, because none exists. The journal classifies usable output, paid-but-unusable output and unresolved settlement separately. A 2xx response or provider header alone is not finality proof.
-5. Display the explanation beside the deterministic report in the product, and keep receipt evidence. The record exists (`sponsored_outputs`, advisory and immutable); no interface shows it yet. Prove one request benefits a real external user before making integration or bounty claims.
+5. ~~Display the explanation beside the deterministic report in the product~~ — done 2026-11-03, below. Keep receipt evidence, and prove one request benefits a real external user before making integration or bounty claims.
 
 FREE-02 now connects signup, automatic bounded execution and replay locally. Hosted operations remain open. The existing ALPHA-09 resource flow reimburses resources from a builder campaign; routing free calls through it would violate the free-beta promise.
+
+## What the builder sees
+
+The observed checks stay where they were, above and unchanged. Underneath them sits what was bought, in a quieter panel headed **"What this looks like"** and labelled **"Not a test result"**. It carries a title, a summary and a next step, then **"Derived only from"** — the exact observations the explanation cited, by the positional refs `prepareBuyReport` generated, each shown with its real passed-or-blocked state. A claim that cannot name an observation on that list never appears, because `parseBuyExplanation` refuses the response before it is stored.
+
+Beneath it: *"Written by an external service Trialoom paid for, from the checks listed above and nothing else. No URL, page content, trace or account detail left this product. It is a suggestion, not a finding, and it cannot change a result."*
+
+The states a builder can land in each say what is true rather than showing an empty space:
+
+| State | What the panel says |
+| --- | --- |
+| all checks passed | nothing at all — there is nothing to explain, and that is a result |
+| prepared, not yet bought | an explanation is being bought; the checks are the result either way |
+| refused | none was obtained; the checks are unaffected and nothing was charged |
+| paid, unusable | it was paid for and the answer could not be used, so it is not shown |
+
+**A limitation found while building this.** `sponsored_purchases.report_input_id` is `UNIQUE`, which guarantees one report never authorizes two purchases — but it also means a purchase refused for a transient reason, a gateway outage at the wrong moment, permanently denies that report an explanation. The panel says so honestly rather than implying one is still coming. Allowing a fresh attempt after a refusal that paid nothing would need a schema change, and it is not made here.
 
 ## Checks
 

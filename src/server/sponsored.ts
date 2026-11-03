@@ -665,6 +665,71 @@ export async function sponsoredView(db: Pool | PoolClient, purchaseId: string) {
   return rows[0] ?? null;
 }
 
+export type ReportExplanation = {
+  /**
+   * Why there is, or is not, an explanation — in terms a builder can act on
+   * rather than in terms of our ledger's states.
+   */
+  state: 'skipped' | 'pending' | 'unavailable' | 'unusable' | 'ready';
+  /** The exact closed observations the explanation was bought against. */
+  observations: { ref: string; name: string; passed: boolean }[];
+  body: { title: string; summary: string; nextStep: string; evidenceRefs: string[] } | null;
+};
+
+type ExplanationRow = {
+  free_test_id: string;
+  report_status: 'prepared' | 'skipped';
+  observations: { steps?: { name?: string; passed?: boolean }[] } | null;
+  state: string | null;
+  delivery: string | null;
+  body: ReportExplanation['body'];
+};
+
+/**
+ * Every completed test in a workspace and whatever was bought to explain it.
+ *
+ * The refs are positional and generated the same way `prepareBuyReport` makes
+ * them, so an explanation's `evidenceRefs` point at the observations shown
+ * beside it — which is the whole reason this is displayed as a pair.
+ */
+export async function workspaceExplanations(
+  db: Pool | PoolClient,
+  workspaceId: string,
+): Promise<Record<string, ReportExplanation>> {
+  const { rows } = await db.query<ExplanationRow>(
+    `SELECT r.free_test_id, r.status AS report_status, r.observations,
+    p.state, p.delivery, o.body
+    FROM buy_report_inputs r
+    LEFT JOIN sponsored_purchases p ON p.report_input_id=r.id
+    LEFT JOIN sponsored_outputs o ON o.purchase_id=p.id
+    WHERE r.workspace_id=$1`,
+    [workspaceId],
+  );
+  const view: Record<string, ReportExplanation> = {};
+  for (const row of rows) {
+    const observations = (row.observations?.steps ?? []).map((step, index) => ({
+      ref: `step-${index + 1}`,
+      name: String(step.name ?? ''),
+      passed: step.passed === true,
+    }));
+    // An all-passing test has nothing to explain, and that is a result rather
+    // than a gap. A refused purchase can never be retried for this report,
+    // because one prepared report authorizes one purchase and no more.
+    const state: ReportExplanation['state'] =
+      row.report_status === 'skipped'
+        ? 'skipped'
+        : row.body
+          ? 'ready'
+          : row.delivery === 'unusable'
+            ? 'unusable'
+            : row.state === 'refused'
+              ? 'unavailable'
+              : 'pending';
+    view[row.free_test_id] = { state, observations, body: row.body };
+  }
+  return view;
+}
+
 /** What a workspace was given, with the explanation beside its own purchase. */
 export async function workspaceSponsoredReports(db: Pool | PoolClient, workspaceId: string) {
   const { rows } = await db.query(

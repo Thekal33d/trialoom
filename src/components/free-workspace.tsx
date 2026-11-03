@@ -275,6 +275,7 @@ export function FreeWorkspace({
       </section>
       <FreeTestHistory
         tests={tests.tests}
+        explanations={tests.explanations}
         projects={projects}
         busy={busy}
         onCancel={(id) => void cancel(id)}

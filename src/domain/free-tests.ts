@@ -19,11 +19,18 @@ export type FreeTestSummary = {
   created_at: string;
   result: FreeTestResult | null;
 };
+export type FreeTestExplanation = {
+  state: 'skipped' | 'pending' | 'unavailable' | 'unusable' | 'ready';
+  observations: { ref: string; name: string; passed: boolean }[];
+  body: { title: string; summary: string; nextStep: string; evidenceRefs: string[] } | null;
+};
 export type FreeTestsView = {
   available: boolean;
   allowedOrigins: string[];
   remaining: number;
   tests: FreeTestSummary[];
+  /** Keyed by test id; absent until a report has been prepared for that test. */
+  explanations: Record<string, FreeTestExplanation>;
 };
 export const activeFreeTest = (phase: FreeTestSummary['phase']) =>
   ['queued', 'running', 'captured'].includes(phase);

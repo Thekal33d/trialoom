@@ -11,20 +11,15 @@ import {
   verifyTypedData,
 } from 'viem';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
-import { buyReportService } from '../src/server/buy-report.ts';
+import { buyAssets, buyReportService, pinnedAsset } from '../src/server/buy-report.ts';
 import { authorizationNonce, buyX402Adapter, sponsorConfig } from '../src/server/buy-x402.ts';
 import type { SponsoredQuote, SponsoredRequest } from '../src/server/sponsored.ts';
 
 const agentKey = generatePrivateKey();
 const account = privateKeyToAccount(agentKey);
 const payee = buyReportService.payee;
-const token = buyReportService.token;
-const domain = {
-  name: 'USDC',
-  version: '2',
-  chainId: buyReportService.chainId,
-  verifyingContract: token as `0x${string}`,
-} as const;
+const usdc = buyAssets[0];
+const usdt = buyAssets[1];
 const types = {
   TransferWithAuthorization: [
     { name: 'from', type: 'address' },
@@ -35,17 +30,39 @@ const types = {
     { name: 'nonce', type: 'bytes32' },
   ],
 } as const;
+const domainOf = (asset: (typeof buyAssets)[number]) =>
+  ({
+    name: asset.name,
+    version: asset.version,
+    chainId: buyReportService.chainId,
+    verifyingContract: asset.address as `0x${string}`,
+  }) as const;
 
 const selectors = {
   domain: toFunctionSelector('function DOMAIN_SEPARATOR() view returns (bytes32)'),
   state: toFunctionSelector('function authorizationState(address,bytes32) view returns (bool)'),
+  balance: toFunctionSelector('function balanceOf(address) view returns (uint256)'),
 };
 
-/** A JSON-RPC stub, so a chain read is exercised without a chain. */
+/** A JSON-RPC stub, so the chain reads are exercised without a chain. */
 let rpc: Server;
 let rpcUrl = '';
-let separator: `0x${string}` = domainSeparator({ domain });
-let used = false;
+let balances: Record<string, bigint> = {};
+/** Overridden per test to stand for a token whose domain is not what was claimed. */
+let separatorFor: (address: string) => `0x${string}`;
+/** Per-token, so resolving against the wrong token cannot look like success. */
+let used: Record<string, boolean> = {};
+const spend = (symbol: string) => {
+  const asset = buyAssets.find((item) => item.symbol === symbol);
+  assert(asset);
+  used[asset.address.toLowerCase()] = true;
+};
+
+const fund = (over: Partial<Record<string, bigint>>) => {
+  balances = Object.fromEntries(
+    buyAssets.map((asset) => [asset.address.toLowerCase(), over[asset.symbol] ?? 0n]),
+  );
+};
 
 function offer(over: Record<string, unknown> = {}) {
   return {
@@ -57,25 +74,20 @@ function offer(over: Record<string, unknown> = {}) {
     mimeType: 'application/json',
     payTo: payee,
     maxTimeoutSeconds: 60,
-    asset: token,
-    extra: { name: 'USDC', version: '2' },
+    asset: usdc.address,
+    extra: { name: usdc.name, version: usdc.version },
     ...over,
   };
 }
-/** The live gateway lists USDC, USDT and USAT; only one of them is ours. */
+const asOffer = (symbol: string) => {
+  const asset = buyAssets.find((item) => item.symbol === symbol);
+  assert(asset);
+  return offer({ asset: asset.address, extra: { name: asset.name, version: asset.version } });
+};
+/** The three offers the live gateway returns, in the order it returns them. */
 const liveEnvelope = {
   x402Version: 1,
-  accepts: [
-    offer({
-      asset: '0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e',
-      extra: { name: 'Tether USD', version: '1' },
-    }),
-    offer(),
-    offer({
-      asset: '0xD2ab3C9A02DBBAB236BfEC45D1d755DF4267F771',
-      extra: { name: 'Tether America USD', version: '1' },
-    }),
-  ],
+  accepts: [asOffer('USDC'), asOffer('USDT'), asOffer('USAT')],
   error: 'payment_required',
 };
 
@@ -83,10 +95,7 @@ type Call = { headers: Headers; body: string };
 function gateway(answers: Response[]) {
   const calls: Call[] = [];
   const transport = (async (_url: string | URL | Request, init?: RequestInit) => {
-    calls.push({
-      headers: new Headers(init?.headers),
-      body: String(init?.body ?? ''),
-    });
+    calls.push({ headers: new Headers(init?.headers), body: String(init?.body ?? '') });
     const next = answers.shift();
     if (!next) throw new Error('The gateway was called more times than the test allows');
     return next;
@@ -110,7 +119,7 @@ const quoted = (over: Partial<SponsoredQuote> = {}): SponsoredQuote => ({
   status: 'quoted',
   amountUnits: '10000',
   chainId: buyReportService.chainId,
-  tokenAddress: token,
+  tokenAddress: usdc.address,
   tokenDecimals: 6,
   payee,
   expiresAt: new Date(Date.now() + 60_000).toISOString(),
@@ -119,8 +128,13 @@ const quoted = (over: Partial<SponsoredQuote> = {}): SponsoredQuote => ({
 const adapter = (transport: typeof fetch) => buyX402Adapter({ agentKey, rpcUrl }, transport);
 
 beforeEach(async () => {
-  separator = domainSeparator({ domain });
-  used = false;
+  used = {};
+  fund({ USDC: 1_000_000n });
+  separatorFor = (address) => {
+    const asset = pinnedAsset(address);
+    assert(asset, `the stub was asked about an unpinned token ${address}`);
+    return domainSeparator({ domain: domainOf(asset) });
+  };
   rpc = createServer((req, res) => {
     let raw = '';
     req.on('data', (chunk) => {
@@ -129,11 +143,14 @@ beforeEach(async () => {
     req.on('end', () => {
       const call = JSON.parse(raw);
       const data: string = call.params?.[0]?.data ?? '';
+      const to: string = String(call.params?.[0]?.to ?? '').toLowerCase();
       let result = '0x';
       if (call.method === 'eth_chainId') result = toHex(buyReportService.chainId);
-      else if (data.startsWith(selectors.domain)) result = separator;
+      else if (data.startsWith(selectors.domain)) result = separatorFor(to);
+      else if (data.startsWith(selectors.balance))
+        result = encodeAbiParameters([{ type: 'uint256' }], [balances[to] ?? 0n]);
       else if (data.startsWith(selectors.state))
-        result = encodeAbiParameters([{ type: 'bool' }], [used]);
+        result = encodeAbiParameters([{ type: 'bool' }], [used[to] === true]);
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ jsonrpc: '2.0', id: call.id, result }));
     });
@@ -159,23 +176,47 @@ test('no key means no adapter, which is this build', () => {
   assert.equal(configured?.rpcUrl, 'https://forno.celo.org');
 });
 
-test('the pinned USDC offer is taken out of the live three-offer envelope', async () => {
-  const { transport } = gateway([json(402, liveEnvelope)]);
-  const result = await adapter(transport).quote(request('tsb_a'));
-  assert.equal(result.status, 'quoted');
-  assert(result.status === 'quoted');
-  assert.equal(result.tokenAddress, token);
-  assert.equal(result.payee, payee);
-  assert.equal(result.amountUnits, '10000');
-  assert.equal(result.chainId, 42220);
+test('the asset is whichever of the three the wallet can actually pay in', async () => {
+  for (const symbol of ['USDC', 'USDT', 'USAT']) {
+    fund({ [symbol]: 1_000_000n });
+    const { transport } = gateway([json(402, liveEnvelope)]);
+    const result = await adapter(transport).quote(request('tsb_a'));
+    assert.equal(result.status, 'quoted', symbol);
+    assert(result.status === 'quoted');
+    assert.equal(pinnedAsset(result.tokenAddress)?.symbol, symbol);
+    assert.equal(result.tokenDecimals, 6);
+    assert.equal(result.payee, payee);
+    assert.equal(result.amountUnits, '10000');
+  }
 });
 
-test('an offer paying somewhere else is not an offer this platform takes', async () => {
-  for (const changed of [{ payTo: `0x${'9'.repeat(40)}` }, { asset: `0x${'8'.repeat(40)}` }]) {
-    const { transport } = gateway([
+test('holding less than the quote asks for is not holding it', async () => {
+  fund({ USDC: 9_999n });
+  const { transport } = gateway([json(402, liveEnvelope)]);
+  const result = await adapter(transport).quote(request('tsb_a'));
+  assert.equal(result.status, 'refused');
+  assert(result.status === 'refused');
+  assert.equal(result.reason, 'sponsor_wallet_unavailable');
+  assert.match(result.detail, /USDC, USDT, USAT/);
+});
+
+test('an offer paying somewhere else, or claiming another domain, is not taken', async () => {
+  for (const changed of [
+    { payTo: `0x${'9'.repeat(40)}` },
+    { asset: `0x${'8'.repeat(40)}` },
+    // The right token with a domain it does not have. Two of the three assets
+    // have no version() to ask, so the pinned table is what catches this.
+    { extra: { name: usdc.name, version: '1' } },
+    { extra: { name: usdt.name, version: usdc.version } },
+  ]) {
+    const { transport, calls } = gateway([
       json(402, { x402Version: 1, accepts: [offer(changed)], error: 'payment_required' }),
     ]);
-    await assert.rejects(adapter(transport).quote(request('tsb_a')), /No matching pinned/);
+    const result = await adapter(transport).quote(request('tsb_a'));
+    assert.equal(result.status, 'refused', JSON.stringify(changed));
+    assert(result.status === 'refused');
+    assert.equal(result.reason, 'provider_refused');
+    assert.equal(calls.length, 1);
   }
 });
 
@@ -208,14 +249,13 @@ test('a paid request carries a correctly signed authorization for exactly the qu
   assert.equal(authorization.from, account.address);
   assert.equal(authorization.to, payee);
   assert.equal(authorization.value, '10000');
-  // The nonce is the purchase's identity, so the token itself refuses a second use.
+  // The nonce is the purchase's identity, so the token refuses a second use.
   assert.equal(authorization.nonce, keccak256(toHex('tsb_one')));
   assert(Number(authorization.validBefore) > Number(authorization.validAfter));
-  // The signature really covers these fields under the token's own domain.
   assert.equal(
     await verifyTypedData({
       address: account.address,
-      domain,
+      domain: domainOf(usdc),
       types,
       primaryType: 'TransferWithAuthorization',
       message: {
@@ -230,12 +270,56 @@ test('a paid request carries a correctly signed authorization for exactly the qu
     }),
     true,
   );
-  // The body paid for is the body that was asked for.
   assert.equal(calls[0].body, request('tsb_one').body);
 });
 
+test('each asset is signed under its own domain and settles on its own token', async () => {
+  fund({ USDT: 1_000_000n });
+  const { transport, calls } = gateway([json(402, liveEnvelope), json(200, { ok: true })]);
+  const client = adapter(transport);
+  const offered = await client.quote(request('tsb_usdt'));
+  assert(offered.status === 'quoted');
+  assert.equal(offered.tokenAddress, usdt.address);
+  const outcome = await client.purchase({ ...request('tsb_usdt'), quote: offered });
+  assert.equal(outcome.status, 'usable');
+  const header = calls[1].headers.get('x-payment');
+  assert(header);
+  const { authorization, signature } = JSON.parse(
+    Buffer.from(header, 'base64').toString('utf8'),
+  ).payload;
+  // Tether USD version 1 is a different domain from USDC's version 2, and a
+  // signature made under the wrong one would verify against neither.
+  assert.equal(
+    await verifyTypedData({
+      address: account.address,
+      domain: domainOf(usdt),
+      types,
+      primaryType: 'TransferWithAuthorization',
+      message: {
+        from: authorization.from,
+        to: authorization.to,
+        value: BigInt(authorization.value),
+        validAfter: BigInt(authorization.validAfter),
+        validBefore: BigInt(authorization.validBefore),
+        nonce: authorization.nonce,
+      },
+      signature,
+    }),
+    true,
+  );
+  spend('USDT');
+  const settled = await client.resolve({
+    intentKey: 'tsb_usdt',
+    payee,
+    tokenAddress: usdt.address,
+    amountUnits: '10000',
+    expiresAt: new Date(Date.now() - 1000).toISOString(),
+  });
+  assert.equal(settled.status, 'settled');
+});
+
 test('a quoted domain the token does not agree with is never signed', async () => {
-  separator = keccak256(toHex('a domain this token does not have'));
+  separatorFor = () => keccak256(toHex('a domain this token does not have'));
   const { transport, calls } = gateway([json(200, {})]);
   await assert.rejects(
     adapter(transport).purchase({ ...request('tsb_two'), quote: quoted() }),
@@ -281,16 +365,14 @@ test('settlement is read from the token, and an unused authorization is not yet 
   const open = {
     intentKey: 'tsb_six',
     payee,
+    tokenAddress: usdc.address,
     amountUnits: '10000',
     expiresAt: new Date(Date.now() + 60_000).toISOString(),
   };
-  // Unused, still inside its window: pending, not settled and not refused.
   assert.equal((await client.resolve(open)).status, 'unknown');
-  // Unused and past its window: it can never settle now.
   const expired = { ...open, expiresAt: new Date(Date.now() - 1000).toISOString() };
   assert.equal((await client.resolve(expired)).status, 'unsettled');
-  // The token records it as used, which no later answer can take back.
-  used = true;
+  spend('USDC');
   const settled = await client.resolve(expired);
   assert.equal(settled.status, 'settled');
   assert.equal(settled.status === 'settled' && settled.costUnits, '10000');

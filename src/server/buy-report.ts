@@ -3,15 +3,55 @@ import { z } from 'zod';
 import { canonicalJson } from '../domain/values.ts';
 import { scanText } from './redaction.ts';
 
+/**
+ * The stablecoins this platform will pay the gateway in, each pinned together
+ * with the EIP-712 domain it declares. Read from the three tokens on Celo on
+ * 2026-11-03: all are six decimals and all carry the canonical EIP-3009
+ * typehash, so the signing and reconciliation paths are identical.
+ *
+ * USDT and USAT have **no `version()` method on chain**, so a token cannot be
+ * asked what its domain version is and the value can only come from a quote.
+ * That is exactly why the domain is rebuilt from this table and compared with
+ * the token's own `DOMAIN_SEPARATOR` before anything is signed: the check
+ * needs no `version()`, and a quote claiming a different domain is refused.
+ */
+export const buyAssets = Object.freeze([
+  {
+    symbol: 'USDC',
+    address: '0xcebA9300f2b948710d2653dD7B07f33A8B32118C',
+    name: 'USDC',
+    version: '2',
+    decimals: 6,
+  },
+  {
+    symbol: 'USDT',
+    address: '0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e',
+    name: 'Tether USD',
+    version: '1',
+    decimals: 6,
+  },
+  {
+    symbol: 'USAT',
+    address: '0xD2ab3C9A02DBBAB236BfEC45D1d755DF4267F771',
+    name: 'Tether America USD',
+    version: '1',
+    decimals: 6,
+  },
+] as const);
+export type BuyAsset = (typeof buyAssets)[number];
+
+/** An address this platform pays in, or nothing. Case is not identity here. */
+export function pinnedAsset(address: string): BuyAsset | null {
+  return buyAssets.find((asset) => asset.address.toLowerCase() === address.toLowerCase()) ?? null;
+}
+
 export const buyReportService = Object.freeze({
   catalog: 'https://gateway.usebuy.ai/v1/catalog',
   id: 'cencori.v1.chat.completions',
   url: 'https://gateway.usebuy.ai/cencori/v1/chat/completions',
   model: 'maximo-atlas-1.3',
   chainId: 42220,
-  token: '0xcebA9300f2b948710d2653dD7B07f33A8B32118C',
   payee: '0x20faAca5F980E29639A0FCC6dcA6988E18ed333B',
-  decimals: 6,
 });
 const outcome = z.enum(['passed', 'failed', 'blocked']);
 const status = z.number().int().min(100).max(599);
@@ -151,30 +191,42 @@ export const offerSchema = z.object({
   payTo: address,
   maxAmountRequired: z.string().regex(/^[1-9][0-9]{0,20}$/),
   maxTimeoutSeconds: z.number().int().min(30).max(300),
-  extra: z.object({ name: z.literal('USDC'), version: z.literal('2') }).strict(),
+  // Bounded here and matched against the pinned table below: a well-formed
+  // domain is not the same thing as the one this token actually has.
+  extra: z.object({ name: z.string().min(1).max(60), version: z.string().min(1).max(8) }).strict(),
 });
 
 export type BuyOffer = z.infer<typeof offerSchema>;
 
 /**
- * The one Celo USDC offer this platform will pay, out of the several the
- * gateway lists. The payee and asset are pinned, so a changed recipient is a
+ * The offers this platform will pay, out of the several the gateway lists, in
+ * the order it listed them. The payee, the asset and the domain that asset
+ * declares are all pinned, so a changed recipient or a changed domain is a
  * refusal rather than a payment somewhere new.
  */
-export function pinnedOffer(envelope: unknown): BuyOffer {
+export function pinnedOffers(envelope: unknown): BuyOffer[] {
   const parsed = z
     .object({ x402Version: z.literal(1), accepts: z.array(z.unknown()).min(1).max(12) })
     .parse(envelope);
-  const offer = parsed.accepts
+  return parsed.accepts
     .map((item) => offerSchema.safeParse(item))
     .filter((item) => item.success)
     .map((item) => item.data)
-    .find(
-      (item) =>
-        item.asset.toLowerCase() === buyReportService.token.toLowerCase() &&
-        item.payTo.toLowerCase() === buyReportService.payee.toLowerCase(),
-    );
-  if (!offer) throw new Error('No matching pinned Celo USDC offer');
+    .filter((item) => {
+      const asset = pinnedAsset(item.asset);
+      return (
+        asset !== null &&
+        item.payTo.toLowerCase() === buyReportService.payee.toLowerCase() &&
+        item.extra.name === asset.name &&
+        item.extra.version === asset.version
+      );
+    });
+}
+
+/** The first acceptable offer, for callers with no reason to prefer one. */
+export function pinnedOffer(envelope: unknown): BuyOffer {
+  const [offer] = pinnedOffers(envelope);
+  if (!offer) throw new Error('No matching pinned Celo stablecoin offer');
   return offer;
 }
 
@@ -241,10 +293,10 @@ export async function quoteBuyReport(input: unknown, transport: typeof fetch = f
     .map((item) => item.data);
   const offer = offers.find(
     (item) =>
-      item.asset.toLowerCase() === buyReportService.token.toLowerCase() &&
+      pinnedAsset(item.asset) !== null &&
       item.payTo.toLowerCase() === buyReportService.payee.toLowerCase(),
   );
-  if (!offer) throw new Error('No matching pinned Celo USDC offer');
+  if (!offer) throw new Error('No matching pinned Celo stablecoin offer');
   // A planning ceiling, not authorization to spend. A purchase must re-quote and reserve.
   if (BigInt(offer.maxAmountRequired) > 10000n)
     throw new Error('Report quote exceeds the reviewed planning ceiling');

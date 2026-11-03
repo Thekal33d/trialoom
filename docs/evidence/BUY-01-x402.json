@@ -84,9 +84,9 @@
     "creditPath": "the agent wallet address recorded on the entry, as the Transfer event's from"
   },
   "focusedChecks": {
-    "x402Client": 8,
+    "x402Client": 10,
     "sponsoredJournal": 14,
-    "databaseSuiteTotal": 281
+    "databaseSuiteTotal": 283
   },
   "mutationProbes": [
     {
@@ -100,20 +100,68 @@
     {
       "defect": "treat a 402 refusal as an uncertain settlement",
       "caughtBy": "a refused payment is refused, and a failed gateway is uncertain"
+    },
+    {
+      "defect": "take the first offer regardless of what the wallet holds",
+      "caughtBy": "the asset is whichever of the three the wallet can actually pay in"
+    },
+    {
+      "defect": "resolve settlement against a fixed token rather than the purchase\u2019s own",
+      "caughtBy": "each asset is signed under its own domain and settles on its own token",
+      "note": "did not fail until the stub recorded authorizationState per token; a probe that passes is a result about the check, not the code"
     }
   ],
   "lint": "passed, 186 files",
   "types": "passed",
   "remaining": [
-    "Fund the sponsor wallet with USDC and authorize a ceiling; one report costs 10,000 base units",
-    "One real paid call, its output attached to the report, and its settlement read back from the token",
+    "Fund the sponsor wallet with any of USDC, USDT or USAT and authorize a ceiling; one report costs 10,000 base units",
+    "One real paid call in whichever stablecoin the wallet is funded with, its output attached to the report, and its settlement read back from the token",
     "Confirm with the organisers that Build with buy credits by wallet rather than by calldata tag",
     "Show the explanation beside the report in the product"
   ],
   "sourceSha256": {
-    "src/server/buy-x402.ts": "49118727a3a4ca1e9458f1d0eb61af7062d78426c8212848505c93121a54a0a2",
-    "src/server/buy-report.ts": "7d67e95d0448291f15bb3744dad1553322cf5451e4ba61562071b5646cdcc8f2",
-    "src/server/sponsored.ts": "fabaf9efeeeb6d1291894e2fe61f3156840690c950daf7a4d379607cc905413e",
-    "tests/buy-x402.test.ts": "e5d3c4990a6d771cd3afbe0746b7a5d2ab588d5720e1d8184b9c56c8582bfe91"
-  }
+    "src/server/buy-x402.ts": "d28b6dd2dbc02b2639fd3288933f30ed46a5b7c2d87f0c1f8f7549e69a1fe550",
+    "src/server/buy-report.ts": "2aa0e2353a6641052416440d1ae77da6bb5c9bc88fb1917c9c066e398f0bcb73",
+    "src/server/sponsored.ts": "e4274a64b7fc12496086649f05b414d7ff50db9ca352369c10d68cdf8b40b945",
+    "tests/buy-x402.test.ts": "4ec8989359385f266bdde497790b877fa9e09eefdf797033eaf86cf999004d89"
+  },
+  "acceptedAssets": [
+    {
+      "symbol": "USDC",
+      "address": "0xcebA9300f2b948710d2653dD7B07f33A8B32118C",
+      "decimals": 6,
+      "domain": {
+        "name": "USDC",
+        "version": "2"
+      },
+      "versionMethodOnChain": true,
+      "eip3009TypehashCanonical": true,
+      "walletBalanceUnits": "0"
+    },
+    {
+      "symbol": "USDT",
+      "address": "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e",
+      "decimals": 6,
+      "domain": {
+        "name": "Tether USD",
+        "version": "1"
+      },
+      "versionMethodOnChain": false,
+      "eip3009TypehashCanonical": true,
+      "walletBalanceUnits": "0"
+    },
+    {
+      "symbol": "USAT",
+      "address": "0xD2ab3C9A02DBBAB236BfEC45D1d755DF4267F771",
+      "decimals": 6,
+      "domain": {
+        "name": "Tether America USD",
+        "version": "1"
+      },
+      "versionMethodOnChain": false,
+      "eip3009TypehashCanonical": true,
+      "walletBalanceUnits": "0"
+    }
+  ],
+  "assetSelection": "whichever accepted asset the sponsor wallet holds in the quoted amount, read from the tokens at quote time"
 }

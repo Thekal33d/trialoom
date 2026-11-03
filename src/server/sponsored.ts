@@ -1,7 +1,12 @@
 import { randomBytes } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import { AppError } from '../domain/errors.ts';
-import { buyReportService, parseBuyExplanation, prepareBuyReport } from './buy-report.ts';
+import {
+  buyReportService,
+  parseBuyExplanation,
+  pinnedAsset,
+  prepareBuyReport,
+} from './buy-report.ts';
 import { transaction } from './database.ts';
 import { completeJob, enqueueJob, type JobLease, rescheduleJob } from './jobs.ts';
 
@@ -79,6 +84,7 @@ export type SponsoredAdapter = {
   resolve(request: {
     intentKey: string;
     payee: string;
+    tokenAddress: string;
     amountUnits: string;
     expiresAt: string;
   }): Promise<SponsoredSettlement>;
@@ -315,8 +321,7 @@ export async function purchaseSponsoredReport(
     ],
     [
       quoted.chainId !== buyReportService.chainId ||
-        quoted.tokenAddress.toLowerCase() !== buyReportService.token.toLowerCase() ||
-        quoted.tokenDecimals !== buyReportService.decimals ||
+        pinnedAsset(quoted.tokenAddress)?.decimals !== quoted.tokenDecimals ||
         quoted.payee.toLowerCase() !== buyReportService.payee.toLowerCase(),
       'quote_token_unexpected',
       'That quote is priced in a token, network or payee this platform does not pay. Nothing was signed.',
@@ -535,6 +540,7 @@ export async function reconcileSponsoredPurchase(
       settlement = await adapter.resolve({
         intentKey: purchase.intent_key,
         payee: purchase.payee_address,
+        tokenAddress: purchase.currency_address,
         amountUnits: purchase.quoted_units,
         expiresAt: new Date(purchase.quote_expires_at).toISOString(),
       });

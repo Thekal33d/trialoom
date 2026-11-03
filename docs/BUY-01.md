@@ -63,7 +63,19 @@ The typehash equals the canonical EIP-3009 one, `authorizationState` answers, an
 
 ### What the live gateway answers
 
-An unsigned request on 2026-11-03 returns HTTP 402 with the v1 envelope in the body and a v2 envelope in a `payment-required` header, listing three offers — USDC, USDT (`Tether USD`, version 1) and USAT (`Tether America USD`, version 1) — all at 10,000 base units to `0x20faAca5F980E29639A0FCC6dcA6988E18ed333B`. Only the USDC offer at the pinned payee is taken; the others are ignored.
+An unsigned request on 2026-11-03 returns HTTP 402 with the v1 envelope in the body and a v2 envelope in a `payment-required` header, listing three offers — USDC, USDT (`Tether USD`, version 1) and USAT (`Tether America USD`, version 1) — all at 10,000 base units to `0x20faAca5F980E29639A0FCC6dcA6988E18ed333B`.
+
+**All three are accepted.** Read from the tokens the same day, each is six decimals, carries the canonical EIP-3009 typehash, and answers `authorizationState`, so the signing and reconciliation paths are identical for all of them and the price is the same cent either way:
+
+| | address | decimals | EIP-712 domain | `version()` on chain |
+| --- | --- | --- | --- | --- |
+| USDC | `0xcebA…118C` | 6 | `USDC` / `2` | yes |
+| USDT | `0x4806…3D5e` | 6 | `Tether USD` / `1` | **none** |
+| USAT | `0xD2ab…F771` | 6 | `Tether America USD` / `1` | **none** |
+
+USDT and USAT have **no `version()` method**, so a token cannot be asked what its domain version is and the only other source is the quote. That is why the domain is taken from this pinned table rather than from the offer, and then checked against the token's `DOMAIN_SEPARATOR`: the check needs no `version()`, and an offer claiming a domain its token does not have is refused before anything is signed. The payee is pinned for all three, so a changed recipient is still a refusal.
+
+Which one is used is decided by what the sponsor wallet actually holds, read from the tokens at quote time. Holding none of them in the quoted amount refuses with `sponsor_wallet_unavailable` — a far more useful thing to say than a verification failure from the gateway.
 
 Which request header the gateway reads was settled by probing with a **deliberately expired authorization from a throwaway key**, so verification had to fail before anything could settle:
 
@@ -85,7 +97,9 @@ Because the facilitator sends the transaction, this wallet's calldata never exis
 
 ### Checks
 
-Eight checks against a fake gateway and a stub JSON-RPC server: the pinned offer taken from the live three-offer envelope, a changed payee or asset refused, the `X-PAYMENT` payload structurally correct with its signature verified against the token's domain, a mismatched domain never signed, a 402 classified as refused while a 5xx and a dropped connection are uncertain, and each settlement reading. Three were verified against deliberately broken code: trusting the quoted domain, a random nonce, and treating a 402 as uncertain.
+Ten checks against a fake gateway and a stub JSON-RPC server: the asset chosen by what the wallet holds across all three, a balance just short of the quote refused, a changed payee or asset or claimed domain refused, the `X-PAYMENT` payload structurally correct with its signature verified against the token's own domain, USDT signed under its own domain and settled on its own token, a mismatched domain never signed, a 402 classified as refused while a 5xx and a dropped connection are uncertain, and each settlement reading.
+
+Five were verified against deliberately broken code: trusting the quoted domain, a random nonce, treating a 402 as uncertain, taking the first offer regardless of balance, and resolving against a fixed token. That last one **did not fail at first** — the stub answered `authorizationState` the same way for every token, so reading the wrong one was invisible. The stub now records settlement per token, and the check bites.
 
 ## Remaining implementation and live proof
 

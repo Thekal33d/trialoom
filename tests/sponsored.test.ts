@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import test, { afterEach, beforeEach } from 'node:test';
 import { AppError } from '../src/domain/errors.ts';
 import type { FreeTestResult } from '../src/domain/free-tests.ts';
-import { buyReportService, prepareBuyReport } from '../src/server/buy-report.ts';
+import { buyAssets, buyReportService, prepareBuyReport } from '../src/server/buy-report.ts';
 import { dispatchFreeTest, freeRunnerHeartbeat } from '../src/server/free-test-dispatch.ts';
 import { prepareNextFreeTestReport } from '../src/server/free-test-reports.ts';
 import { requestFreeTest } from '../src/server/free-tests.ts';
@@ -70,8 +70,8 @@ const quote = (over: Partial<Record<string, unknown>> = {}) => ({
   status: 'quoted' as const,
   amountUnits: '9000',
   chainId: buyReportService.chainId,
-  tokenAddress: buyReportService.token,
-  tokenDecimals: buyReportService.decimals,
+  tokenAddress: buyAssets[0].address,
+  tokenDecimals: buyAssets[0].decimals,
   payee: buyReportService.payee,
   expiresAt: new Date(Date.now() + 120_000).toISOString(),
   ...over,
@@ -243,7 +243,7 @@ test('an all-passing report has nothing to buy, and the database refuses one any
         account.workspaceId,
         buyReportService.id,
         'f'.repeat(64),
-        buyReportService.token,
+        buyAssets[0].address,
         buyReportService.payee,
         `tsb_${'a'.repeat(48)}`,
       ],

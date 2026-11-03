@@ -2,7 +2,13 @@ import { createPublicClient, domainSeparator, http, keccak256, toHex } from 'vie
 import { privateKeyToAccount } from 'viem/accounts';
 import { celo } from 'viem/chains';
 import { z } from 'zod';
-import { type BuyOffer, buyReportService, pinnedOffer } from './buy-report.ts';
+import {
+  type BuyAsset,
+  type BuyOffer,
+  buyReportService,
+  pinnedAsset,
+  pinnedOffers,
+} from './buy-report.ts';
 import type {
   SponsoredAdapter,
   SponsoredOutcome,
@@ -59,6 +65,13 @@ export function sponsorConfig(env: NodeJS.ProcessEnv = process.env): SponsorConf
 
 const tokenAbi = [
   {
+    name: 'balanceOf',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ type: 'address' }],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
     name: 'DOMAIN_SEPARATOR',
     type: 'function',
     stateMutability: 'view',
@@ -93,7 +106,7 @@ const transferWithAuthorization = {
 export const authorizationNonce = (intentKey: string) => keccak256(toHex(intentKey));
 
 /** A signed authorization is a bearer instrument: keep its life short. */
-const windowSeconds = (offer: BuyOffer) => Math.min(offer.maxTimeoutSeconds, 300);
+const windowSeconds = (seconds: number) => Math.min(Math.max(seconds, 30), 300);
 
 async function boundedJson(response: Response, maximum: number): Promise<unknown> {
   if (!response.body) throw new Error('Missing gateway response');
@@ -143,25 +156,36 @@ export function buyX402Adapter(
   const account = privateKeyToAccount(config.agentKey);
   const chain = createPublicClient({ chain: celo, transport: http(config.rpcUrl) });
 
-  /** The offer's own domain hint, checked against the token before signing. */
-  async function trustedDomain(offer: BuyOffer) {
+  /**
+   * The domain comes from the pinned table, never from the quote, and is then
+   * checked against the token itself. Two tokens here have no `version()` to
+   * ask, so this comparison is the only thing standing between a claimed
+   * domain and a signature that is valid somewhere nobody intended.
+   */
+  async function trustedDomain(asset: BuyAsset) {
     const domain = {
-      name: offer.extra.name,
-      version: offer.extra.version,
+      name: asset.name,
+      version: asset.version,
       chainId: buyReportService.chainId,
-      verifyingContract: offer.asset as `0x${string}`,
+      verifyingContract: asset.address as `0x${string}`,
     } as const;
     const onChain = await chain.readContract({
-      address: offer.asset as `0x${string}`,
+      address: asset.address as `0x${string}`,
       abi: tokenAbi,
       functionName: 'DOMAIN_SEPARATOR',
     });
-    // A quote can claim any domain it likes. Signing against an unverified one
-    // is how a signature ends up valid somewhere nobody intended.
     if (onChain !== domainSeparator({ domain }))
       throw new Error('The quoted EIP-712 domain does not match the token contract');
     return domain;
   }
+
+  const balanceOf = (asset: BuyAsset) =>
+    chain.readContract({
+      address: asset.address as `0x${string}`,
+      abi: tokenAbi,
+      functionName: 'balanceOf',
+      args: [account.address],
+    });
 
   return {
     name: 'buy-x402',
@@ -182,31 +206,59 @@ export function buyX402Adapter(
           detail: `The gateway answered ${response.status} instead of a payment quote.`,
         };
       }
-      const offer = pinnedOffer(await boundedJson(response, 65536));
+      const offers = pinnedOffers(await boundedJson(response, 65536));
+      if (!offers.length)
+        return {
+          status: 'refused',
+          reason: 'provider_refused',
+          detail: 'The gateway offered no stablecoin, payee and domain this platform pays.',
+        };
+      // Pay in whichever of them this wallet can actually pay in. Asking the
+      // tokens is cheaper than discovering it from a verification failure, and
+      // a wallet holding none of them is a far more useful thing to say.
+      const held = await Promise.all(
+        offers.map(async (offer): Promise<[BuyOffer, BuyAsset, bigint]> => {
+          const asset = pinnedAsset(offer.asset) as BuyAsset;
+          return [offer, asset, await balanceOf(asset)];
+        }),
+      );
+      const affordable = held.find(
+        ([offer, , balance]) => balance >= BigInt(offer.maxAmountRequired),
+      );
+      if (!affordable)
+        return {
+          status: 'refused',
+          reason: 'sponsor_wallet_unavailable',
+          detail: `The sponsor wallet holds none of ${held
+            .map(([, asset]) => asset.symbol)
+            .join(', ')} in the quoted amount.`,
+        };
+      const [offer, asset] = affordable;
       return {
         status: 'quoted',
         amountUnits: offer.maxAmountRequired,
         chainId: buyReportService.chainId,
-        tokenAddress: offer.asset,
-        tokenDecimals: buyReportService.decimals,
+        tokenAddress: asset.address,
+        tokenDecimals: asset.decimals,
         payee: offer.payTo,
-        expiresAt: new Date(Date.now() + windowSeconds(offer) * 1000).toISOString(),
+        expiresAt: new Date(
+          Date.now() + windowSeconds(offer.maxTimeoutSeconds) * 1000,
+        ).toISOString(),
       };
     },
 
     async purchase(request): Promise<SponsoredOutcome> {
-      const offer = {
-        ...request.quote,
-        asset: request.quote.tokenAddress,
-        payTo: request.quote.payee,
-        maxAmountRequired: request.quote.amountUnits,
-        maxTimeoutSeconds: Math.max(
-          30,
-          Math.round((Date.parse(request.quote.expiresAt) - Date.now()) / 1000),
-        ),
-        extra: { name: 'USDC', version: '2' },
-      } as unknown as BuyOffer;
-      const domain = await trustedDomain(offer);
+      const asset = pinnedAsset(request.quote.tokenAddress);
+      if (!asset)
+        return {
+          status: 'refused',
+          reason: 'provider_refused',
+          detail: 'That quote names a token this platform does not pay in.',
+        };
+      const seconds = windowSeconds(
+        Math.round((Date.parse(request.quote.expiresAt) - Date.now()) / 1000),
+      );
+      const domain = await trustedDomain(asset);
       const now = Math.floor(Date.now() / 1000);
       const authorization = {
         from: account.address,
@@ -215,7 +267,7 @@ export function buyX402Adapter(
         // Clock skew between us and the facilitator must not invalidate a
         // signature that is otherwise correct.
         validAfter: String(now - 60),
-        validBefore: String(now + windowSeconds(offer)),
+        validBefore: String(now + seconds),
         nonce: authorizationNonce(request.intentKey),
       };
       const signature = await account.signTypedData({
@@ -248,7 +300,7 @@ export function buyX402Adapter(
           redirect: 'error',
           // Longer than the authorization's own window: a request that outlives
           // its signature cannot settle afterwards.
-          signal: AbortSignal.timeout((windowSeconds(offer) + 30) * 1000),
+          signal: AbortSignal.timeout((seconds + 30) * 1000),
           headers: { 'Content-Type': 'application/json', 'X-PAYMENT': header },
           body: request.body,
         });
@@ -310,8 +362,10 @@ export function buyX402Adapter(
      * one past it can never settle.
      */
     async resolve(request): Promise<SponsoredSettlement> {
+      // The token the purchase recorded, not a default: an authorization only
+      // ever exists on the token it was signed for.
       const used = await chain.readContract({
-        address: buyReportService.token as `0x${string}`,
+        address: request.tokenAddress as `0x${string}`,
         abi: tokenAbi,
         functionName: 'authorizationState',
         args: [account.address, authorizationNonce(request.intentKey)],

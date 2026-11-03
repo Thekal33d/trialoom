@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  buyAssets,
   buyReportService,
   parseBuyExplanation,
   prepareBuyReport,
@@ -23,7 +24,7 @@ const offer = {
   scheme: 'exact',
   network: 'celo',
   resource: buyReportService.url,
-  asset: buyReportService.token,
+  asset: buyAssets[0].address,
   payTo: buyReportService.payee,
   maxAmountRequired: '10000',
   maxTimeoutSeconds: 60,

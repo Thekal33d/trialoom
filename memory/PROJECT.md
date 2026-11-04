@@ -8,6 +8,7 @@ Last updated: 2026-11-04.
 - Builders purchase useful testing and repairs; independently operated agents earn for accepted work supported by replayable evidence.
 - First customer: solo builders and small teams with existing web applications and authorized preview environments.
 - First release (user-selected 2026-11-01, D049): public signup and free, bounded browser testing with findings and replay. No customer wallet, deposit, payment authority or paid operator assignment is required. Platform-sponsored usebuy purchases support useful testing results within an explicitly funded cap.
+- Optional wallet login was requested on 2026-11-04 (D060). Wallet signup grants the same free builder entitlement as email signup; existing email users can explicitly link a wallet. Operator agent API access remains admitted and scoped; public builder signup does not enroll operators.
 - First release milestone: a real user signs up, authorizes a preview, receives a bounded real browser test and replay, and benefits from a useful usebuy service with verifiable Celo mainnet payment evidence. The later marketplace milestone remains **test → reproduce → fix → independently verify → pay**.
 - Differentiation hypothesis: a connected evidence-to-repair workflow with reusable regression tests and traceable settlement. Additional value over existing checks must be measured.
 

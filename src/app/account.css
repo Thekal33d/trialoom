@@ -791,3 +791,16 @@ button:disabled {
 .free-explanation .replay-privacy {
   margin-bottom: 0;
 }
+.wallet-login {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.wallet-login small {
+  line-height: 1.6;
+}
+.wallet-addresses {
+  padding-left: 20px;
+  overflow-wrap: anywhere;
+  line-height: 1.8;
+}

@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { LoomMark } from './icons';
+import { WalletLogin } from './wallet-login';
 
 type Invitation = { email: string; role: string; workspace: string; existingAccount: boolean };
 async function post(url: string, body: unknown) {
@@ -15,7 +16,13 @@ async function post(url: string, body: unknown) {
     throw new Error(data.error?.message ?? data.message ?? 'Unable to continue. Please try again.');
   return data;
 }
-export function AuthForm({ join = false }: { join?: boolean }) {
+export function AuthForm({
+  join = false,
+  walletEnabled = false,
+}: {
+  join?: boolean;
+  walletEnabled?: boolean;
+}) {
   const [invitation, setInvitation] = useState<Invitation | null>(null),
     [token, setToken] = useState('');
   const [error, setError] = useState(''),
@@ -157,6 +164,7 @@ export function AuthForm({ join = false }: { join?: boolean }) {
               </button>
             </form>
           )}
+          {!join && walletEnabled && <WalletLogin />}
           <p className="auth-footnote">
             {join ? (
               'Contact your workspace owner if you need a new invitation or account help.'

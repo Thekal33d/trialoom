@@ -113,6 +113,9 @@ export function FreeWorkspace({
           <LoomMark />
           <span>trialoom.</span>
         </Link>
+        <Link href="/account" className="text-link">
+          Account settings
+        </Link>
         <button type="button" className="text-button" onClick={() => void signOut()}>
           Sign out
         </button>

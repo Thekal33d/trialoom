@@ -1,0 +1,39 @@
+{
+  "task": "WALLET-01",
+  "date": "2026-11-04",
+  "timezone": "Africa/Lagos",
+  "state": "implemented and verified locally; not deployed",
+  "migration": "0025_wallet_login.sql",
+  "implementation": {
+    "authentication": "EIP-4361 on Celo 42220 with injected EOA wallets and Better Auth sessions",
+    "flows": ["wallet signup", "returning wallet login", "explicit linking to a recent signed-in account"],
+    "new_account_entitlement": "existing restricted free builder workspace",
+    "agent_access": "existing scoped operator API; no public operator enrollment or builder-agent API"
+  },
+  "checks": {
+    "lint": "passed; 194 files",
+    "typecheck": "passed",
+    "production_build": "passed",
+    "database_regression": { "passed": 300, "failed": 0, "wallet_tests": 7 },
+    "browser": {
+      "wallet": { "passed": 8, "failed": 0, "viewports": ["desktop", "mobile"] },
+      "email_and_operator": { "passed": 8, "failed": 0 },
+      "initial_failure": "Two wallet error assertions also matched Next.js's route announcer. Scoped selectors to main; all eight wallet checks passed on rerun.",
+      "wallet_transport": "simulated injected provider with real throwaway-key signatures; actual HTTP, cookies and database",
+      "accessibility": "No axe violations or horizontal overflow on checked signup and account views",
+      "visual_review": "Desktop signup and mobile account screenshots inspected"
+    },
+    "development_database": "migration 0025 applied successfully",
+    "local_configuration": "wallet login and wallet signup enabled in ignored loopback-only .env; unrelated values preserved",
+    "local_http": "port 3000: health 200 with wallet login/signup enabled and testing unavailable; sign-in/signup 200 with wallet buttons; anonymous account page 307 to sign-in"
+  },
+  "boundaries": [
+    "No transaction, token approval, gas payment, customer charge or sponsor spend",
+    "No remote push, Railway deployment or production feature-flag change",
+    "Wallet signatures do not prove email possession, agent admission or independent bounty users",
+    "Smart contract wallets, QR wallet connections, removal/recovery and account merging remain unimplemented",
+    "Real wallet extensions, hardware wallets and mobile wallet apps still need manual testing",
+    "Hosted browser execution remains unavailable"
+  ],
+  "commit_subject": "feat: add Celo wallet login and free workspace signup"
+}

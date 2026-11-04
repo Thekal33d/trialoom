@@ -8,7 +8,8 @@ async function handler(request: Request) {
     if (
       !(
         (request.method === 'GET' && endpoint === 'get-session') ||
-        (request.method === 'POST' && ['sign-in/email', 'sign-out'].includes(endpoint))
+        (request.method === 'POST' &&
+          ['sign-in/email', 'sign-out', 'wallet/challenge', 'wallet/verify'].includes(endpoint))
       )
     )
       return json(
@@ -18,7 +19,19 @@ async function handler(request: Request) {
     let forwarded = request;
     if (request.method === 'POST') {
       await limitRequest('auth', 'global', 200);
-      const body = (await readJson(request)) as { email?: unknown };
+      const body = (await readJson(request)) as {
+        email?: unknown;
+        address?: unknown;
+        id?: unknown;
+      };
+      if (endpoint.startsWith('wallet/'))
+        await limitRequest(
+          endpoint,
+          String(body?.address ?? body?.id ?? '')
+            .toLowerCase()
+            .slice(0, 64),
+          10,
+        );
       if (endpoint === 'sign-in/email')
         await limitRequest(
           'sign-in',

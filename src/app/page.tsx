@@ -1,4 +1,5 @@
 import { Landing } from '@/components/landing';
+import { walletSignupEnabled } from '@/server/auth/wallet';
 import { sponsorConfig } from '@/server/buy-x402';
 import { freeTestsEnabled } from '@/server/free-tests';
 import { signupEnabled } from '@/server/signup';
@@ -9,7 +10,7 @@ export default function Home() {
   // question than "should I trust it with my preview".
   return (
     <Landing
-      signup={signupEnabled()}
+      signup={signupEnabled() || walletSignupEnabled()}
       testing={freeTestsEnabled()}
       purchases={sponsorConfig() !== null}
     />

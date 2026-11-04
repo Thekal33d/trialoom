@@ -1,3 +1,4 @@
+import { walletLoginEnabled, walletSignupEnabled } from '@/server/auth/wallet';
 import { freeTestsEnabled } from '@/server/free-tests';
 import { signupEnabled } from '@/server/signup';
 
@@ -12,7 +13,9 @@ export function GET() {
     {
       status: 'ok',
       service: 'trialoom',
-      mode: signupEnabled() ? 'public-beta' : 'invited-alpha',
+      mode: signupEnabled() || walletSignupEnabled() ? 'public-beta' : 'invited-alpha',
+      walletLogin: walletLoginEnabled() ? 'enabled' : 'unavailable',
+      walletSignup: walletSignupEnabled() ? 'enabled' : 'unavailable',
       testing: freeTestsEnabled() ? 'enabled' : 'unavailable',
       // Reported so the claim is checkable from outside rather than trusted.
       // A host that mounts storage as root may start this process privileged;

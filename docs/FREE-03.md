@@ -4,6 +4,8 @@ FREE-03. Started 2026-11-03. **In progress.** Railway's web, worker and Postgres
 
 ## What exists and was verified
 
+Wallet onboarding was added locally on 2026-11-04 in [WALLET-01](WALLET-01.md). Deployment must apply migration 0025 before enabling `TRIALOOM_WALLET_LOGIN`; new wallet accounts additionally require `TRIALOOM_PUBLIC_WALLET_SIGNUP`. These switches are independent of email delivery and do not enable browser execution. Railway remains unchanged at this checkpoint.
+
 Two deployable images from one source tree, built from [`Dockerfile`](../Dockerfile). The web process and the worker are separate images so they can hold separate credentials: the worker is the only process that needs a signing key, and the web process is the only one reachable from the internet. The base image is pinned by digest, because a floating tag lets a rebuilt release differ from the one that was checked.
 
 Verified on 2026-11-03 against a **fresh disposable database** on the local Postgres, which touched no existing records:

@@ -226,6 +226,9 @@ export function LiveWorkspace({
                     : "What's waiting"
                   : 'Projects'}
           </div>
+          <Link href="/account" className="text-link">
+            Account settings
+          </Link>
           <button type="button" className="text-button sign-out" onClick={() => void signOut()}>
             Sign out
           </button>

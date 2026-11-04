@@ -1,6 +1,7 @@
 import { betterAuth } from 'better-auth';
 import type { Pool } from 'pg';
 import { getPool } from '../database.ts';
+import { walletAuth } from './wallet.ts';
 
 export function authSettings(env: Record<string, string | undefined> = process.env) {
   const secret = env.BETTER_AUTH_SECRET;
@@ -19,12 +20,17 @@ export function authSettings(env: Record<string, string | undefined> = process.e
     throw new Error('Invalid authentication origin');
   return { secret, baseURL: url.origin };
 }
-export function createAuth(pool: Pool, settings: { secret: string; baseURL: string }) {
+export function createAuth(
+  pool: Pool,
+  settings: { secret: string; baseURL: string },
+  env: Record<string, string | undefined> = process.env,
+) {
   return betterAuth({
     appName: 'Trialoom',
     ...settings,
     database: pool,
     trustedOrigins: [settings.baseURL],
+    plugins: [walletAuth(pool, settings.baseURL, env)],
     emailAndPassword: {
       enabled: true,
       disableSignUp: true,

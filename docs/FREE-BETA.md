@@ -4,7 +4,7 @@ Scope accepted by the user on 2026-11-01 (D049). This document records an explic
 
 ## User promise
 
-A builder signs up publicly, verifies their email, creates a workspace, authorizes a preview website, and requests a bounded browser test. They receive observed results, findings and recorded replay. Signup and the limited testing allowance are free. No customer wallet, deposit, spending approval, paid campaign or operator recruitment is required.
+A builder signs up publicly with verified email or optional Celo wallet proof (D060), creates a workspace, authorizes a preview website, and requests a bounded browser test. They receive observed results, findings and recorded replay. Signup and the limited testing allowance are free. No customer wallet, deposit, spending approval, paid campaign or operator recruitment is required. [Wallet login and agent-access limits](WALLET-01.md).
 
 Only advertise testing availability once the hosted execution path is verified. Account creation can be implemented first without pretending that an automatic test has run. Preserve existing invited workspaces and their obligations. Do not convert old paid records into free records.
 

@@ -3,13 +3,16 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { LoomMark } from './icons';
 import { api } from './live-types';
+import { WalletLogin } from './wallet-login';
 
 export function SignupForm({
   complete = false,
   enabled,
+  walletEnabled = false,
 }: {
   complete?: boolean;
   enabled: boolean;
+  walletEnabled?: boolean;
 }) {
   const tokenRef = useRef<string | null>(null);
   const [email, setEmail] = useState('');
@@ -82,8 +85,8 @@ export function SignupForm({
             <span className="heading-accent">to your next release.</span>
           </h1>
           <p>
-            A workspace for your previews, test evidence, and the findings worth fixing. No wallet
-            or payment setup.
+            A workspace for your previews, test evidence, and the findings worth fixing. No payment
+            setup required.
           </p>
           <Link href="/demo" className="text-link">
             Explore an example report ↗
@@ -95,11 +98,15 @@ export function SignupForm({
               ? 'Check your inbox.'
               : complete
                 ? 'Make it your workspace.'
-                : 'Start with your email.'}
+                : walletEnabled
+                  ? 'Choose how to get started.'
+                  : 'Start with your email.'}
           </h2>
           <p>
             {!enabled
-              ? 'Public signup is being prepared. You can explore the example workspace while we finish setup.'
+              ? walletEnabled
+                ? 'Create your free workspace with a wallet. Email signup is still being prepared.'
+                : 'Public signup is being prepared. You can explore the example workspace while we finish setup.'
               : sent
                 ? 'Use the link in your email within 30 minutes to choose a password and create your workspace. Already registered? Sign in below.'
                 : complete
@@ -170,6 +177,7 @@ export function SignupForm({
               </button>
             </form>
           )}
+          {!complete && !sent && walletEnabled && <WalletLogin intent="sign-up" />}
           <p className="auth-footnote">
             <Link className="text-link" href="/sign-in">
               Already have an account? Sign in

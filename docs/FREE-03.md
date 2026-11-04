@@ -144,25 +144,39 @@ railway up --service worker
 
 ### 4. The web service
 
+Set everything knowable before the first upload, so only the authentication origin — which cannot exist until the domain does — forces a second deploy.
+
+```sh
+railway variable set DATABASE_URL='${{Postgres.DATABASE_URL}}' TRIALOOM_PUBLIC_SIGNUP=false RAILWAY_DOCKERFILE_PATH=Dockerfile --service web --skip-deploys
+```
+
+```sh
+openssl rand -hex 32 | railway variable set BETTER_AUTH_SECRET --stdin --service web --skip-deploys
+```
+
+`--stdin` keeps the secret out of the command line and out of shell history, and `--stdin` takes one key only. Railway also supports **sealed** variables, whose values are never shown in the UI or returned by the API; sealing is a dashboard action and cannot be undone.
+
 ```sh
 railway up --service web
 ```
 
-```sh
-railway domain --service web --port 3000
-```
-
-`/api/health` answers before the authentication origin is configured, because liveness reads no database and calls no auth. Curl it now: it is the earliest point at which the privilege drop is visible.
+**Read the port out of the container's own log before creating the domain.** Railway injects `PORT`, which overrides the `ENV PORT=3000` in the image: the container reports `http://0.0.0.0:8080`, and a domain created against 3000 routes to nothing.
 
 ```sh
-railway variable set BETTER_AUTH_URL=https://REPLACE.up.railway.app DATABASE_URL='${{Postgres.DATABASE_URL}}' TRIALOOM_PUBLIC_SIGNUP=false --service web --skip-deploys
+railway logs --service web --deployment --lines 20
 ```
 
 ```sh
-openssl rand -hex 32 | railway variable set BETTER_AUTH_SECRET --stdin --service web
+railway domain --service web --port 8080
 ```
 
-`--stdin` keeps the secret out of the command line and out of shell history. Railway also supports **sealed** variables, whose values are never shown in the UI or returned by the API; sealing is a dashboard action and cannot be undone.
+That prints the generated address. `/api/health` answers on it straight away, before any authentication origin exists, because liveness reads no database and calls no auth — and it is the earliest point from which the privilege drop is visible.
+
+```sh
+railway variable set BETTER_AUTH_URL=https://GENERATED.up.railway.app --service web
+```
+
+No `--skip-deploys` on that one: the redeploy is how the new origin takes effect. `authSettings()` is read per authentication request rather than at startup, so the service serves `/api/health`, `/api/ready` and the demo throughout.
 
 `TRIALOOM_PUBLIC_SIGNUP=false` makes `/` redirect to `/demo`, the seeded sample walkthrough. That needs no sending domain and no runner, so it is the honest first deployment. Turning signup on requires `RESEND_API_KEY` and `TRIALOOM_EMAIL_FROM` on a verified domain first; signup refuses rather than falling back to a fake sender.
 
@@ -171,19 +185,19 @@ openssl rand -hex 32 | railway variable set BETTER_AUTH_SECRET --stdin --service
 ### 5. Verify, rather than assume
 
 ```sh
-curl -s https://REPLACE.up.railway.app/api/health
+curl -s https://web-production-0928b.up.railway.app/api/health
 ```
 
 Expect `mode: "invited-alpha"`, `testing: "unavailable"` and — the one that matters — **`privileged: false`**. If it reports `privileged: true`, Railway replaced the image's `ENTRYPOINT` and the privilege drop was bypassed; that is exactly why the field exists.
 
 ```sh
-curl -s https://REPLACE.up.railway.app/api/ready
+curl -s https://web-production-0928b.up.railway.app/api/ready
 ```
 
 Expect `{"status":"ready"}`. A 503 `DATABASE_NOT_READY` means the pre-deploy migration has not run.
 
 ```sh
-railway service logs --service web
+railway logs --service web --deployment --lines 20
 ```
 
 Expect `container.dropping_privileges` when started as root, or `container.evidence_ephemeral` otherwise. `container.evidence_unwritable` means a configured evidence directory could not be written and the process refused to start.

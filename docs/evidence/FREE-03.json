@@ -1,8 +1,8 @@
 {
   "task": "FREE-03",
-  "checkedAt": "2026-11-04T17:05:00.000Z",
+  "checkedAt": "2026-11-04T17:45:00.000Z",
   "timezone": "Africa/Lagos",
-  "scope": "Deployable web and worker container images, verified from an empty database and under Railway-like conditions. Railway provisioned on 2026-11-04: Postgres and the worker exist, the web service is not deployed.",
+  "scope": "Deployable web and worker container images, and the Railway deployment they were built for. Deployed and verified on 2026-11-04: Postgres, worker and web all running, with a public domain.",
   "artifacts": [
     "Dockerfile",
     "Dockerfile.worker",
@@ -53,12 +53,11 @@
     "browserSkipped": 4
   },
   "notDone": [
-    "Nothing is provisioned on Railway and no domain is held",
-    "No verified sending domain, so signup mail is unusable",
+    "No verified sending domain, so signup mail is unusable - public signup stays off and says so",
     "No secret store, backup, verified restore, monitoring, retention or abuse control",
     "Hosted execution is unavailable: Railway containers are non-privileged, and the runner host adapter shells out to the macOS-only orb CLI",
-    "An S3-compatible private evidence store becomes required once execution is hosted, because a Railway volume attaches to one service only",
-    "A deployment without hosted execution must report testing unavailable rather than queue tests that cannot run"
+    "An S3-compatible private evidence store becomes required once execution is hosted, because a Railway volume attaches to one service only. TRIALOOM_EVIDENCE_DIR is unset, so the deployment logs container.evidence_ephemeral",
+    "The hackathon entry demoUrl is not set yet"
   ],
   "decision": [
     "D056",
@@ -78,14 +77,16 @@
     "provisionedBy": "the user, from the runbook in docs/FREE-03.md",
     "state": {
       "project": "trialoom",
-      "postgres": "online, private, DATABASE_URL resolved to a private postgresql host on 5432",
-      "worker": "deployed from Dockerfile.worker, crash-looping until migrations run",
-      "web": "created, not deployed"
+      "postgres": "online and private",
+      "worker": "running, schema migrated by its pre-deploy command",
+      "web": "running and publicly reachable",
+      "domain": "https://web-production-0928b.up.railway.app"
     }
   },
   "toVerifyOnFirstDeploy": [
-    "Whether a custom Start Command preserves the image ENTRYPOINT. No custom start command is set, and with none the ENTRYPOINT runs: confirmed by the worker container on 2026-11-04. /api/health reporting privileged false on Railway still needs the web deploy",
-    "Whether the non-privileged-container and one-volume-per-service limits still hold, since they rest partly on staff replies and community threads. The no-build-target limit is confirmed by the worker deploy"
+    "Answered: with no custom Start Command the image ENTRYPOINT runs, and /api/health reports privileged false on Railway",
+    "Answered: Railway builds the file named by RAILWAY_DOCKERFILE_PATH, so one Dockerfile per service works",
+    "Open: the one-volume-per-service limit, which does not bite until execution is hosted. Railway pre-deploy containers bypass the ENTRYPOINT, so a path that needed the privilege drop there would not get it"
   ],
   "firstDeploy": {
     "date": "2026-11-04",
@@ -126,5 +127,24 @@
       "entrypointBypassedInPreDeploy": "The pre-deploy container printed no entrypoint line, so Railway runs that command without the image ENTRYPOINT. Harmless here: migrations touch only Postgres and need no volume",
       "flake": "One upload immediately before failed with a Railway-side HTTP 500 (deployment c36b65f1, FAILED) and succeeded unchanged on retry"
     }
+  },
+  "deployed": {
+    "date": "2026-11-04",
+    "domain": "https://web-production-0928b.up.railway.app",
+    "webDeployments": [
+      "157ba27a SUCCESS (first upload)",
+      "fac879c5 SUCCESS (redeploy after BETTER_AUTH_URL)"
+    ],
+    "verifiedOnTheLiveHost": [
+      "/api/health returns 200 with mode invited-alpha, testing unavailable and privileged false, so the privilege drop survives a managed deploy",
+      "/api/ready returns {\"status\":\"ready\"}, so the web service reaches Postgres over the project private network with no TLS configuration and no code change",
+      "/ returns 307 to /demo, the seeded walkthrough, because public signup is off",
+      "/sign-in, /demo and /join return 200",
+      "/api/auth/get-session returns 200, so the authentication origin and secret are configured correctly",
+      "POST /api/signup/start returns 503 SIGNUP_UNAVAILABLE, and /sign-up renders \"Public signup is being prepared\" rather than a form that pretends to work",
+      "The web container logged container.evidence_ephemeral, so the image ENTRYPOINT runs here too"
+    ],
+    "portFinding": "Railway injects PORT and it overrides the ENV PORT=3000 in the image: the container listens on 8080, so the domain is created with --port 8080. A domain created against 3000 would route to nothing",
+    "orderingFinding": "Every knowable variable is set before the first upload, so only BETTER_AUTH_URL, which cannot exist until the domain does, forces a second deploy. authSettings is read per request rather than at startup, so health, readiness and the demo serve throughout"
   }
 }

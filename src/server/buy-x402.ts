@@ -1,4 +1,12 @@
-import { createPublicClient, domainSeparator, http, keccak256, toHex } from 'viem';
+import {
+  createPublicClient,
+  domainSeparator,
+  http,
+  keccak256,
+  parseAbi,
+  parseEventLogs,
+  toHex,
+} from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { celo } from 'viem/chains';
 import { z } from 'zod';
@@ -37,7 +45,7 @@ import type {
  * 2. The authorization's **nonce is the payment's identity on chain**. It is
  *    derived from the purchase's intent key, so the same purchase always signs
  *    the same nonce: the token itself refuses a second use, and reconciliation
- *    can ask `authorizationState` exactly what happened.
+ *    checks finalized state and the matching authorization and transfer logs.
  *
  * The live gateway serves both protocol versions. Probed with a deliberately
  * expired authorization, `X-PAYMENT` carrying the v1 payload answered
@@ -53,7 +61,7 @@ export type SponsorConfig = {
   rpcUrl: string;
 };
 
-/** No key, no payments. Absence is the configured state of this build. */
+/** No key, no payments. Hosted deployments remain disabled until configured. */
 export function sponsorConfig(env: NodeJS.ProcessEnv = process.env): SponsorConfig | null {
   const agentKey = env.TRIALOOM_SPONSOR_AGENT_KEY ?? '';
   if (!/^0x[0-9a-fA-F]{64}$/.test(agentKey)) return null;
@@ -86,6 +94,11 @@ const tokenAbi = [
     outputs: [{ type: 'bool' }],
   },
 ] as const;
+
+const tokenEvents = parseAbi([
+  'event AuthorizationUsed(address indexed authorizer, bytes32 indexed nonce)',
+  'event Transfer(address indexed from, address indexed to, uint256 value)',
+]);
 
 const transferWithAuthorization = {
   TransferWithAuthorization: [
@@ -241,6 +254,7 @@ export function buyX402Adapter(
         tokenAddress: asset.address,
         tokenDecimals: asset.decimals,
         payee: offer.payTo,
+        payer: account.address,
         expiresAt: new Date(
           Date.now() + windowSeconds(offer.maxTimeoutSeconds) * 1000,
         ).toISOString(),
@@ -249,17 +263,24 @@ export function buyX402Adapter(
 
     async purchase(request): Promise<SponsoredOutcome> {
       const asset = pinnedAsset(request.quote.tokenAddress);
-      if (!asset)
+      if (!asset || request.quote.payer.toLowerCase() !== account.address.toLowerCase())
         return {
           status: 'refused',
           reason: 'provider_refused',
-          detail: 'That quote names a token this platform does not pay in.',
+          detail: 'The quoted token or recorded payer does not match this signer.',
         };
-      const seconds = windowSeconds(
-        Math.round((Date.parse(request.quote.expiresAt) - Date.now()) / 1000),
-      );
       const domain = await trustedDomain(asset);
       const now = Math.floor(Date.now() / 1000);
+      // The journal's expiry bounds the signature, including time spent on RPC.
+      // Rounding or applying a minimum here would silently extend that promise.
+      const validBefore = Math.floor(Date.parse(request.quote.expiresAt) / 1000);
+      const seconds = validBefore - now;
+      if (!Number.isSafeInteger(validBefore) || seconds <= 0 || seconds > 300)
+        return {
+          status: 'refused',
+          reason: 'provider_refused',
+          detail: 'The persisted quote has no valid bounded authorization window.',
+        };
       const authorization = {
         from: account.address,
         to: request.quote.payee as `0x${string}`,
@@ -267,7 +288,7 @@ export function buyX402Adapter(
         // Clock skew between us and the facilitator must not invalidate a
         // signature that is otherwise correct.
         validAfter: String(now - 60),
-        validBefore: String(now + seconds),
+        validBefore: String(validBefore),
         nonce: authorizationNonce(request.intentKey),
       };
       const signature = await account.signTypedData({
@@ -313,32 +334,14 @@ export function buyX402Adapter(
           detail: `The paid request failed without an answer: ${(error as Error).message}`,
         };
       }
-      if (response.status === 402) {
-        // Verification failed, which happens before settlement. The signed
-        // authorization was never used and its nonce stays unspent.
-        const body = (await boundedJson(response, 65536).catch(() => null)) as {
-          error?: string;
-        } | null;
-        return {
-          status: 'refused',
-          reason: 'provider_refused',
-          detail: `The gateway refused the payment: ${body?.error ?? 'payment required'}`,
-        };
-      }
-      if (response.status >= 500 || response.status === 408) {
+      if (!response.ok) {
+        // Even a verification refusal does not revoke the bearer signature.
+        // Only chain reconciliation may release its reservation after sending.
         await response.body?.cancel();
         return {
           status: 'uncertain',
           reason: 'settlement_uncertain',
           detail: `The gateway answered ${response.status} after the payment was signed.`,
-        };
-      }
-      if (!response.ok) {
-        await response.body?.cancel();
-        return {
-          status: 'refused',
-          reason: 'provider_refused',
-          detail: `The gateway answered ${response.status} and nothing was delivered.`,
         };
       }
       const receipt = readReceipt(response);
@@ -355,35 +358,110 @@ export function buyX402Adapter(
       };
     },
 
-    /**
-     * What the token says, not what the gateway said. An authorization that has
-     * been used can never be used again, so `authorizationState` is an exact
-     * answer; an unused one inside its window is still pending, and an unused
-     * one past it can never settle.
-     */
+    /** Resolve only against finalized state and exact transfer evidence. */
     async resolve(request): Promise<SponsoredSettlement> {
+      if ((await chain.getChainId()) !== buyReportService.chainId)
+        throw new Error('Settlement RPC is not on the pinned Celo chain');
+      if (!pinnedAsset(request.tokenAddress)) throw new Error('Settlement token is not pinned');
+      const expiry = Math.floor(Date.parse(request.expiresAt) / 1000);
+      if (!Number.isSafeInteger(expiry)) throw new Error('Invalid settlement expiry');
+      const head = await chain.getBlock({ blockTag: 'finalized' });
+      if (head.number === null) throw new Error('No finalized Celo block available');
+      const nonce = authorizationNonce(request.intentKey);
+      const token = request.tokenAddress as `0x${string}`;
+      const payer = request.payer as `0x${string}`;
       // The token the purchase recorded, not a default: an authorization only
       // ever exists on the token it was signed for.
       const used = await chain.readContract({
-        address: request.tokenAddress as `0x${string}`,
+        address: token,
         abi: tokenAbi,
         functionName: 'authorizationState',
-        args: [account.address, authorizationNonce(request.intentKey)],
+        args: [payer, nonce],
+        blockNumber: head.number,
       });
-      if (used)
+      if (!used && head.timestamp >= BigInt(expiry))
         return {
-          status: 'settled',
-          costUnits: request.amountUnits,
-          detail: 'The token records this authorization as used.',
+          status: 'unsettled',
+          detail: 'The authorization is unused in finalized state past its signed expiry.',
         };
-      if (Date.parse(request.expiresAt) > Date.now())
+      if (!used)
         return {
           status: 'unknown',
-          detail: 'The authorization is unused and still inside its validity window.',
+          detail: 'Finalized chain state has not passed the unused authorization window.',
+        };
+
+      // authorizationState also covers cancellation. Find this exact nonce's
+      // AuthorizationUsed event and its transfer, not just a consumed bit.
+      // A signature lasts at most 300 seconds, with 60 seconds of clock skew.
+      // Binary-search timestamps to keep the log query bounded even after a
+      // long outage; do not assume a block time or scan from genesis.
+      const firstBlockAt = async (timestamp: bigint) => {
+        let low = 0n;
+        let high = head.number;
+        while (low < high) {
+          const mid = (low + high) / 2n;
+          const block = await chain.getBlock({ blockNumber: mid });
+          if (block.timestamp < timestamp) low = mid + 1n;
+          else high = mid;
+        }
+        return low;
+      };
+      const fromBlock = await firstBlockAt(BigInt(expiry - 360));
+      const toBlock = await firstBlockAt(BigInt(expiry));
+      const authorizations = await chain.getLogs({
+        address: token,
+        event: tokenEvents[0],
+        args: { authorizer: payer, nonce },
+        fromBlock,
+        toBlock,
+        strict: true,
+      });
+      if (authorizations.length !== 1 || !authorizations[0].transactionHash)
+        return {
+          status: 'unknown',
+          detail: 'No unique finalized transfer authorization was found.',
+        };
+      const event = authorizations[0];
+      const receipt = await chain.getTransactionReceipt({ hash: event.transactionHash });
+      const block = await chain.getBlock({ blockNumber: receipt.blockNumber });
+      const logs = receipt.logs.filter(
+        (log) => log.address.toLowerCase() === token.toLowerCase() && !log.removed,
+      );
+      const matchedAuthorization = parseEventLogs({
+        abi: tokenEvents,
+        eventName: 'AuthorizationUsed',
+        logs,
+      }).some(
+        (log) =>
+          log.args.authorizer.toLowerCase() === payer.toLowerCase() && log.args.nonce === nonce,
+      );
+      const matchedTransfer = parseEventLogs({
+        abi: tokenEvents,
+        eventName: 'Transfer',
+        logs,
+      }).some(
+        (log) =>
+          log.args.from.toLowerCase() === payer.toLowerCase() &&
+          log.args.to.toLowerCase() === request.payee.toLowerCase() &&
+          log.args.value === BigInt(request.amountUnits),
+      );
+      if (
+        receipt.status !== 'success' ||
+        receipt.blockNumber > head.number ||
+        receipt.blockHash !== block.hash ||
+        receipt.blockHash !== event.blockHash ||
+        !matchedAuthorization ||
+        !matchedTransfer
+      )
+        return {
+          status: 'unknown',
+          detail: 'The receipt does not prove the exact finalized token transfer.',
         };
       return {
-        status: 'unsettled',
-        detail: 'The authorization expired unused, so no transfer can ever be made against it.',
+        status: 'settled',
+        costUnits: request.amountUnits,
+        transactionHash: receipt.transactionHash,
+        detail: 'Finalized Celo receipt matches the authorization, token, payer, payee and amount.',
       };
     },
   };

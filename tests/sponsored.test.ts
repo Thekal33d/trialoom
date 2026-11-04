@@ -74,6 +74,7 @@ const quote = (over: Partial<Record<string, unknown>> = {}) => ({
   tokenAddress: buyAssets[0].address,
   tokenDecimals: buyAssets[0].decimals,
   payee: buyReportService.payee,
+  payer: `0x${'1'.repeat(40)}`,
   expiresAt: new Date(Date.now() + 120_000).toISOString(),
   ...over,
 });
@@ -174,7 +175,8 @@ test('a funded purchase sends the exact prepared request and holds its ceiling u
   const [row] = await purchases();
   assert.equal(row.state, 'usable');
   assert.equal(row.delivery, 'usable');
-  assert.equal(row.cost_units, '9000');
+  assert.equal(row.cost_units, null);
+  assert.equal(row.reported_cost_units, '9000');
   assert.equal(row.reason, null);
   // Reserved, not settled: a purchase holds its whole ceiling until reconciled.
   const held = await budget();
@@ -189,9 +191,79 @@ test('a funded purchase sends the exact prepared request and holds its ceiling u
   const [settled] = await purchases();
   assert.equal(settled.state, 'reconciled');
   assert.equal(settled.delivery, 'usable');
-  // A known cost is never asked of the chain again.
-  assert.equal(spender.resolved, 0);
+  // A provider's reported cost is not settlement evidence.
+  assert.equal(spender.resolved, 1);
   assert.equal(await spentToday(db.pool, account.actor.id), 9000n);
+});
+
+test('a delivered answer holds its reserve until independently resolved, even when it reports a cost', async () => {
+  const report = await preparedReport();
+  await authorizeSponsoredBudget(db.pool, 50_000n, ceiling, 'test funding');
+  const spender = adapter({
+    status: 'usable',
+    costUnits: '9000',
+    output: explanation(),
+    detail: 'paid',
+  });
+  await purchaseSponsoredReport(db.pool, report.id, spender);
+  assert.equal(await reconcileSponsoredPurchase(db.pool, await lease(), spender), 'unresolved');
+  assert.equal(spender.resolved, 1);
+  assert.equal((await budget()).reserved_units, ceiling.toString());
+  assert.equal((await budget()).settled_units, '0');
+  assert.equal((await purchases())[0].delivery, 'usable');
+  assert.equal((await purchases())[0].cost_units, null);
+  assert.equal((await purchases())[0].reported_cost_units, '9000');
+  const explanations = await workspaceExplanations(db.pool, account.workspaceId);
+  assert.equal(Object.values(explanations)[0].state, 'ready');
+});
+
+test('verified cost and receipt supersede provider claims without rewriting their audit record', async () => {
+  const report = await preparedReport();
+  await authorizeSponsoredBudget(db.pool, 50_000n, ceiling, 'test funding');
+  const reportedHash = `0x${'ab'.repeat(32)}`;
+  const verifiedHash = `0x${'cd'.repeat(32)}`;
+  const spender = adapter(
+    {
+      status: 'usable',
+      costUnits: '8000',
+      transactionHash: reportedHash,
+      output: explanation(),
+      detail: 'claimed',
+    },
+    { status: 'settled', costUnits: '9000', transactionHash: verifiedHash, detail: 'verified' },
+  );
+  await purchaseSponsoredReport(db.pool, report.id, spender);
+  assert.equal((await purchases())[0].transaction_hash, null);
+  const job = await lease();
+  assert.equal(await reconcileSponsoredPurchase(db.pool, job, spender), 'reconciled');
+  const [row] = await purchases();
+  assert.equal(row.reported_cost_units, '8000');
+  assert.equal(row.cost_units, '9000');
+  assert.equal(row.reported_transaction_hash, reportedHash);
+  assert.equal(row.transaction_hash, verifiedHash);
+  assert.equal((await budget()).settled_units, '9000');
+  assert.equal(await reconcileSponsoredPurchase(db.pool, job, spender), 'done');
+  assert.equal(spender.resolved, 1);
+  assert.equal((await budget()).settled_units, '9000');
+});
+
+test('a delivered answer whose authorization expires unused releases only once and preserves delivery', async () => {
+  const report = await preparedReport();
+  await authorizeSponsoredBudget(db.pool, 50_000n, ceiling, 'test funding');
+  const spender = adapter(
+    { status: 'usable', costUnits: '9000', output: explanation(), detail: 'claimed' },
+    { status: 'unsettled', detail: 'finalized unused expiry' },
+  );
+  await purchaseSponsoredReport(db.pool, report.id, spender);
+  const job = await lease();
+  assert.equal(await reconcileSponsoredPurchase(db.pool, job, spender), 'unsettled');
+  const [row] = await purchases();
+  assert.equal(row.delivery, 'usable');
+  assert.equal(row.cost_units, '0');
+  assert.equal(row.reported_cost_units, '9000');
+  assert.equal((await budget()).reserved_units, '0');
+  assert.equal(await reconcileSponsoredPurchase(db.pool, job, spender), 'done');
+  assert.equal((await budget()).reserved_units, '0');
 });
 
 test('the explanation is stored against its own report, advisory and only once', async () => {
@@ -236,8 +308,8 @@ test('an all-passing report has nothing to buy, and the database refuses one any
     db.pool.query(
       `INSERT INTO sponsored_purchases (report_input_id,user_id,workspace_id,service,request_hash,
       quoted_units,ceiling_units,currency_chain_id,currency_address,currency_decimals,payee_address,
-      quoted_at,quote_expires_at,intent_key,state)
-      VALUES ($1,$2,$3,$4,$5,1,1,42220,$6,6,$7,clock_timestamp(),clock_timestamp(),$8,'quoted')`,
+      quoted_at,quote_expires_at,intent_key,payer_address,state)
+      VALUES ($1,$2,$3,$4,$5,1,1,42220,$6,6,$7,clock_timestamp(),clock_timestamp(),$8,$9,'quoted')`,
       [
         report.id,
         account.actor.id,
@@ -247,6 +319,7 @@ test('an all-passing report has nothing to buy, and the database refuses one any
         buyAssets[0].address,
         buyReportService.payee,
         `tsb_${'a'.repeat(48)}`,
+        quote().payer,
       ],
     ),
     /must match a prepared report input/,
@@ -369,7 +442,7 @@ test('a transfer that never landed frees the reservation and costs nothing', asy
   const [row] = await purchases();
   assert.equal(row.state, 'refused');
   assert.equal(row.delivery, 'none');
-  assert.equal(row.cost_units, null);
+  assert.equal(row.cost_units, '0');
   const account = await budget();
   assert.equal(account.reserved_units, '0');
   assert.equal(account.settled_units, '0');
@@ -396,7 +469,8 @@ test('paid output that cannot be used is recorded as paid, and stays unusable af
   assert.equal(row.state, 'failed');
   assert.equal(row.reason, 'output_unusable');
   assert.equal(row.delivery, 'unusable');
-  assert.equal(row.cost_units, '9000');
+  assert.equal(row.cost_units, null);
+  assert.equal(row.reported_cost_units, '9000');
   assert.equal((await db.pool.query('SELECT count(*) FROM sponsored_outputs')).rows[0].count, '0');
   assert.equal(await reconcileSponsoredPurchase(db.pool, await lease(), unusable), 'reconciled');
   const [settled] = await purchases();
@@ -445,7 +519,9 @@ test('a sponsored purchase never reaches a customer, and its identity cannot be 
     ['request_hash', 'a'.repeat(64)],
     ['ceiling_units', '1'],
     ['payee_address', `0x${'7'.repeat(40)}`],
-    ['cost_units', '1'],
+    ['payer_address', `0x${'7'.repeat(40)}`],
+    ['reported_cost_units', '1'],
+    ['quote_expires_at', new Date(Date.now() + 500_000).toISOString()],
   ] as const)
     await assert.rejects(
       db.pool.query(`UPDATE sponsored_purchases SET ${column}=$2 WHERE id=$1`, [row.id, value]),

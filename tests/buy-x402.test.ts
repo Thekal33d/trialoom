@@ -3,8 +3,10 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import test, { afterEach, beforeEach } from 'node:test';
 import {
+  decodeAbiParameters,
   domainSeparator,
   encodeAbiParameters,
+  encodeEventTopics,
   keccak256,
   toFunctionSelector,
   toHex,
@@ -52,10 +54,67 @@ let balances: Record<string, bigint> = {};
 let separatorFor: (address: string) => `0x${string}`;
 /** Per-token, so resolving against the wrong token cannot look like success. */
 let used: Record<string, boolean> = {};
-const spend = (symbol: string) => {
+const finalBlock = 1000n;
+const blockHash = (number: bigint) => toHex(number, { size: 32 });
+const txHash = `0x${'ab'.repeat(32)}`;
+let finalizedTimestamp: number;
+let receiptLogs: Record<string, unknown>[] = [];
+let receiptStatus = '0x1';
+let rpcChainId: number = buyReportService.chainId;
+let rpcCalls: { method: string; params: unknown[] }[] = [];
+const spend = (symbol: string, intentKey = 'tsb_six') => {
   const asset = buyAssets.find((item) => item.symbol === symbol);
   assert(asset);
-  used[asset.address.toLowerCase()] = true;
+  used[`${asset.address.toLowerCase()}:${account.address.toLowerCase()}`] = true;
+  const common = {
+    address: asset.address,
+    blockNumber: toHex(finalBlock - 1n),
+    blockHash: blockHash(finalBlock - 1n),
+    transactionHash: txHash,
+    transactionIndex: '0x0',
+    removed: false,
+  };
+  receiptLogs = [
+    {
+      ...common,
+      logIndex: '0x0',
+      data: '0x',
+      topics: encodeEventTopics({
+        abi: [
+          {
+            type: 'event',
+            name: 'AuthorizationUsed',
+            inputs: [
+              { name: 'authorizer', type: 'address', indexed: true },
+              { name: 'nonce', type: 'bytes32', indexed: true },
+            ],
+          },
+        ],
+        eventName: 'AuthorizationUsed',
+        args: { authorizer: account.address, nonce: authorizationNonce(intentKey) },
+      }),
+    },
+    {
+      ...common,
+      logIndex: '0x1',
+      data: encodeAbiParameters([{ type: 'uint256' }], [10000n]),
+      topics: encodeEventTopics({
+        abi: [
+          {
+            type: 'event',
+            name: 'Transfer',
+            inputs: [
+              { name: 'from', type: 'address', indexed: true },
+              { name: 'to', type: 'address', indexed: true },
+              { name: 'value', type: 'uint256', indexed: false },
+            ],
+          },
+        ],
+        eventName: 'Transfer',
+        args: { from: account.address, to: payee },
+      }),
+    },
+  ];
 };
 
 const fund = (over: Partial<Record<string, bigint>>) => {
@@ -122,6 +181,7 @@ const quoted = (over: Partial<SponsoredQuote> = {}): SponsoredQuote => ({
   tokenAddress: usdc.address,
   tokenDecimals: 6,
   payee,
+  payer: account.address,
   expiresAt: new Date(Date.now() + 60_000).toISOString(),
   ...over,
 });
@@ -129,6 +189,11 @@ const adapter = (transport: typeof fetch) => buyX402Adapter({ agentKey, rpcUrl }
 
 beforeEach(async () => {
   used = {};
+  finalizedTimestamp = Math.floor(Date.now() / 1000);
+  receiptLogs = [];
+  receiptStatus = '0x1';
+  rpcChainId = buyReportService.chainId;
+  rpcCalls = [];
   fund({ USDC: 1_000_000n });
   separatorFor = (address) => {
     const asset = pinnedAsset(address);
@@ -142,15 +207,59 @@ beforeEach(async () => {
     });
     req.on('end', () => {
       const call = JSON.parse(raw);
+      rpcCalls.push(call);
       const data: string = call.params?.[0]?.data ?? '';
       const to: string = String(call.params?.[0]?.to ?? '').toLowerCase();
-      let result = '0x';
-      if (call.method === 'eth_chainId') result = toHex(buyReportService.chainId);
-      else if (data.startsWith(selectors.domain)) result = separatorFor(to);
+      let result: unknown = '0x';
+      if (call.method === 'eth_chainId') result = toHex(rpcChainId);
+      else if (call.method === 'eth_getBlockByNumber') {
+        const number = call.params[0] === 'finalized' ? finalBlock : BigInt(call.params[0]);
+        result = {
+          number: toHex(number),
+          hash: blockHash(number),
+          transactions: [],
+          timestamp: toHex(BigInt(finalizedTimestamp) - (finalBlock - number)),
+        };
+      } else if (call.method === 'eth_getLogs') {
+        const filter = call.params[0];
+        result = receiptLogs.filter(
+          (log) =>
+            log.address === filter.address &&
+            BigInt(log.blockNumber as string) >= BigInt(filter.fromBlock) &&
+            BigInt(log.blockNumber as string) <= BigInt(filter.toBlock) &&
+            filter.topics.every(
+              (topic: string, index: number) => topic === (log.topics as string[])[index],
+            ),
+        );
+      } else if (call.method === 'eth_getTransactionReceipt') {
+        result = {
+          transactionHash: txHash,
+          transactionIndex: '0x0',
+          blockNumber: toHex(finalBlock - 1n),
+          blockHash: blockHash(finalBlock - 1n),
+          status: receiptStatus,
+          logs: receiptLogs,
+          from: payee,
+          to: usdc.address,
+          contractAddress: null,
+          type: '0x2',
+          gasUsed: '0x1',
+          cumulativeGasUsed: '0x1',
+          effectiveGasPrice: '0x1',
+        };
+      } else if (data.startsWith(selectors.domain)) result = separatorFor(to);
       else if (data.startsWith(selectors.balance))
         result = encodeAbiParameters([{ type: 'uint256' }], [balances[to] ?? 0n]);
-      else if (data.startsWith(selectors.state))
-        result = encodeAbiParameters([{ type: 'bool' }], [used[to] === true]);
+      else if (data.startsWith(selectors.state)) {
+        const [payer] = decodeAbiParameters(
+          [{ type: 'address' }, { type: 'bytes32' }],
+          `0x${data.slice(10)}` as `0x${string}`,
+        );
+        result = encodeAbiParameters(
+          [{ type: 'bool' }],
+          [used[`${to}:${payer.toLowerCase()}`] === true],
+        );
+      }
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ jsonrpc: '2.0', id: call.id, result }));
     });
@@ -307,10 +416,11 @@ test('each asset is signed under its own domain and settles on its own token', a
     }),
     true,
   );
-  spend('USDT');
+  spend('USDT', 'tsb_usdt');
   const settled = await client.resolve({
     intentKey: 'tsb_usdt',
     payee,
+    payer: account.address,
     tokenAddress: usdt.address,
     amountUnits: '10000',
     expiresAt: new Date(Date.now() - 1000).toISOString(),
@@ -328,7 +438,7 @@ test('a quoted domain the token does not agree with is never signed', async () =
   assert.deepEqual(calls, []);
 });
 
-test('a refused payment is refused, and a failed gateway is uncertain', async () => {
+test('any HTTP error after sending an authorization holds settlement as uncertain', async () => {
   const refused = gateway([
     json(402, { x402Version: 1, accepts: [offer()], error: 'verify_payment_failed: expired' }),
   ]);
@@ -336,9 +446,8 @@ test('a refused payment is refused, and a failed gateway is uncertain', async ()
     ...request('tsb_three'),
     quote: quoted(),
   });
-  assert.equal(first.status, 'refused');
-  assert(first.status === 'refused');
-  assert.match(first.detail, /verify_payment_failed/);
+  assert.equal(first.status, 'uncertain');
+  assert(first.status === 'uncertain');
 
   // Signed and sent, then the gateway broke: this may have settled.
   const broken = gateway([json(502, { error: 'bad gateway' })]);
@@ -350,6 +459,19 @@ test('a refused payment is refused, and a failed gateway is uncertain', async ()
   assert(second.status === 'uncertain');
   assert.equal(second.reason, 'settlement_uncertain');
 
+  for (const status of [400, 401, 403, 404, 408, 429]) {
+    const failed = gateway([json(status, { error: 'provider error' })]);
+    assert.equal(
+      (
+        await adapter(failed.transport).purchase({
+          ...request(`tsb_http_${status}`),
+          quote: quoted(),
+        })
+      ).status,
+      'uncertain',
+    );
+  }
+
   const lost = (async () => {
     throw new Error('socket hang up');
   }) as unknown as typeof fetch;
@@ -359,12 +481,36 @@ test('a refused payment is refused, and a failed gateway is uncertain', async ()
   assert.equal(third.reason, 'response_lost');
 });
 
+test('a signed window cannot extend the persisted expiry, even when almost expired', async () => {
+  const { transport, calls } = gateway([json(200, {})]);
+  const expiresAt = new Date(Date.now() + 5_500).toISOString();
+  await adapter(transport).purchase({ ...request('tsb_expiry'), quote: quoted({ expiresAt }) });
+  const payload = JSON.parse(
+    Buffer.from(calls[0].headers.get('x-payment') as string, 'base64').toString('utf8'),
+  );
+  assert.equal(
+    Number(payload.payload.authorization.validBefore),
+    Math.floor(Date.parse(expiresAt) / 1000),
+  );
+});
+
+test('an expired authorization is refused before it can be sent', async () => {
+  const { transport, calls } = gateway([json(200, {})]);
+  const outcome = await adapter(transport).purchase({
+    ...request('tsb_expired'),
+    quote: quoted({ expiresAt: new Date(Date.now() - 1000).toISOString() }),
+  });
+  assert.equal(outcome.status, 'refused');
+  assert.deepEqual(calls, []);
+});
+
 test('settlement is read from the token, and an unused authorization is not yet a refusal', async () => {
   const { transport } = gateway([]);
   const client = adapter(transport);
   const open = {
     intentKey: 'tsb_six',
     payee,
+    payer: account.address,
     tokenAddress: usdc.address,
     amountUnits: '10000',
     expiresAt: new Date(Date.now() + 60_000).toISOString(),
@@ -376,10 +522,88 @@ test('settlement is read from the token, and an unused authorization is not yet 
   const settled = await client.resolve(expired);
   assert.equal(settled.status, 'settled');
   assert.equal(settled.status === 'settled' && settled.costUnits, '10000');
+  assert.equal(settled.status === 'settled' && settled.transactionHash, txHash);
+  assert(
+    rpcCalls.some(
+      (call) => call.method === 'eth_getBlockByNumber' && call.params[0] === 'finalized',
+    ),
+  );
+  assert(
+    rpcCalls
+      .filter((call) => call.method === 'eth_call')
+      .every((call) => call.params[1] === toHex(finalBlock)),
+  );
+});
+
+test('wall-clock expiry cannot free funds before finalized chain time passes expiry', async () => {
+  finalizedTimestamp -= 120;
+  const { transport } = gateway([]);
+  assert.equal(
+    (
+      await adapter(transport).resolve({
+        intentKey: 'tsb_wait_finality',
+        payee,
+        payer: account.address,
+        tokenAddress: usdc.address,
+        amountUnits: '10000',
+        expiresAt: new Date(Date.now() - 60_000).toISOString(),
+      })
+    ).status,
+    'unknown',
+  );
+});
+
+test('a consumed nonce without an exact successful transfer is not settlement proof', async () => {
+  const { transport } = gateway([]);
+  const client = adapter(transport);
+  const resolve = () =>
+    client.resolve({
+      intentKey: 'tsb_six',
+      payee,
+      payer: account.address,
+      tokenAddress: usdc.address,
+      amountUnits: '10000',
+      expiresAt: new Date(Date.now() - 1000).toISOString(),
+    });
+  // Cancellation consumes the same state bit but does not emit AuthorizationUsed.
+  used[`${usdc.address.toLowerCase()}:${account.address.toLowerCase()}`] = true;
+  assert.equal((await resolve()).status, 'unknown');
+  spend('USDC', 'tsb_other_nonce');
+  assert.equal((await resolve()).status, 'unknown');
+  spend('USDC');
+  receiptLogs[1].data = encodeAbiParameters([{ type: 'uint256' }], [9999n]);
+  assert.equal((await resolve()).status, 'unknown');
+  spend('USDC');
+  receiptStatus = '0x0';
+  assert.equal((await resolve()).status, 'unknown');
+  receiptStatus = '0x1';
+  rpcChainId = 1;
+  await assert.rejects(resolve(), /not on the pinned Celo chain/);
 });
 
 test('the authorization nonce is fixed by the intent key alone', () => {
   assert.equal(authorizationNonce('tsb_same'), authorizationNonce('tsb_same'));
   assert.notEqual(authorizationNonce('tsb_same'), authorizationNonce('tsb_other'));
   assert.match(authorizationNonce('tsb_same'), /^0x[0-9a-f]{64}$/);
+});
+
+test('reconciliation uses the recorded payer after the configured signing key changes', async () => {
+  spend('USDC', 'tsb_original_payer');
+  const { transport, calls } = gateway([]);
+  const rotated = buyX402Adapter({ agentKey: generatePrivateKey(), rpcUrl }, transport);
+  const settlement = await rotated.resolve({
+    intentKey: 'tsb_original_payer',
+    payer: account.address,
+    payee,
+    tokenAddress: usdc.address,
+    amountUnits: '10000',
+    expiresAt: new Date(Date.now() - 1000).toISOString(),
+  });
+  assert.equal(settlement.status, 'settled');
+  // But a new signature for an already-quoted payer must never switch wallets.
+  assert.equal(
+    (await rotated.purchase({ ...request('tsb_other_payer'), quote: quoted() })).status,
+    'refused',
+  );
+  assert.deepEqual(calls, []);
 });

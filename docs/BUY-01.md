@@ -1,6 +1,6 @@
 # BUY-01 — Sponsored test explanations through buy
 
-Prepared on 2026-11-01 for the selected [free beta](FREE-BETA.md) and [Build with buy entry](HACKATHON.md). **Completed free-test evidence now binds to immutable local report inputs; paid execution remains unimplemented.** An earlier unsigned quote validates the provider seam. No purchase, generated provider output or mainnet transaction has happened.
+Updated 2026-11-04 for the selected [free beta](FREE-BETA.md) and [Build with buy entry](HACKATHON.md). **Report binding, the sponsored journal, x402 signing, finalized-transfer reconciliation and explanation UI are implemented locally. No useful paid service output has been obtained yet.** Identity registration is a separate verified mainnet action. [Settlement checkpoint](evidence/BUY-01-settlement.json).
 
 ## Verified provider seam
 
@@ -35,7 +35,7 @@ What the database enforces rather than the worker remembering:
 - **Two allowances, both atomic.** The platform's own headroom and one account's daily spend are read under the budget's row lock inside the same transaction that reserves, so a race cannot spend the same headroom twice. A purchase holds its whole ceiling until it reconciles, then holds what it cost.
 - **Identity is immutable.** The intent key, report, request hash, ceiling, token, payee and spend day never change, and a recorded cost or transaction hash is never rewritten.
 
-Work state and payment state are kept apart by a `delivery` column. Reconciliation rewrites `state` and clears `reason`; it does not touch `delivery`, so a purchase that paid for an answer nobody can use still says `unusable` after the money is recorded as spent. An explanation that fails `parseBuyExplanation` — a reference to evidence that was never supplied, unsafe text, a truncated response — is exactly that case: the cost is recorded, no output row is written, and the purchase is `failed` with `output_unusable`.
+Work state and payment state are kept apart by a `delivery` column. Reconciliation rewrites `state` and clears `reason`; it does not touch `delivery`, so a purchase that paid for an answer nobody can use still says `unusable` after the money is recorded as spent. An explanation that fails `parseBuyExplanation` — a reference to evidence that was never supplied, unsafe text, a truncated response — is exactly that case: the reported cost is recorded separately, no output row is written, and the purchase is `failed` with `output_unusable`.
 
 An uncertain answer is never bought again. The reservation is held, the outbox job asks the token whether value moved, and an unresolved answer reschedules without spending the attempt limit — retiring the job would strand the reservation with nothing left to free it. Only a settled or unsettled reading moves money out of reserve.
 
@@ -47,7 +47,7 @@ Thirteen checks cover it, each verified to fail against the defect it describes:
 
 ## Paying: the x402 client
 
-Added 2026-11-03 ([`src/server/buy-x402.ts`](../src/server/buy-x402.ts)). **Verified against the live gateway and the token contract; no payment has been made**, because `TRIALOOM_SPONSOR_AGENT_KEY` is unset, the sponsored ceiling is 0 and the wallet holds no USDC.
+Added 2026-11-03 and corrected 2026-11-04 ([adapter](../src/server/buy-x402.ts)). The local signer is configured, the wallet holds 166,000 USDT base units, and the existing budget authorizes 50,000 units total / 20,000 per account per day. Fresh read-only checks found zero reserved or settled units and no purchase rows. The hosted signer remains unconfigured. Funding is sufficient for the first bounded proof; useful paid output is still absent.
 
 **A payment here is a signature, not a transaction.** USDC on Celo implements EIP-3009: the payer signs `transferWithAuthorization` off chain and buy's facilitator submits it and pays the gas. Read from the token on 2026-11-03 rather than taken from documentation:
 
@@ -89,33 +89,34 @@ The v1 path reached the validity-window check, which means the signature recover
 
 ### The nonce is the payment's identity
 
-The EIP-3009 nonce is derived from the purchase's intent key, so the same purchase always signs the same authorization. The token refuses an authorization it has already used, which makes a double payment impossible **at the token** rather than only in our bookkeeping — and it makes reconciliation exact: `authorizationState(sponsor, nonce)` is a direct question. Used means settled. Unused inside the validity window means pending. Unused past it means it can never settle, which is `unsettled` and frees the reservation.
+The EIP-3009 nonce is derived from the immutable purchase intent. The original payer is persisted; key rotation does not change the wallet checked during reconciliation, and a different signer cannot pay an already-quoted request. The signature's `validBefore` is the persisted expiry rounded down to seconds; RPC latency and a short remaining window cannot extend it. An expired or unbounded quote is refused before signing. Every HTTP error after dispatch retains the reservation, including a reported verification refusal: an HTTP response does not revoke the signed bearer authorization.
+
+Reconciliation always asks Celo, including after a successful provider answer. It checks chain 42220, reads authorization state at one finalized block, and compares expiry with that block's timestamp. An unused authorization cannot release funds merely because the local clock passed expiry. A consumed nonce alone is insufficient, since cancellation can consume it too. The adapter finds the exact `AuthorizationUsed` event in the bounded authorization window and verifies a successful canonical finalized receipt with the pinned token, payer, payee and amount. Missing, mismatched, cancelled or unavailable evidence stays unresolved without another purchase.
+
+Migration `0024_sponsored_settlement_evidence.sql` separates immutable provider-reported cost/hash from verified cost/hash and allows delivery to survive uncertain or unpaid settlement. It refuses to upgrade an existing purchase journal automatically: legacy signatures could outlive recorded expiry and legacy reconciliations trusted HTTP success, so such rows need an independent audit with old workers stopped. The checked local database has no purchases. Reconciliation releases or settles a reserve only once, including repeated job delivery.
 
 ### Attribution cannot ride on this, and does not need to
 
 Because the facilitator sends the transaction, this wallet's calldata never exists, and Celo's own documentation says facilitator-side tagging of x402 settlements is not live yet. The adapter therefore attaches **no** attribution tag, deliberately and with the reason in its source. The on-chain `Transfer` still has our wallet as its `from`, and the submission records that wallet. See [HACKATHON.md](HACKATHON.md).
 
-### Checks
+### Checks and live-proof boundary
 
-Ten checks against a fake gateway and a stub JSON-RPC server: the asset chosen by what the wallet holds across all three, a balance just short of the quote refused, a changed payee or asset or claimed domain refused, the `X-PAYMENT` payload structurally correct with its signature verified against the token's own domain, USDT signed under its own domain and settled on its own token, a mismatched domain never signed, a 402 classified as refused while a 5xx and a dropped connection are uncertain, and each settlement reading.
+The updated focused suite covers signature recovery and pinned domains, exact expiry, signed HTTP failures, finalized-chain expiry, exact transfer matching, cancellation, provider claims versus verified costs, delivery preservation and duplicate reconciliation. Four regression tests failed against the original implementation before the fixes; the previous claim that a signed 402 must release funds is superseded. No automated test sends a real payment. See [the current checkpoint](evidence/BUY-01-settlement.json) for commands and outcomes; earlier dated checkpoints describe their earlier code.
 
-Five were verified against deliberately broken code: trusting the quoted domain, a random nonce, treating a 402 as uncertain, taking the first offer regardless of balance, and resolving against a fixed token. That last one **did not fail at first** — the stub answered `authorizationState` the same way for every token, so reading the wrong one was invisible. The stub now records settlement per token, and the check bites.
+## Remaining live proof
 
-## Remaining implementation and live proof
+1. Obtain an actual failing/blocked browser observation from an owned controlled fixture, then prepare the immutable report in a durable database. Do not present a synthetic observation as a browser result.
+2. Recheck the exact live catalog/quote and run one capped purchase using the existing authorized budget. Do not raise that budget again or buy a second time after uncertainty.
+3. Retain useful output and the verified finalized receipt, including token, amount, payer/payee, request hash and transaction hash. A successful HTTP response alone is insufficient.
+4. Prove a real external user benefits from the result; an internal fixture is not traction. Hosted email, execution and operations remain launch dependencies.
 
-1. ~~Add a dedicated sponsored purchase ledger and trusted worker~~ — done, above.
-2. Fund the wallet and authorize a cap. The signer exists and is unconfigured by default (`TRIALOOM_SPONSOR_AGENT_KEY`); the wallet `0xf8Ff4F7C83404e04506785b7DFDf838CA75C22ae` **holds 0 USDC**, and `authorizeSponsoredBudget` has never been called outside a disposable test database. A public user already cannot supply a recipient, endpoint, model, raw prompt, wallet or amount.
-3. ~~Re-quote the stored exact request, reserve durably before dispatch, and hold an unknown settlement without repurchasing~~ — implemented and checked. ~~A real adapter does not exist~~ — it does now, and its request format is verified against the live gateway. **Nothing has been paid**: no signer is configured and the ceiling is 0.
-4. ~~Verify a finalized exact token transfer against Celo~~ — `resolve` reads `authorizationState` from the token itself, so a settlement answer is a chain reading rather than the provider's word. **No reading of a real payment has been taken**, because none exists. The journal classifies usable output, paid-but-unusable output and unresolved settlement separately. A 2xx response or provider header alone is not finality proof.
-5. ~~Display the explanation beside the deterministic report in the product~~ — done 2026-11-03, below. Keep receipt evidence, and prove one request benefits a real external user before making integration or bounty claims.
-
-FREE-02 now connects signup, automatic bounded execution and replay locally. Hosted operations remain open. The existing ALPHA-09 resource flow reimburses resources from a builder campaign; routing free calls through it would violate the free-beta promise.
+The ALPHA-09 builder resource flow remains separate; free explanations never create customer reimbursements.
 
 ## What the builder sees
 
 The observed checks stay where they were, above and unchanged. Underneath them sits what was bought, in a quieter panel headed **"What this looks like"** and labelled **"Not a test result"**. It carries a title, a summary and a next step, then **"Derived only from"** — the exact observations the explanation cited, by the positional refs `prepareBuyReport` generated, each shown with its real passed-or-blocked state. A claim that cannot name an observation on that list never appears, because `parseBuyExplanation` refuses the response before it is stored.
 
-Beneath it: *"Written by an external service Trialoom paid for, from the checks listed above and nothing else. No URL, page content, trace or account detail left this product. It is a suggestion, not a finding, and it cannot change a result."*
+Beneath it: *"Written by an external service at Trialoom's expense, from the checks listed above and nothing else. No URL, page content, trace or account detail left this product. It is a suggestion, not a finding, and it cannot change a result."*
 
 The states a builder can land in each say what is true rather than showing an empty space:
 
@@ -124,12 +125,12 @@ The states a builder can land in each say what is true rather than showing an em
 | all checks passed | nothing at all — there is nothing to explain, and that is a result |
 | prepared, not yet bought | an explanation is being bought; the checks are the result either way |
 | refused | none was obtained; the checks are unaffected and nothing was charged |
-| paid, unusable | it was paid for and the answer could not be used, so it is not shown |
+| unusable response | the requested answer could not be used, so it is not shown; payment is independently reconciled |
 
 **A limitation found while building this.** `sponsored_purchases.report_input_id` is `UNIQUE`, which guarantees one report never authorizes two purchases — but it also means a purchase refused for a transient reason, a gateway outage at the wrong moment, permanently denies that report an explanation. The panel says so honestly rather than implying one is still coming. Allowing a fresh attempt after a refusal that paid nothing would need a schema change, and it is not made here.
 
-## Checks
+## Original preparation checks (2026-11-01)
 
-Six provider-boundary tests cover private-field/inconsistent-input rejection, strict referenced explanations, unsigned exact request sequencing, unavailable/moved service refusal, changed quote terms and oversized/false-success responses. Nine additional database/projection checks cover concurrency, skips, capture recovery, cancellation, access, immutability, privacy and corruption; the fourteen free-test checks also pass. Lint and strict types pass. Useful live output, sponsored journal recovery and UI integration remain open acceptance gates.
+Six provider-boundary tests cover private-field/inconsistent-input rejection, strict referenced explanations, unsigned exact request sequencing, unavailable/moved service refusal, changed quote terms and oversized/false-success responses. Nine additional database/projection checks cover concurrency, skips, capture recovery, cancellation, access, immutability, privacy and corruption; the fourteen free-test checks also pass. Lint and strict types pass. Useful paid output and real-user benefit remain open acceptance gates. The journal and UI are implemented; payment verification is covered by the newer checkpoint above.
 
 The owned signup-to-replay check also passes with the real local worker and isolated Chromium: seven actions, two request records, and an immutable skipped report tied to the passing result. Desktop/mobile accessibility and overflow checks and the two existing SIGKILL recovery cases pass. No external target or paid provider was contacted. The application UI did not change; its existing production build was reused.

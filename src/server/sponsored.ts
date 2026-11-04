@@ -40,6 +40,7 @@ export type SponsoredQuote = {
   tokenAddress: string;
   tokenDecimals: number;
   payee: string;
+  payer: string;
   expiresAt: string;
 };
 export type SponsoredRefusal = {
@@ -48,7 +49,7 @@ export type SponsoredRefusal = {
   detail: string;
 };
 export type SponsoredOutcome =
-  // Paid, and the provider answered. `output` is the raw body, still untrusted.
+  // The provider answered and reported a cost; settlement is independently checked.
   | {
       status: 'submitted' | 'usable';
       costUnits: string;
@@ -84,6 +85,7 @@ export type SponsoredAdapter = {
   resolve(request: {
     intentKey: string;
     payee: string;
+    payer: string;
     tokenAddress: string;
     amountUnits: string;
     expiresAt: string;
@@ -91,9 +93,8 @@ export type SponsoredAdapter = {
 };
 
 /**
- * The default, and the only one in this build. No sponsor wallet is funded, so
- * a purchase is refused with a reason a reader can act on rather than failing
- * somewhere that looks like a bug.
+ * The default when no sponsor is configured. A purchase is refused before
+ * dispatch; an existing unresolved purchase retains its reservation.
  */
 export const unconfiguredSponsor: SponsoredAdapter = {
   name: 'unconfigured',
@@ -112,7 +113,10 @@ export const unconfiguredSponsor: SponsoredAdapter = {
     };
   },
   async resolve() {
-    return { status: 'unknown', detail: 'No sponsor wallet is configured, so nothing was paid.' };
+    return {
+      status: 'unknown',
+      detail: 'No sponsor adapter is configured to verify this payment.',
+    };
   },
 };
 
@@ -321,6 +325,7 @@ export async function purchaseSponsoredReport(
     ],
     [
       quoted.chainId !== buyReportService.chainId ||
+        !/^0x[0-9a-fA-F]{40}$/.test(quoted.payer) ||
         pinnedAsset(quoted.tokenAddress)?.decimals !== quoted.tokenDecimals ||
         quoted.payee.toLowerCase() !== buyReportService.payee.toLowerCase(),
       'quote_token_unexpected',
@@ -351,8 +356,8 @@ export async function purchaseSponsoredReport(
       await db.query<{ id: string }>(
         `INSERT INTO sponsored_purchases (report_input_id,user_id,workspace_id,service,request_hash,
         quoted_units,ceiling_units,currency_chain_id,currency_address,currency_decimals,
-        payee_address,quoted_at,quote_expires_at,intent_key,state)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,clock_timestamp(),$12,$13,'quoted') RETURNING id`,
+        payee_address,quoted_at,quote_expires_at,intent_key,payer_address,state)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,clock_timestamp(),$12,$13,$14,'quoted') RETURNING id`,
         [
           report.id,
           report.user_id,
@@ -367,6 +372,7 @@ export async function purchaseSponsoredReport(
           quoted.payee,
           expires.toISOString(),
           intent.intentKey,
+          quoted.payer,
         ],
       )
     ).rows[0];
@@ -468,8 +474,8 @@ export async function applySponsoredOutcome(
       await enqueueJob(db, 'sponsored.reconcile', purchase.intent_key, { purchaseId, version: 1 });
       return 'over_ceiling';
     }
-    // Money moved. Whether anything usable came back is a separate question,
-    // and answering it wrongly in either direction is worse than saying so.
+    // A response is not proof money moved. Store its claimed cost separately
+    // while validating delivery; reconciliation decides the actual charge.
     let explanation: ReturnType<typeof parseBuyExplanation> | null = null;
     let refusedOutput = '';
     if (outcome.status === 'usable') {
@@ -481,8 +487,8 @@ export async function applySponsoredOutcome(
     }
     const delivered = outcome.status === 'usable' && explanation !== null;
     await db.query(
-      `UPDATE sponsored_purchases SET state=$2,reason=$3,cost_units=$4,delivery=$5,
-      transaction_hash=COALESCE($6,transaction_hash),receipt=$7,
+      `UPDATE sponsored_purchases SET state=$2,reason=$3,reported_cost_units=$4,delivery=$5,
+      reported_transaction_hash=$6,receipt=$7,
       submitted_at=COALESCE(submitted_at,clock_timestamp()),
       usable_at=CASE WHEN $5='usable' THEN clock_timestamp() ELSE usable_at END,
       updated_at=clock_timestamp() WHERE id=$1`,
@@ -507,8 +513,8 @@ export async function applySponsoredOutcome(
 }
 
 /**
- * Settles what one purchase cost. A known cost needs no provider question; an
- * unknown one is asked of the token, never answered by buying again. The
+ * Settles what one purchase cost from independent chain evidence, including
+ * when the provider reports success. Never answered by buying again. The
  * reserve only becomes settled here, so an unreconciled purchase keeps holding
  * its ceiling and cannot be spent twice.
  */
@@ -524,46 +530,40 @@ export async function reconcileSponsoredPurchase(
   }
   const purchase = (await pool.query('SELECT * FROM sponsored_purchases WHERE id=$1', [purchaseId]))
     .rows[0];
-  if (!purchase || purchase.state === 'reconciled') {
+  if (!purchase || ['reconciled', 'refused'].includes(purchase.state)) {
     await completeJob(pool, lease);
     return purchase ? 'done' : 'missing';
   }
   let settlement: SponsoredSettlement;
-  if (purchase.cost_units !== null)
+  try {
+    settlement = await adapter.resolve({
+      intentKey: purchase.intent_key,
+      payee: purchase.payee_address,
+      payer: purchase.payer_address,
+      tokenAddress: purchase.currency_address,
+      amountUnits: purchase.quoted_units,
+      expiresAt: new Date(purchase.quote_expires_at).toISOString(),
+    });
+  } catch (error) {
     settlement = {
-      status: 'settled',
-      costUnits: purchase.cost_units,
-      detail: 'The provider reported this cost with its answer.',
+      status: 'unknown',
+      detail: `Reconciliation could not be completed: ${(error as Error).message}`,
     };
-  else {
-    try {
-      settlement = await adapter.resolve({
-        intentKey: purchase.intent_key,
-        payee: purchase.payee_address,
-        tokenAddress: purchase.currency_address,
-        amountUnits: purchase.quoted_units,
-        expiresAt: new Date(purchase.quote_expires_at).toISOString(),
-      });
-    } catch (error) {
-      settlement = {
-        status: 'unknown',
-        detail: `Reconciliation could not be completed: ${(error as Error).message}`,
-      };
-    }
-    await record(
-      pool,
-      purchaseId,
-      adapter.name,
-      'resolve',
-      settlement.status === 'unknown' ? 'uncertain' : settlement.status,
-      settlement.detail,
-      'transactionHash' in settlement ? (settlement.transactionHash ?? null) : null,
-    );
   }
+  await record(
+    pool,
+    purchaseId,
+    adapter.name,
+    'resolve',
+    settlement.status === 'unknown' ? 'uncertain' : settlement.status,
+    settlement.detail,
+    'transactionHash' in settlement ? (settlement.transactionHash ?? null) : null,
+  );
   if (settlement.status === 'unknown') {
     await pool.query(
       `UPDATE sponsored_purchases SET state='uncertain',reason='settlement_uncertain',
-      attempts=attempts+1,updated_at=clock_timestamp() WHERE id=$1 AND state<>'failed'`,
+      attempts=attempts+1,updated_at=clock_timestamp()
+      WHERE id=$1 AND state NOT IN ('failed','refused','reconciled')`,
       [purchaseId],
     );
     // A wait, not a failure: spending the attempt limit here would retire the
@@ -576,7 +576,7 @@ export async function reconcileSponsoredPurchase(
     const row = (
       await db.query('SELECT * FROM sponsored_purchases WHERE id=$1 FOR UPDATE', [purchaseId])
     ).rows[0];
-    if (row.state === 'reconciled') return 'done';
+    if (['reconciled', 'refused'].includes(row.state)) return 'done';
     const ceiling = BigInt(row.ceiling_units);
     await lockSponsoredBudget(db);
     if (settlement.status === 'unsettled') {
@@ -587,7 +587,8 @@ export async function reconcileSponsoredPurchase(
         [ceiling.toString()],
       );
       await db.query(
-        `UPDATE sponsored_purchases SET state='refused',reason='provider_refused',delivery='none',
+        `UPDATE sponsored_purchases SET state='refused',reason='provider_refused',cost_units=0,
+        delivery=CASE WHEN delivery='pending' THEN 'none' ELSE delivery END,
         updated_at=clock_timestamp() WHERE id=$1`,
         [purchaseId],
       );
@@ -607,9 +608,9 @@ export async function reconcileSponsoredPurchase(
     // that paid for nothing usable still says so after it is settled.
     await db.query(
       `UPDATE sponsored_purchases SET state='reconciled',reason=NULL,
-      cost_units=COALESCE(cost_units,$2),reconciled_at=clock_timestamp(),
+      cost_units=$2,transaction_hash=$3,reconciled_at=clock_timestamp(),
       updated_at=clock_timestamp() WHERE id=$1`,
-      [purchaseId, charged.toString()],
+      [purchaseId, charged.toString(), settlement.transactionHash ?? null],
     );
     return 'reconciled';
   });

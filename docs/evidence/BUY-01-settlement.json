@@ -1,0 +1,62 @@
+{
+  "task": "BUY-01",
+  "checkedOn": "2026-11-04",
+  "timezone": "Africa/Lagos",
+  "scope": "Independent finalized Celo settlement, fixed signature expiry and durable payer identity before the first paid call",
+  "paymentsMade": 0,
+  "livePaidOutputVerified": false,
+  "liveReadOnlyChecks": {
+    "chainId": 42220,
+    "payer": "0xf8Ff4F7C83404e04506785b7DFDf838CA75C22ae",
+    "walletUsdtUnits": "166000",
+    "walletUsdcUnits": "0",
+    "walletUsatUnits": "0",
+    "finalizedBlockRpcAvailable": true,
+    "unsignedSyntheticQuoteUnits": "10000",
+    "unsignedSyntheticQuoteToken": "USDC",
+    "quoteIsNotPaymentEvidence": true
+  },
+  "localBudget": {
+    "ceilingUnits": "50000",
+    "dailyUserUnits": "20000",
+    "reservedUnits": "0",
+    "settledUnits": "0",
+    "purchaseRows": 0,
+    "authorizationIncreased": false
+  },
+  "checks": {
+    "fourRegressionTestsFailedBeforeFix": true,
+    "databaseCommand": "node --env-file-if-exists=.env --test --test-concurrency=2 tests/*.test.ts",
+    "databasePassed": 293,
+    "databaseFailed": 0,
+    "focusedReportAndPaymentPassedBeforePayerExtension": 48,
+    "lint": "passed",
+    "typecheck": "passed",
+    "paymentsUseSimulatedRpcAndGatewayInTests": true,
+    "covered": [
+      "Provider success cannot bypass reconciliation",
+      "Signed expiry never exceeds the persisted quote expiry",
+      "Expired quotes are refused before dispatch",
+      "Signed HTTP errors retain the reservation",
+      "Finalized chain time, not local time, controls unused expiry",
+      "A consumed nonce without the exact successful transfer is not proof",
+      "Verified cost and receipt are separate from provider claims",
+      "Usable output survives uncertain or unpaid settlement",
+      "Repeated reconciliation cannot release or charge twice",
+      "Recorded payer survives signer rotation"
+    ]
+  },
+  "limitations": [
+    "No real usebuy service has been purchased or delivered yet",
+    "No end-to-end real payment receipt has exercised the new reconciliation path",
+    "Cancelled or unverifiable authorizations remain reserved for operator review",
+    "Migration 0024 refuses any pre-existing legacy purchase rows for independent audit",
+    "Hosted signup, runner and sponsored payments remain disabled"
+  ],
+  "sources": [
+    "https://github.com/celo-org/buy-skill/blob/main/skills/use-api-gateway/SKILL.md",
+    "https://eips.ethereum.org/EIPS/eip-3009",
+    "https://gateway.usebuy.ai/v1/catalog"
+  ],
+  "localMigrationApplied": "0024_sponsored_settlement_evidence.sql"
+}

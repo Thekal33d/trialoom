@@ -60,7 +60,7 @@ function Explanation({ explanation }: { explanation: FreeTestExplanation }) {
       )}
       {explanation.state === 'unusable' && (
         <p className="section-description">
-          Trialoom paid for an explanation of these observations and the answer could not be used,
+          Trialoom requested an explanation of these observations and the answer could not be used,
           so it is not shown. The checks above are unaffected, and nothing was charged to you.
         </p>
       )}
@@ -84,7 +84,7 @@ function Explanation({ explanation }: { explanation: FreeTestExplanation }) {
             })}
           </ul>
           <p className="replay-privacy">
-            Written by an external service Trialoom paid for, from the checks listed above and
+            Written by an external service at Trialoom's expense, from the checks listed above and
             nothing else. No URL, page content, trace or account detail left this product. It is a
             suggestion, not a finding, and it cannot change a result.
           </p>

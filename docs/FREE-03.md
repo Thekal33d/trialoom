@@ -1,6 +1,6 @@
 # Hosted staging and launch operations
 
-FREE-03. Started 2026-11-03. **In progress.** This records what is verified, what the remaining gates are, and who owns each one. Nothing here is deployed; no host, domain, mail sender or secret store is provisioned.
+FREE-03. Started 2026-11-03. **In progress.** Railway's web, worker and Postgres services are live as of 2026-11-04. The generated HTTPS address serves the landing page and example workspace. The user purchased `trialoom.xyz`; its Railway attachment exists, with DNS and certificate verification pending. Public signup, hosted browser execution and sponsored purchases remain unavailable on this deployment. This guide records verified hosting work and the remaining launch gates.
 
 ## What exists and was verified
 
@@ -178,7 +178,7 @@ railway variable set BETTER_AUTH_URL=https://GENERATED.up.railway.app --service 
 
 No `--skip-deploys` on that one: the redeploy is how the new origin takes effect. `authSettings()` is read per authentication request rather than at startup, so the service serves `/api/health`, `/api/ready` and the demo throughout.
 
-`TRIALOOM_PUBLIC_SIGNUP=false` makes `/` redirect to `/demo`, the seeded sample walkthrough. That needs no sending domain and no runner, so it is the honest first deployment. Turning signup on requires `RESEND_API_KEY` and `TRIALOOM_EMAIL_FROM` on a verified domain first; signup refuses rather than falling back to a fake sender.
+`/` now serves the landing page with availability read from the deployment's configuration; `/demo` remains the seeded sample walkthrough. With `TRIALOOM_PUBLIC_SIGNUP=false`, `/sign-up` explains that signup is unavailable. Turning signup on requires `RESEND_API_KEY` and `TRIALOOM_EMAIL_FROM` on a verified domain first; signup refuses rather than falling back to a fake sender.
 
 `TRIALOOM_EVIDENCE_DIR` is deliberately left unset. No volume is attached, nothing executes, and the entrypoint logs `container.evidence_ephemeral` so the state is visible rather than assumed. Attaching a volume later also requires `RAILWAY_RUN_UID=0`, which the entrypoint then turns back into an unprivileged process.
 
@@ -202,17 +202,40 @@ railway logs --service web --deployment --lines 20
 
 Expect `container.dropping_privileges` when started as root, or `container.evidence_ephemeral` otherwise. `container.evidence_unwritable` means a configured evidence directory could not be written and the process refused to start.
 
+### 6. Connect trialoom.xyz
+
+The user confirmed purchase on 2026-11-04. The existing `web` service now has custom domain `52814d09-8e4f-4153-bda4-0ae6d147a857`, targeting port **8080**. Railway's attachment is `ACTIVE`, but that does not mean DNS or HTTPS is ready: the routing record requires an update, ownership is unverified, and the certificate is `VALIDATING_OWNERSHIP`.
+
+In Namecheap, open **Domain List → Manage → Advanced DNS → Host Records**. For Namecheap BasicDNS, FreeDNS or PremiumDNS, add these exact records using the default TTL:
+
+| Type | Host | Value |
+| --- | --- | --- |
+| ALIAS | `@` | `wm8pongc.up.railway.app` |
+| TXT | `_railway-verify` | `railway-verify=34da93e994c2e9a7a9a8a5d033e18c02a53c10d7e56691d047adfca8fa2f1089` |
+
+These are the values returned by Railway for this custom domain, not the generated site's address. Namecheap uses ALIAS for an apex hostname; do not create a root CNAME. Replace only conflicting parking/routing records at `@` (A, AAAA, CNAME or URL Redirect), preserving MX, TXT and unrelated hosts. If the domain uses other nameservers, change the records at that DNS provider instead. No signed-in Namecheap session was available during setup, so DNS has not been changed by this session. The initial local DNS lookup returned `ENOTFOUND`; Railway independently reports the required routing record absent.
+
+After saving, inspect `railway domain status trialoom.xyz --service web --json` and verify HTTPS without bypassing certificate checks. Once ownership and the certificate are ready, check `/`, `/demo`, `/api/health` and `/api/ready`, then change the authentication origin:
+
+```sh
+railway variable set BETTER_AUTH_URL=https://trialoom.xyz --service web
+```
+
+Let the configuration redeploy and verify `/api/auth/get-session` as well as health/readiness on the custom origin. This origin change has **not** been made yet. Keep the existing generated domain attached while DNS and HTTPS are being verified. Domain purchase/connection does not configure signup email or open hosted testing.
+
+Sources checked 2026-11-04: [Railway domain routing and ownership verification](https://docs.railway.com/networking/domains/working-with-domains), [Namecheap apex ALIAS records](https://www.namecheap.com/support/knowledgebase/article.aspx/10128/2237/how-to-create-an-alias-record/).
+
 ## Remaining gates
 
-Nothing below is done. Several need an account or a payment and are the user's to decide.
+Hosting and generated-domain HTTPS are verified. The remaining gates below stay open; several need an account or a payment and are the user's to decide.
 
 | Gate | Owner | State |
 | --- | --- | --- |
-| A host | User | **Railway, chosen 2026-11-03.** Nothing provisioned yet |
-| A domain | User | Not held. A Railway-provided domain would serve as `demoUrl` |
-| TLS termination and HTTPS redirect | Us, once a host exists | Not started |
+| A host | User | **Railway, chosen 2026-11-03; deployed 2026-11-04.** Web, worker and Postgres online |
+| A domain | User / us | `trialoom.xyz` purchased and attached to Railway; DNS saving/verification pending |
+| TLS termination and HTTPS redirect | Us | Generated Railway HTTPS verified; custom-domain certificate pending DNS/ownership; custom HTTP redirect not yet checked |
 | Verified sending domain for signup mail | User | Not started. Signup is unusable without it |
-| Secret storage and separate process credentials | Us, once a host exists | Images are separate; no secret store chosen |
+| Secret storage and separate process credentials | Us | Railway runtime variables configured for the live services; production credential separation, rotation and access review remain open |
 | Linux runner host adapter and a server gVisor bootstrap | Us | Not started, and not reachable on Railway: its containers are non-privileged. Gates hosted execution, and with it the free-beta promise |
 | S3-compatible private evidence store | Us | Not started. Required once execution is hosted, because a Railway volume attaches to one service only |
 | Backup and a verified restore | Us | Not started |

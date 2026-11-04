@@ -79,33 +79,23 @@ export function AuthForm({
     }
   }
   return (
-    <main className="auth-page">
-      <Link href="/demo" className="brand">
+    <main className="auth-shell">
+      <Link href="/" className="brand">
         <LoomMark />
         <span>trialoom.</span>
       </Link>
       <div className="auth-layout">
         <section className="auth-intro">
-          <div className="eyebrow">YOUR NEXT RELEASE STARTS HERE</div>
-          <h1>
-            Clear scope.
-            <br />
-            <span className="heading-accent">Confident work.</span>
-          </h1>
-          <p>Give every test a known build, clear expectations, and a record you can return to.</p>
-          <Link className="text-link" href="/demo">
-            Explore the example workspace ↗
-          </Link>
-        </section>
-        <section className="auth-form-panel">
-          <h2>{join ? 'Your invitation' : 'Welcome back.'}</h2>
+          <h1>{join ? 'Join your team' : 'Welcome back'}</h1>
           <p>
             {invitation
               ? `Join ${invitation.workspace} as ${invitation.role}.`
               : join
-                ? 'A private invitation connects you to your workspace.'
-                : 'Sign in to your workspace.'}
+                ? 'Use your invitation to get started.'
+                : 'Sign in to see your websites and test results.'}
           </p>
+        </section>
+        <section className="auth-form-panel" aria-label="Sign in">
           {loading && <p role="status">Checking your invitation…</p>}
           {error && (
             <p className="form-error" role="alert">
@@ -170,7 +160,7 @@ export function AuthForm({
               'Contact your workspace owner if you need a new invitation or account help.'
             ) : (
               <Link className="text-link" href="/sign-up">
-                New to Trialoom? Create a free workspace
+                New here? Create a free account
               </Link>
             )}
           </p>

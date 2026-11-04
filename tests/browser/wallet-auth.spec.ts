@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, test } from '@playwright/test';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
+import type { FreeTestsView } from '../../src/domain/free-tests';
 
 test.skip(
   process.env.TRIALOOM_WALLET_LOGIN !== 'true' ||
@@ -65,9 +66,9 @@ test('wallet signup, sign-out and returning login work without email or payments
   await page.goto('/sign-up');
   await accessible(page);
   await page.screenshot({ path: info.outputPath('wallet-signup.png'), fullPage: true });
-  await page.getByRole('button', { name: 'Create workspace with a wallet' }).click();
+  await page.getByRole('button', { name: 'Continue with a wallet' }).click();
   await expect(page).toHaveURL('/workspace');
-  await expect(page.getByRole('heading', { name: /Wallet .*workspace/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'My websites' })).toBeVisible();
   const session = await (await page.request.get('/api/auth/get-session')).json();
   expect(session.user.emailVerified).toBe(false);
   const denied = await page.request.post('/api/v1/operator', {
@@ -132,7 +133,7 @@ test('missing and rejected wallets show an actionable error without creating a s
   );
   await installWallet(page, true);
   await page.goto('/sign-up');
-  await page.getByRole('button', { name: 'Create workspace with a wallet' }).click();
+  await page.getByRole('button', { name: 'Continue with a wallet' }).click();
   await expect(page.getByRole('main').getByRole('alert')).toBeVisible();
   expect(await (await page.request.get('/api/auth/get-session')).json()).toBeNull();
 });
@@ -166,4 +167,112 @@ test('wallet HTTP routes reject cross-origin requests and rate-limit challenge i
     expect(response.status()).toBe(i === 10 ? 429 : 200);
     expect(response.headers()['cache-control']).toBe('no-store');
   }
+});
+
+// These result records exercise presentation states only. They are injected at
+// the read API; they do not claim that a runner or paid suggestion was executed.
+test('a builder saves just a website address and can read an incomplete test and replay', async ({
+  page,
+}, info) => {
+  await installWallet(page);
+  await page.goto('/sign-up');
+  await page.getByRole('button', { name: 'Continue with a wallet' }).click();
+  await expect(page).toHaveURL('/workspace');
+  await page.getByRole('button', { name: 'Add website' }).click();
+  await expect(page.getByLabel('Website address')).toBeFocused();
+  await page.getByLabel('Website address').fill('https://example.com');
+  await page.getByLabel('I own this website').check();
+  await page.getByRole('button', { name: 'Save website' }).click();
+  await expect(page.getByRole('heading', { name: 'example.com', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add website' })).toBeFocused();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'example.com', exact: true })).toBeVisible();
+
+  const result = {
+    schemaVersion: 1 as const,
+    outcome: 'blocked' as const,
+    startedAt: '2026-11-04T10:00:00.000Z',
+    finishedAt: '2026-11-04T10:00:05.000Z',
+    browser: 'Chromium',
+    revisionConfirmed: false as const,
+    checks: [
+      { check: 'homepage' as const, passed: true },
+      { check: 'scope' as const, passed: false },
+    ],
+    replay: {
+      schemaVersion: 1 as const,
+      actions: [{ index: 1, method: 'goto', startMs: 0, endMs: 300, status: 'completed' as const }],
+      requests: [{ index: 1, method: 'GET', status: 200, startMs: 20, durationMs: 100 }],
+    },
+  };
+  const view: FreeTestsView = {
+    available: false,
+    allowedOrigins: [],
+    remaining: 1,
+    tests: [
+      {
+        id: 'incomplete-ui-fixture',
+        project_id: null,
+        kind: 'sample',
+        phase: 'blocked',
+        cancel_requested: false,
+        created_at: result.startedAt,
+        result,
+      },
+      {
+        id: 'passing-ui-fixture',
+        project_id: null,
+        kind: 'sample',
+        phase: 'completed',
+        cancel_requested: false,
+        created_at: result.startedAt,
+        result: {
+          ...result,
+          outcome: 'completed',
+          checks: result.checks.map((check) => ({ ...check, passed: true })),
+        },
+      },
+    ],
+    explanations: {
+      'incomplete-ui-fixture': {
+        state: 'ready',
+        observations: [{ ref: 'check.scope', name: 'scope', passed: false }],
+        body: {
+          title: 'Review allowed resources',
+          summary: 'A resource fell outside the test limits.',
+          nextStep: 'Check which resources this page needs.',
+          evidenceRefs: ['check.scope'],
+        },
+      },
+    },
+  };
+  await page.route('**/api/v1/workspaces/*/free-tests', (route) => route.fulfill({ json: view }));
+  await expect(page.getByText('Test incomplete', { exact: true })).toBeVisible({ timeout: 15000 });
+  const first = page.locator('.test-record').first();
+  const older = page.locator('.test-record').last();
+  await expect(first).toHaveAttribute('open', '');
+  await expect(older).not.toHaveAttribute('open');
+  await expect(older.locator('summary').first()).toContainText('All checks passed');
+  await expect(first).toContainText('This doesn’t mean your website is broken.');
+  await expect(first.getByRole('region', { name: 'AI suggestion' })).toContainText(
+    'Check which resources this page needs.',
+  );
+  await expect(first.locator('.action-timeline')).toBeHidden();
+  await first.locator('.result-replay > summary').focus();
+  await page.keyboard.press('Enter');
+  await expect(first.locator('.action-timeline')).toContainText('Opened the page');
+  await expect(first).toContainText('not a video');
+  await expect(first.locator('.network-responses')).toBeHidden();
+  await first.getByText('Technical details', { exact: true }).click();
+  await expect(first.locator('.network-responses')).toContainText('HTTP 200');
+  await first.getByText('Why this was suggested', { exact: true }).click();
+  await expect(first).toContainText('This is advice, not a test result.');
+  await older.locator('summary').first().click();
+  await expect(older.locator('.result-check-list')).toBeVisible();
+  await accessible(page);
+  await first.getByText('Why this was suggested', { exact: true }).click();
+  await first.getByText('Technical details', { exact: true }).click();
+  await older.locator('summary').first().click();
+  await page.getByRole('heading', { level: 1 }).click();
+  await page.screenshot({ path: info.outputPath('readable-results.png'), fullPage: true });
 });

@@ -1,0 +1,47 @@
+{
+  "task": "UX-01",
+  "date": "2026-11-04",
+  "timezone": "Africa/Lagos",
+  "state": "implemented and verified locally; not deployed",
+  "baseline_commit": "44df684",
+  "surfaces": [
+    "homepage",
+    "example report and comparison",
+    "help and future payments",
+    "email signup and sign-in",
+    "wallet signup and linking presentation",
+    "free website workspace",
+    "test history and replay",
+    "account settings"
+  ],
+  "checks": {
+    "lint": "passed; 196 files",
+    "typecheck": "passed",
+    "production_build": "passed",
+    "browser_initial": {
+      "total": 78,
+      "passed": 71,
+      "failed": 7,
+      "failures": "Step-number contrast on homepage/details/guide at two sizes; narrow report header overflow in one 320-pixel check."
+    },
+    "browser_after_fixes": {
+      "passed": 38,
+      "failed": 0,
+      "scope": "All affected public, signup and wallet specs, desktop and mobile. The other 40 invited workspace/operator/evidence checks passed in the initial run."
+    },
+    "accessibility": "No axe WCAG A/AA violations on checked screens after contrast fix; native disclosure keyboard operation and address-field/return focus verified.",
+    "viewport_fit": "Automated desktop/mobile checks plus 320-pixel public-page checks passed.",
+    "visual_review": "Local screenshots of homepage, report, comparison, signup, website workspace and expanded result reviewed; final mobile/narrow views checked.",
+    "authentication": "Real throwaway-key signatures, HTTP, sessions and disposable database; injected wallet transport.",
+    "result_fixture": "Controlled free-tests GET response exercises incomplete and passed states, replay, technical details and advisory suggestions. Does not prove real browser execution or a paid suggestion.",
+    "backend_regression": "No server/domain/schema change. Previous 300 database checks remain the wallet checkpoint; not rerun for presentation changes."
+  },
+  "boundaries": [
+    "No remote push, deployment or production flag change",
+    "No email, customer browser target, real wallet transaction or sponsor purchase",
+    "No operator enrollment or public builder-agent API",
+    "Existing test authorization, quota, review and payment boundaries retained",
+    "Manual nontechnical user evaluation and real wallet extension/mobile-wallet confirmation pending"
+  ],
+  "commit_subject": "feat: simplify the free beta experience and redesign public pages"
+}

@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { LoomMark } from '@/components/icons';
+import { ProductFooter, ProductHeader } from '@/components/product-shell';
 import { WalletLogin } from '@/components/wallet-login';
 import { getAuth } from '@/server/auth/config';
 import { linkedWallets, walletLoginEnabled } from '@/server/auth/wallet';
@@ -13,31 +13,22 @@ export default async function AccountPage() {
   if (!session) redirect('/sign-in');
   const wallets = await linkedWallets(getPool(), session.user.id);
   return (
-    <main className="auth-page">
-      <Link href="/workspace" className="brand">
-        <LoomMark />
-        <span>trialoom.</span>
-      </Link>
-      <div className="auth-layout">
-        <section className="auth-intro">
-          <div className="eyebrow">YOUR ACCOUNT</div>
-          <h1>
-            Your workspace.
-            <br />
-            <span className="heading-accent">Your way in.</span>
-          </h1>
-          <p>
-            Link a wallet to sign in to this same account. Your projects and access stay together.
-          </p>
-          <Link href="/workspace" className="text-link">
-            Back to workspace ↗
-          </Link>
-        </section>
-        <section className="auth-form-panel">
-          <h2>Account settings</h2>
+    <div className="product-page">
+      <ProductHeader>
+        <Link href="/workspace">Back to workspace</Link>
+      </ProductHeader>
+      <main className="product-container account-layout">
+        <header className="product-heading">
+          <h1>Account settings</h1>
+          <p>Manage how you sign in.</p>
+        </header>
+        <section className="account-section" aria-label="Profile">
           <p>{session.user.name}</p>
           {session.user.emailVerified && <p>{session.user.email}</p>}
-          <h3>Linked wallets</h3>
+        </section>
+        <section className="account-section">
+          <h2>Wallets</h2>
+          <p>Link a wallet to use it for this same account.</p>
           {wallets.length ? (
             <ul className="wallet-addresses">
               {wallets.map(({ address }) => (
@@ -45,22 +36,23 @@ export default async function AccountPage() {
               ))}
             </ul>
           ) : (
-            <p>
-              No wallet linked yet. Sign in with email first if you already have an email account.
-            </p>
+            <p>No wallets linked yet.</p>
           )}
           {walletLoginEnabled() ? (
             <WalletLogin intent="link" />
           ) : (
-            <p>Wallet sign-in is not available on this deployment yet.</p>
+            <p>Wallet sign-in isn’t available here yet.</p>
           )}
-          <p className="auth-footnote">
-            Linking requires a sign-in within the last 30 minutes. Protect your linked wallets:
-            anyone controlling one can access this account. Wallet removal and account merging are
-            not available yet.
-          </p>
+          <details className="product-disclosure">
+            <summary>Before you link a wallet</summary>
+            <p>
+              Sign in again if it’s been more than 30 minutes. Anyone with access to a linked wallet
+              can sign in to this account. Wallet removal and account merging are not available yet.
+            </p>
+          </details>
         </section>
-      </div>
-    </main>
+      </main>
+      <ProductFooter />
+    </div>
   );
 }

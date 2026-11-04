@@ -7,89 +7,66 @@ import {
 import type { ProjectSummary } from './live-types';
 
 const phases = {
-  queued: 'Queued',
-  running: 'Browser running',
+  queued: 'Waiting to start',
+  running: 'Testing your page',
   captured: 'Saving results',
   completed: 'Checks completed',
-  blocked: 'Test blocked',
+  blocked: 'Test incomplete',
   interrupted: 'Test interrupted',
   cancelled: 'Cancelled',
 };
 const checks: Record<string, string> = {
-  homepage: 'Page returned a successful response and rendered visible content',
-  navigation: 'Sample next-page navigation rendered',
-  scope: 'Requests stayed within the approved scope',
-  infrastructure: 'Required resources stayed within the runner limits',
+  homepage: 'Page loading',
+  navigation: 'Next-page link',
+  scope: 'Allowed pages and files',
+  infrastructure: 'Browser resources',
 };
 const actionNames: Record<string, string> = {
-  goto: 'Open page',
-  cookies: 'Inspect cookies',
-  waitForFunction: 'Wait for page state',
-  evaluateExpression: 'Inspect page',
-  click: 'Follow link',
-  waitForSelector: 'Wait for element',
+  goto: 'Opened the page',
+  cookies: 'Checked browser cookies',
+  waitForFunction: 'Waited for the page',
+  evaluateExpression: 'Checked page content',
+  click: 'Followed a link',
+  waitForSelector: 'Waited for an element',
 };
-/**
- * What was bought to explain this test, beside the observations it was bought
- * against. The explanation is advisory text from a service Trialoom pays for;
- * it is never a result, and the panel is built so that it cannot be mistaken
- * for one — the observed checks stay above it, every claim it makes points at
- * one of them by reference, and the states where nothing useful arrived say so
- * rather than showing an empty space.
- */
 function Explanation({ explanation }: { explanation: FreeTestExplanation }) {
   if (explanation.state === 'skipped') return null;
-  const named = (ref: string) => explanation.observations.find((item) => item.ref === ref) ?? null;
+  if (explanation.state === 'pending')
+    return (
+      <p className="product-note" role="status">
+        Preparing a suggestion…
+      </p>
+    );
+  if (explanation.state !== 'ready' || !explanation.body)
+    return (
+      <details className="product-disclosure">
+        <summary>AI suggestion unavailable</summary>
+        <p>Your test results are still available. No charge was made to you.</p>
+      </details>
+    );
   return (
-    <section className="free-explanation" aria-label="Explanation of this result">
-      <div className="section-heading">
-        <h4>What this looks like</h4>
-        <span className="neutral-label">Not a test result</span>
-      </div>
-      {explanation.state === 'pending' && (
-        <p className="section-description">
-          Trialoom is buying an explanation of these observations. It will appear here; the checks
-          above are the result either way.
+    <section className="result-suggestion" aria-label="AI suggestion">
+      <span className="product-kicker">AI suggestion</span>
+      <h4>What to try next</h4>
+      <p>{explanation.body.nextStep}</p>
+      <details className="product-disclosure">
+        <summary>Why this was suggested</summary>
+        <p>{explanation.body.summary}</p>
+        <p>
+          Based on:{' '}
+          {explanation.body.evidenceRefs
+            .map((ref) => {
+              const observation = explanation.observations.find((item) => item.ref === ref);
+              return observation ? checks[observation.name] : ref;
+            })
+            .join(', ')}
+          .
         </p>
-      )}
-      {explanation.state === 'unavailable' && (
-        <p className="section-description">
-          No explanation was obtained for this test. The checks above are unaffected, and nothing
-          was charged to you.
+        <p>
+          This is advice, not a test result. Only test observations are shared with the suggestion
+          service, at Trialoom’s expense.
         </p>
-      )}
-      {explanation.state === 'unusable' && (
-        <p className="section-description">
-          Trialoom requested an explanation of these observations and the answer could not be used,
-          so it is not shown. The checks above are unaffected, and nothing was charged to you.
-        </p>
-      )}
-      {explanation.state === 'ready' && explanation.body && (
-        <>
-          <p className="free-explanation-title">{explanation.body.title}</p>
-          <p>{explanation.body.summary}</p>
-          <p>
-            <strong>Try next.</strong> {explanation.body.nextStep}
-          </p>
-          <h5>Derived only from</h5>
-          <ul className="free-checks">
-            {explanation.body.evidenceRefs.map((ref) => {
-              const observation = named(ref);
-              return (
-                <li key={ref}>
-                  <strong>{observation?.passed ? 'Passed' : 'Blocked'}</strong>
-                  <span>{observation ? checks[observation.name] : ref}</span>
-                </li>
-              );
-            })}
-          </ul>
-          <p className="replay-privacy">
-            Written by an external service at Trialoom's expense, from the checks listed above and
-            nothing else. No URL, page content, trace or account detail left this product. It is a
-            suggestion, not a finding, and it cannot change a result.
-          </p>
-        </>
-      )}
+      </details>
     </section>
   );
 }
@@ -108,119 +85,171 @@ export function FreeTestHistory({
   onCancel: (id: string) => void;
 }) {
   return (
-    <section className="free-test-history" aria-labelledby="test-history">
+    <section className="test-history" aria-labelledby="test-history">
       <div className="section-heading">
-        <h2 id="test-history">Your tests</h2>
-        <span className="neutral-label">Free beta</span>
+        <h2 id="test-history" tabIndex={-1}>
+          Recent tests
+        </h2>
+        <span className="subtle">{tests.length > 0 ? `${tests.length} saved` : ''}</span>
       </div>
       {tests.length === 0 ? (
-        <p className="section-description">
-          Your first test will appear here with its results and replay.
-        </p>
+        <p className="product-note">Your results will appear here after your first test.</p>
       ) : (
-        <ul className="free-project-list">
-          {tests.map((test) => (
-            <li key={test.id}>
-              <div className="section-heading">
-                <h3>
-                  {test.kind === 'sample'
-                    ? 'Prepared sample'
-                    : (projects.find((p) => p.id === test.project_id)?.name ?? 'Preview page')}
-                </h3>
-                <span className="neutral-label" role="status">
-                  {test.cancel_requested && activeFreeTest(test.phase)
-                    ? 'Stopping and cleaning up'
-                    : phases[test.phase]}
-                </span>
-              </div>
-              <p className="section-description">
-                {new Date(test.created_at).toLocaleString()} · Read-only Chromium test
-              </p>
-              {activeFreeTest(test.phase) && (
-                <button
-                  type="button"
-                  className="text-button"
-                  disabled={busy || test.cancel_requested}
-                  onClick={() => onCancel(test.id)}
-                >
-                  Cancel test
-                </button>
-              )}
-              {test.phase === 'interrupted' && (
-                <p>
-                  The run stopped before results were safely captured. It was not automatically
-                  repeated. You can request another test when the runner is available.
-                </p>
-              )}
-              {test.phase === 'blocked' && (
-                <p>
-                  The page could not be fully checked within the approved scope and limits. This
-                  does not establish a product defect.
-                </p>
-              )}
-              {test.result && !activeFreeTest(test.phase) && test.phase !== 'cancelled' && (
-                <>
-                  <ul className="free-checks">
-                    {test.result.checks.map((item) => (
-                      <li key={item.check}>
-                        <strong>{item.passed ? 'Passed' : 'Blocked'}</strong>
-                        <span>{checks[item.check]}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  {explanations[test.id] && <Explanation explanation={explanations[test.id]} />}
-                  <details className="replay-details free-replay">
-                    <summary>View replay</summary>
-                    <p className="section-description">
-                      {test.result.browser} · Observed page at test time; build revision not
-                      independently confirmed.
-                    </p>
-                    {test.result.replay ? (
-                      <>
-                        <h4>Recorded browser actions</h4>
-                        <ol>
-                          {test.result.replay.actions.map((action) => (
-                            <li key={action.index}>
-                              <span>{(action.startMs / 1000).toFixed(2)}s</span>
-                              <strong>
-                                {actionNames[action.method] ?? 'Other browser action'}
-                              </strong>
-                              <span>{action.status}</span>
-                            </li>
-                          ))}
-                        </ol>
-                        <details className="replay-details">
-                          <summary>
-                            HTTP responses · {test.result.replay.requests.length} recorded
-                          </summary>
-                          <ol>
-                            {test.result.replay.requests.map((request) => (
-                              <li key={request.index}>
-                                <span>{(request.startMs / 1000).toFixed(2)}s</span>
-                                <strong>{request.method}</strong>
-                                <span>
-                                  {request.status > 0 ? `HTTP ${request.status}` : 'No response'}
-                                </span>
-                              </li>
-                            ))}
-                          </ol>
-                        </details>
-                        <p className="replay-privacy">
-                          This replay shows actions and request timing. Page snapshots, addresses,
-                          typed values and private content are omitted.
+        <ul className="test-list">
+          {tests.map((test, index) => {
+            const active = activeFreeTest(test.phase);
+            const complete =
+              test.phase === 'completed' &&
+              test.result &&
+              test.result.checks.length > 0 &&
+              test.result.checks.every((item) => item.passed);
+            const label =
+              test.cancel_requested && active
+                ? 'Stopping test'
+                : complete
+                  ? 'All checks passed'
+                  : phases[test.phase];
+            return (
+              <li key={test.id}>
+                <details className="test-record" open={index === 0}>
+                  <summary>
+                    <span>
+                      <strong>
+                        {test.kind === 'sample'
+                          ? 'Sample website'
+                          : (projects.find((project) => project.id === test.project_id)?.name ??
+                            'Website test')}
+                      </strong>
+                      <time dateTime={test.created_at}>
+                        {new Date(test.created_at).toLocaleString(undefined, {
+                          dateStyle: 'medium',
+                          timeStyle: 'short',
+                        })}
+                      </time>
+                    </span>
+                    <span
+                      className={`result-label ${complete ? '' : active ? 'pending' : 'neutral'}`}
+                    >
+                      {label}
+                    </span>
+                  </summary>
+                  <div className="test-record-body">
+                    {active && (
+                      <div className="test-progress" role="status">
+                        <p>
+                          {test.cancel_requested
+                            ? 'Stopping safely. This can take a moment.'
+                            : test.phase === 'queued'
+                              ? 'Your test is in line. You can leave this page and return later.'
+                              : 'The browser is checking your page. Results will appear here.'}
                         </p>
-                      </>
-                    ) : (
-                      <p>
-                        Replay is unavailable because the trace could not be safely processed. The
-                        checks above remain the observed result.
+                        <button
+                          type="button"
+                          className="text-button"
+                          disabled={busy || test.cancel_requested}
+                          onClick={() => onCancel(test.id)}
+                        >
+                          Cancel test
+                        </button>
+                      </div>
+                    )}
+                    {test.phase === 'interrupted' && (
+                      <p className="product-note">
+                        The test stopped before results were saved. Start another test when testing
+                        is available.
                       </p>
                     )}
-                  </details>
-                </>
-              )}
-            </li>
-          ))}
+                    {test.phase === 'blocked' && (
+                      <p className="product-note">
+                        Some checks couldn’t finish within the allowed test limits. This doesn’t
+                        mean your website is broken.
+                      </p>
+                    )}
+                    {test.phase === 'cancelled' && (
+                      <p className="product-note">
+                        You cancelled this test. It counts toward today’s limit.
+                      </p>
+                    )}
+                    {test.result && !active && test.phase !== 'cancelled' && (
+                      <>
+                        <ul className="result-check-list">
+                          {test.result.checks.map((item) => (
+                            <li key={item.check}>
+                              <span
+                                className={`check-symbol ${item.passed ? '' : 'issue'}`}
+                                aria-hidden="true"
+                              >
+                                {item.passed ? '✓' : '–'}
+                              </span>
+                              <span>{checks[item.check]}</span>
+                              <strong>{item.passed ? 'Passed' : 'Incomplete'}</strong>
+                            </li>
+                          ))}
+                        </ul>
+                        <details className="result-replay">
+                          <summary>
+                            View replay <span>Recorded steps</span>
+                          </summary>
+                          {test.result.replay ? (
+                            <>
+                              <p className="product-note">
+                                A log of browser actions, not a video. Private page content is
+                                hidden.
+                              </p>
+                              <ol className="action-timeline">
+                                {test.result.replay.actions.map((action) => (
+                                  <li key={action.index}>
+                                    <span>{(action.startMs / 1000).toFixed(1)}s</span>
+                                    <strong>
+                                      {actionNames[action.method] ?? 'Browser action'}
+                                    </strong>
+                                    <span>
+                                      {action.status === 'completed' ? 'Done' : action.status}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ol>
+                              <details className="product-disclosure">
+                                <summary>Technical details</summary>
+                                <p>
+                                  {test.result.browser}. The exact website version was not
+                                  independently confirmed.
+                                </p>
+                                <h4>Network responses</h4>
+                                <ul className="network-responses">
+                                  {test.result.replay.requests.map((request) => (
+                                    <li key={request.index}>
+                                      {request.method} ·{' '}
+                                      {request.status > 0
+                                        ? `HTTP ${request.status}`
+                                        : 'No response'}{' '}
+                                      · {(request.startMs / 1000).toFixed(1)}s
+                                    </li>
+                                  ))}
+                                </ul>
+                                <p>
+                                  Website addresses, typed values and screenshots are omitted for
+                                  privacy.
+                                </p>
+                              </details>
+                            </>
+                          ) : (
+                            <p className="product-note">
+                              A replay couldn’t be prepared safely. Your checks are still shown
+                              above.
+                            </p>
+                          )}
+                        </details>
+                        {explanations[test.id] && (
+                          <Explanation explanation={explanations[test.id]} />
+                        )}
+                      </>
+                    )}
+                  </div>
+                </details>
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>

@@ -2,27 +2,16 @@ import { readFile } from 'node:fs/promises';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-test('journeys filter, search, recover from empty results, and open evidence', async ({ page }) => {
+test('the example leads with the issue and opens its recorded steps', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/demo');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Your release,');
-  await expect(page.locator('.journey-row')).toHaveCount(3);
-  await page.getByRole('button', { name: 'Needs review', exact: true }).click();
-  await expect(page.locator('.journey-row')).toHaveCount(1);
-  await page.getByRole('button', { name: 'Passed', exact: true }).click();
-  await expect(page.locator('.journey-row')).toHaveCount(2);
-  await page.getByRole('textbox', { name: 'Find a journey' }).fill('no such journey');
-  await expect(page.getByRole('heading', { name: 'No matching journeys' })).toBeVisible();
-  await page.getByRole('button', { name: 'Show all journeys' }).click();
-  await expect(page.locator('.journey-row')).toHaveCount(3);
-  await page
-    .getByRole('link', { name: 'Invite a teammate with a plus address', exact: true })
-    .click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('One thing to fix.');
+  await expect(page.locator('.report-checks li')).toHaveCount(3);
+  await page.getByRole('link', { name: 'See what happened' }).click();
   await expect(page).toHaveURL('/demo/evidence#plus-address');
-  await expect(
-    page.getByRole('heading', { name: 'Plus-address invitations are rejected' }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Invitation rejected' })).toBeVisible();
+  await expect(page.locator('.test-steps li')).toHaveCount(3);
   expect(errors).toEqual([]);
 });
 
@@ -30,16 +19,20 @@ test('comparison preserves pending acceptance and exports a labelled demo report
   page,
 }) => {
   await page.goto('/demo/evidence');
-  await expect(page.locator('.response-code')).toContainText('400');
-  await page.getByRole('button', { name: 'Candidate build' }).click();
-  await expect(page.locator('.response-code')).toContainText('201');
-  await expect(page.getByRole('button', { name: 'Candidate build' })).toHaveAttribute(
+  await expect(page.getByRole('heading', { name: 'Invitation rejected' })).toBeVisible();
+  await page.getByRole('button', { name: 'Proposed fix' }).click();
+  await expect(page.getByRole('heading', { name: 'Invitation created' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Proposed fix' })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
-  await expect(page.locator('.review-boundary')).toContainText('same operator');
+  await expect(page.locator('.review-boundary')).toContainText('still needs an independent review');
+  await expect(page.getByRole('link', { name: 'Download example report' })).toBeHidden();
+  await page.getByText('Technical details & download', { exact: true }).click();
+  await expect(page.locator('.technical-facts')).toContainText('201');
+  await expect(page.locator('.technical-facts')).toContainText('same operator');
   const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('link', { name: 'Export demo report' }).click();
+  await page.getByRole('link', { name: 'Download example report' }).click();
   const download = await downloadPromise;
   const path = await download.path();
   expect(path).toBeTruthy();
@@ -53,21 +46,21 @@ test('comparison preserves pending acceptance and exports a labelled demo report
     baseline: { httpStatus: 400 },
     candidate: { httpStatus: 201 },
   });
-  await page.getByRole('button', { name: 'Original build' }).click();
-  await expect(page.locator('.response-code')).toContainText('400');
+  await page.getByRole('button', { name: 'Original version' }).click();
+  await expect(page.getByRole('heading', { name: 'Invitation rejected' })).toBeVisible();
 });
 
-test('navigation reaches payments and the guide on both screen sizes', async ({ page }) => {
+test('the guide keeps future paid work separate from the free beta', async ({ page }) => {
   await page.goto('/demo');
   await page
-    .getByRole('navigation', { name: 'Workspace' })
-    .getByRole('link', { name: 'Payments' })
+    .getByRole('navigation', { name: 'Main navigation' })
+    .getByRole('link', { name: 'How it works' })
     .click();
+  await expect(page.getByRole('heading', { name: 'Start with a website.' })).toBeVisible();
+  await page.getByText('Will Trialoom fix my website for me?', { exact: true }).click();
+  await page.getByRole('link', { name: 'About future paid work' }).click();
   await expect(page.getByRole('heading', { name: 'No accepted work to pay yet.' })).toBeVisible();
-  await expect(page.getByText('No spending authorized')).toBeVisible();
-  await expect(page.getByText('Live payments are not enabled in this preview.')).toBeVisible();
-  await page.locator('footer').getByRole('link', { name: 'How Trialoom works' }).click();
-  await expect(page.getByRole('heading', { name: 'Choose a journey' })).toBeVisible();
+  await expect(page.getByText('No spending authorized.', { exact: false })).toBeVisible();
 });
 
 for (const path of ['/', '/demo', '/demo/evidence', '/demo/payments', '/demo/guide']) {
@@ -90,39 +83,47 @@ for (const path of ['/', '/demo', '/demo/evidence', '/demo/payments', '/demo/gui
   });
 }
 
-test('the landing page explains the product and states what is unavailable', async ({ page }) => {
+const signup =
+  process.env.TRIALOOM_PUBLIC_SIGNUP === 'true' ||
+  (process.env.TRIALOOM_WALLET_LOGIN === 'true' &&
+    process.env.TRIALOOM_PUBLIC_WALLET_SIGNUP === 'true');
+const testing = process.env.TRIALOOM_FREE_TESTS === 'true';
+
+test('the landing page offers an honest next action for this deployment', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Authorize a preview URL.');
-  await expect(page.getByRole('link', { name: 'See an example report' })).toBeVisible();
-  // The page must agree with the configuration this server was started with
-  // rather than carry a hardcoded promise, so the expectations come from the
-  // same variables. The sponsor wallet is pinned absent in playwright.config.ts.
-  const signup = process.env.TRIALOOM_PUBLIC_SIGNUP === 'true';
-  const state = page.getByRole('region', { name: 'Where this is today' });
-  await expect(state.getByText(signup ? 'Open to anyone' : 'Being prepared')).toBeVisible();
-  await expect(
-    state.getByText(
-      process.env.TRIALOOM_FREE_TESTS === 'true'
-        ? 'Available here'
-        : 'Not available in this deployment',
-    ),
-  ).toBeVisible();
-  await expect(state.getByText('No wallet configured yet')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Create a free workspace' })).toHaveCount(
-    signup ? 1 : 0,
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Test your website.');
+  await expect(page.getByRole('region', { name: 'Example test result' })).toBeVisible();
+  await expect(page.locator('.home-availability')).toContainText(
+    testing ? 'Free during beta' : 'Live testing isn’t available here yet',
   );
+  await page.getByText('What can I try today?', { exact: true }).click();
+  await expect(
+    page.getByText(signup ? 'You can create a free account' : 'Account signup is not open yet', {
+      exact: false,
+    }),
+  ).toBeVisible();
   await page.getByRole('link', { name: 'See an example report' }).click();
   await expect(page).toHaveURL('/demo');
+});
+
+test('public pages remain usable at 320 pixels', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 760 });
+  for (const route of ['/', '/demo', '/demo/evidence', '/sign-in', '/sign-up']) {
+    await page.goto(route);
+    await page.evaluate(() => document.fonts.ready);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+      route,
+    ).toBe(true);
+  }
 });
 
 test('health, readiness, and demo security headers are explicit', async ({ request }) => {
   const health = await request.get('/api/health');
   expect(health.status()).toBe(200);
-  // This suite runs the invited build, so the endpoint must report that mode
-  // and must not claim testing is available.
   expect(await health.json()).toMatchObject({
-    mode: 'invited-alpha',
-    testing: 'unavailable',
+    mode: signup ? 'public-beta' : 'invited-alpha',
+    testing: testing ? 'enabled' : 'unavailable',
     privileged: false,
   });
   expect((await request.get('/api/ready')).status()).toBe(200);

@@ -33,7 +33,7 @@ test('public signup shows delivery failure honestly and limits retries', async (
   await expect(page.getByRole('main').getByRole('alert')).toContainText(
     'Signup email is not available yet',
   );
-  await expect(page.getByRole('heading', { name: 'Check your inbox.' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Check your inbox' })).toHaveCount(0);
   for (let i = 0; i < 3; i++) {
     const result = await request.post('/api/signup/request', {
       headers: { origin: 'http://127.0.0.1:3100' },
@@ -65,21 +65,26 @@ test('verified link creates a free workspace, persists a project and refuses ope
     `${info.project.name}-free@example.test`,
   );
   await page.getByLabel('Your name').fill('Public builder');
-  await page.getByLabel('Workspace name').fill('My free workspace');
   await page.getByLabel('Choose a password').fill(fixture.password);
   await accessible(page);
-  await page.getByRole('button', { name: 'Create free workspace' }).click();
+  await page.getByRole('button', { name: 'Create account' }).click();
   await expect(page).toHaveURL('/workspace');
-  await expect(page.getByRole('heading', { name: 'My free workspace' })).toBeVisible();
-  await expect(page.getByText('The test runner is offline', { exact: false })).toBeVisible();
-  await page.getByRole('button', { name: 'Add a project' }).click();
-  await page.getByLabel('Project name').fill('My preview');
-  await page.getByLabel('Preview URL').fill('https://127.0.0.1');
+  await expect(page.getByRole('heading', { name: 'My websites' })).toBeVisible();
+  await expect(
+    page.getByText('Live testing isn’t available right now.', { exact: false }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Add website' }).click();
+  await expect(page.getByLabel('Website address')).toBeFocused();
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Add website' })).toBeFocused();
+  await page.getByRole('button', { name: 'Add website' }).click();
+  await page.getByLabel('Website name').fill('My preview');
+  await page.getByLabel('Website address').fill('https://127.0.0.1');
   await page.getByLabel('I own this website').check();
-  await page.getByRole('button', { name: 'Save project' }).click();
+  await page.getByRole('button', { name: 'Save website' }).click();
   await expect(page.getByRole('main').getByRole('alert')).toContainText('private');
-  await page.getByLabel('Preview URL').fill('https://example.com');
-  await page.getByRole('button', { name: 'Save project' }).click();
+  await page.getByLabel('Website address').fill('https://example.com');
+  await page.getByRole('button', { name: 'Save website' }).click();
   await expect(page.getByRole('heading', { name: 'My preview' })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('heading', { name: 'My preview' })).toBeVisible();

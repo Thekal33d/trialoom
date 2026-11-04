@@ -192,16 +192,6 @@ export function LiveWorkspace({
           </Link>
         </nav>
         <div className="sidebar-bottom">
-          <div className="sidebar-note">
-            <span className="small-label">A CLEAR STARTING POINT</span>
-            <p>
-              Know the build.
-              <br />
-              Agree on the work.
-              <br />
-              Keep every version.
-            </p>
-          </div>
           <div className="viewer">
             <span className="viewer-avatar">{user.name.charAt(0)}</span>
             <div>

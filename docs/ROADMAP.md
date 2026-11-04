@@ -1,8 +1,10 @@
 # Delivery roadmap
 
-Last updated: 2026-11-01. Baseline: [PRD v0.1](PRD.md). Live task state: [BACKLOG.md](BACKLOG.md).
+Last updated: 2026-11-04. Baseline: [PRD v0.1](PRD.md). Live task state: [BACKLOG.md](BACKLOG.md).
 
 D049 changes the first release to a **public-signup free testing beta**, with useful platform-sponsored usebuy calls for the selected Build with buy track. [Free beta scope](FREE-BETA.md) defines the launch path. The paid marketplace remains a later objective; a demo does not establish release readiness.
+
+[UX-01](UX-01.md) simplifies the free-beta journey for people without technical backgrounds. The redesign is locally verified; it does not close the hosted launch or real-user evidence gates.
 
 | Milestone | Deliverable | Exit evidence | State |
 | --- | --- | --- | --- |

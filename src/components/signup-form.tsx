@@ -58,7 +58,7 @@ export function SignupForm({
         const result = await api<{ email: string }>('/api/signup/complete', 'POST', {
           token: tokenRef.current,
           name: String(form.get('name')),
-          workspace: String(form.get('workspace')),
+          workspace: `${String(form.get('name')).trim().slice(0, 80)}'s workspace`,
           password,
         });
         await api('/api/auth/sign-in/email', 'POST', { email: result.email, password });
@@ -71,48 +71,33 @@ export function SignupForm({
     }
   }
   return (
-    <main className="auth-page">
+    <main className="auth-shell">
       <Link href="/" className="brand">
         <LoomMark />
         <span>trialoom.</span>
       </Link>
       <div className="auth-layout">
         <section className="auth-intro">
-          <div className="eyebrow">THE FREE TESTING BETA</div>
           <h1>
-            A clearer path
-            <br />
-            <span className="heading-accent">to your next release.</span>
-          </h1>
-          <p>
-            A workspace for your previews, test evidence, and the findings worth fixing. No payment
-            setup required.
-          </p>
-          <Link href="/demo" className="text-link">
-            Explore an example report ↗
-          </Link>
-        </section>
-        <section className="auth-form-panel">
-          <h2>
             {sent
-              ? 'Check your inbox.'
+              ? 'Check your inbox'
               : complete
-                ? 'Make it your workspace.'
-                : walletEnabled
-                  ? 'Choose how to get started.'
-                  : 'Start with your email.'}
-          </h2>
+                ? 'Finish your account'
+                : 'Create your free account'}
+          </h1>
           <p>
             {!enabled
               ? walletEnabled
-                ? 'Create your free workspace with a wallet. Email signup is still being prepared.'
-                : 'Public signup is being prepared. You can explore the example workspace while we finish setup.'
+                ? 'Use a wallet to get started. Email signup is coming soon.'
+                : 'Signup isn’t open yet. You can still explore the example report.'
               : sent
-                ? 'Use the link in your email within 30 minutes to choose a password and create your workspace. Already registered? Sign in below.'
+                ? 'Open the link in your email within 30 minutes to continue.'
                 : complete
-                  ? 'Choose your details to finish creating your free account.'
-                  : 'We’ll send a link to confirm your email before you choose a password.'}
+                  ? 'A couple of details and you’re ready.'
+                  : 'We’ll email you a link to get started. No payment details.'}
           </p>
+        </section>
+        <section className="auth-form-panel" aria-label="Create account">
           {loading && <p role="status">Checking your signup link…</p>}
           {error && (
             <p className="form-error" role="alert">
@@ -146,16 +131,6 @@ export function SignupForm({
                     <input name="name" autoComplete="name" required maxLength={100} />
                   </label>
                   <label>
-                    Workspace name
-                    <input
-                      name="workspace"
-                      autoComplete="organization"
-                      required
-                      maxLength={100}
-                      placeholder="Your project or team"
-                    />
-                  </label>
-                  <label>
                     Choose a password
                     <input
                       name="password"
@@ -166,18 +141,22 @@ export function SignupForm({
                       maxLength={128}
                     />
                   </label>
-                  <small>
-                    Use at least 12 characters. Your workspace is free; testing is subject to beta
-                    availability and limits.
-                  </small>
+                  <small>Use at least 12 characters.</small>
                 </>
               )}
               <button type="submit" className="button primary" disabled={busy}>
-                {busy ? 'Please wait…' : complete ? 'Create free workspace' : 'Send signup link'}
+                {busy ? 'Please wait…' : complete ? 'Create account' : 'Send signup link'}
               </button>
             </form>
           )}
-          {!complete && !sent && walletEnabled && <WalletLogin intent="sign-up" />}
+          {!enabled && !walletEnabled && (
+            <Link href="/demo" className="button primary">
+              See an example report
+            </Link>
+          )}
+          {!complete && !sent && walletEnabled && (
+            <WalletLogin intent="sign-up" primary={!enabled} />
+          )}
           <p className="auth-footnote">
             <Link className="text-link" href="/sign-in">
               Already have an account? Sign in

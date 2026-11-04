@@ -3,6 +3,7 @@ import '@fontsource-variable/manrope';
 import '@fontsource-variable/dm-sans';
 import './globals.css';
 import './account.css';
+import './product.css';
 export const metadata: Metadata = {
   title: 'Trialoom — Test. Fix. Ship.',
   description: 'Useful tests, reproducible findings, and fixes you can verify.',

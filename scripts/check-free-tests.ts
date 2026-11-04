@@ -68,18 +68,17 @@ try {
   const page = await context.newPage();
   await page.goto(signupUrl);
   await page.getByLabel('Your name').fill('Sample builder');
-  await page.getByLabel('Workspace name').fill('My free workspace');
   await page.getByLabel('Choose a password').fill(randomBytes(24).toString('base64url'));
-  await page.getByRole('button', { name: 'Create free workspace' }).click();
+  await page.getByRole('button', { name: 'Create account' }).click();
   await expect(page).toHaveURL(`${app.origin}/workspace`);
   await expect(page.getByRole('button', { name: 'Run sample test' })).toBeEnabled();
   await page.getByRole('button', { name: 'Run sample test' }).click();
-  await expect(page.getByText('Checks completed', { exact: true })).toBeVisible({ timeout: 90000 });
-  await page.getByText('View replay', { exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Recorded browser actions' })).toBeVisible();
-  await expect(
-    page.getByText('Sample next-page navigation rendered', { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText('All checks passed', { exact: true })).toBeVisible({
+    timeout: 90000,
+  });
+  await page.locator('.result-replay > summary').click();
+  await expect(page.locator('.action-timeline')).toBeVisible();
+  await expect(page.getByText('Next-page link', { exact: true })).toBeVisible();
   const row = (await db.pool.query('SELECT * FROM free_tests')).rows[0];
   assert.equal(row.phase, 'completed');
   assert(row.cleanup_at);
@@ -117,7 +116,7 @@ try {
     await page.screenshot({ path: resolve(directory, `${size.name}.png`), fullPage: true });
   }
   await page.reload();
-  await expect(page.getByText('Checks completed', { exact: true })).toBeVisible();
+  await expect(page.getByText('All checks passed', { exact: true })).toBeVisible();
   worker.kill('SIGTERM');
   await workerExit;
   worker = undefined;

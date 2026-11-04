@@ -1,7 +1,7 @@
 export const journeys = [
   {
     id: 'plus-address',
-    title: 'Invite a teammate with a plus address',
+    title: 'Email address with a + sign',
     description: 'Invitation flow · Email aliases',
     result: 'Review needed',
     status: 'review',
@@ -10,7 +10,7 @@ export const journeys = [
   },
   {
     id: 'standard-address',
-    title: 'Send a standard email invitation',
+    title: 'Standard email invitation',
     description: 'Invitation flow · Happy path',
     result: 'Passed',
     status: 'passed',

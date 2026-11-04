@@ -270,3 +270,12 @@ Keep provider-reported cost/hash separate from verified cost/hash. Delivered adv
 The user requested wallet login alongside email. This extends D049: a free builder account may prove either email possession or Celo wallet control. A wallet remains optional. Wallet-only accounts receive the existing free workspace and quotas, with no operator enrollment, paid assignment, spending permission or verified email. Existing email users can explicitly link a wallet from a recent authenticated session; never merge by an unverified email or reuse operator payout proofs as login credentials.
 
 Use EIP-4361 with five-minute, browser-bound, one-use server-authored challenges and chain 42220. A small Better Auth plugin retains the existing session implementation while making account/workspace creation atomic. The initial UI supports injected EOA wallets and EIP-6963 discovery. Smart contract verification, QR connections, removal/recovery and account merging remain unimplemented. Separate switches control wallet login/linking and new wallet registrations, independently of the email delivery switch. No production flag or deployment changes follow merely from this local implementation. Wallets do not establish independent bounty users. [WALLET-01](../docs/WALLET-01.md).
+
+
+## D061 — 2026-11-04 — Accepted: a plain-language public beta with details on demand
+
+The user explicitly requested a less verbose, easier product for people without technical backgrounds, with a more considered interface. Prioritize the public journey: add a website, run an available check, understand the result. Remove competing marketing headings and unnecessary form fields; name a workspace automatically and make website naming optional. Keep explicit testing permission, quota and availability controls.
+
+Present human outcomes before HTTP codes, build fingerprints and network records. Preserve these details in accessible disclosures, with an obvious View replay action. An incomplete test is not a defect; AI advice is not a test result; a proposed fix is not an approved repair. Future marketplace explanations belong outside the primary free-beta path, while real work/payment obligations in the invited application remain visible.
+
+Use the existing light paper/forest-green identity, restrained lists and a labelled report preview. That visual direction is a reversible implementation choice; the optional preference question had no reply. The change does not grant new access, alter paid acceptance or enable hosting. [Implementation and verification](../docs/UX-01.md).

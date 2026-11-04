@@ -5,7 +5,13 @@ import { celo } from 'viem/chains';
 import { api } from './live-types';
 
 type Wallet = { id: string; name: string; provider: EIP1193Provider };
-export function WalletLogin({ intent = 'sign-in' }: { intent?: 'sign-in' | 'sign-up' | 'link' }) {
+export function WalletLogin({
+  intent = 'sign-in',
+  primary = false,
+}: {
+  intent?: 'sign-in' | 'sign-up' | 'link';
+  primary?: boolean;
+}) {
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [selected, setSelected] = useState('');
   const [busy, setBusy] = useState(false);
@@ -106,7 +112,7 @@ export function WalletLogin({ intent = 'sign-in' }: { intent?: 'sign-in' | 'sign
       )}
       <button
         type="button"
-        className="button secondary"
+        className={`button ${primary ? 'primary' : 'secondary'}`}
         disabled={busy}
         onClick={() => void connect()}
       >
@@ -115,13 +121,19 @@ export function WalletLogin({ intent = 'sign-in' }: { intent?: 'sign-in' | 'sign
           : intent === 'link'
             ? 'Link a wallet'
             : intent === 'sign-up'
-              ? 'Create workspace with a wallet'
+              ? 'Continue with a wallet'
               : 'Sign in with a wallet'}
       </button>
-      <small>
-        Celo wallet signature only. No gas fee or spending permission. Supports browser wallets;
-        smart contract wallets are not supported yet.
+      <small className="wallet-note">
+        A free sign-in signature. No payment or spending permission.
       </small>
+      <details className="wallet-help">
+        <summary>Supported wallets</summary>
+        <p>
+          Use a Celo-compatible browser wallet. Smart contract wallets and QR connections are not
+          supported yet.
+        </p>
+      </details>
       {error && (
         <p className="form-error" role="alert">
           {error}

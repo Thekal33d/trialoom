@@ -17,7 +17,7 @@ Last updated: 2026-11-04.
 - Track progress, status, decisions, and remaining work throughout development.
 - Commit every meaningful completed step as the build progresses.
 - Target the Celo Agents on Open Rails **Build with buy** bounty. The build log records enrollment on 2026-11-02, entry creation and ERC-8004 identity 10031 on 2026-11-03. Useful paid-service output, the entry demo URL and final submission evidence remain work to complete.
-- The user purchased `trialoom.xyz` on 2026-11-04. It is attached to Railway's existing web service on port 8080; Namecheap DNS and custom-domain HTTPS verification are pending. The generated Railway HTTPS address remains live. Keep origin and sending domain configurable; purchasing the domain does not verify a mail sender.
+- The user purchased `trialoom.xyz` on 2026-11-04 and saved its DNS records. It is attached to Railway's web service on port 8080; direct Namecheap DNS checks confirm the correct routing address and ownership TXT. Registry DNS publication/propagation and custom-domain HTTPS remain pending, so the authentication origin has not switched. The generated Railway HTTPS address remains live. Keep origin and sending domain configurable; purchasing the domain does not verify a mail sender.
 - GitLab is the current code remote: `https://gitlab.com/Otaiki1/trialoom.git`. User reported GitHub is unavailable on 2026-11-01. Development can continue on GitLab; the hackathon's public GitHub requirement needs restored access or an organizer-confirmed alternative.
 - Local timezone: Africa/Lagos.
 

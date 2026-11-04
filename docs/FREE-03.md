@@ -1,6 +1,6 @@
 # Hosted staging and launch operations
 
-FREE-03. Started 2026-11-03. **In progress.** Railway's web, worker and Postgres services are live as of 2026-11-04. The generated HTTPS address serves the landing page and example workspace. The user purchased `trialoom.xyz`; its Railway attachment exists, with DNS and certificate verification pending. Public signup, hosted browser execution and sponsored purchases remain unavailable on this deployment. This guide records verified hosting work and the remaining launch gates.
+FREE-03. Started 2026-11-03. **In progress.** Railway's web, worker and Postgres services are live as of 2026-11-04. The generated HTTPS address serves the landing page and example workspace. The user purchased `trialoom.xyz`; its Railway attachment and Namecheap DNS records are in place, with registry DNS publication/propagation and certificate verification pending. Public signup, hosted browser execution and sponsored purchases remain unavailable on this deployment. This guide records verified hosting work and the remaining launch gates.
 
 ## What exists and was verified
 
@@ -204,18 +204,20 @@ Expect `container.dropping_privileges` when started as root, or `container.evide
 
 ### 6. Connect trialoom.xyz
 
-The user confirmed purchase on 2026-11-04. The existing `web` service now has custom domain `52814d09-8e4f-4153-bda4-0ae6d147a857`, targeting port **8080**. Railway's attachment is `ACTIVE`, but that does not mean DNS or HTTPS is ready: the routing record requires an update, ownership is unverified, and the certificate is `VALIDATING_OWNERSHIP`.
+The user confirmed purchase and saved the DNS records on 2026-11-04. The existing `web` service has custom domain `52814d09-8e4f-4153-bda4-0ae6d147a857`, targeting port **8080**. Railway's attachment is `ACTIVE`, but public DNS and HTTPS are not yet ready: Railway still reports the routing record requires an update, ownership is unverified, and the certificate is `VALIDATING_OWNERSHIP`.
 
-In Namecheap, open **Domain List → Manage → Advanced DNS → Host Records**. For Namecheap BasicDNS, FreeDNS or PremiumDNS, add these exact records using the default TTL:
+These records are saved under **Namecheap → Domain List → Manage → Advanced DNS → Host Records**, with the default TTL. Keep them for reference; do not recreate them while propagation is pending:
 
 | Type | Host | Value |
 | --- | --- | --- |
 | ALIAS | `@` | `wm8pongc.up.railway.app` |
 | TXT | `_railway-verify` | `railway-verify=34da93e994c2e9a7a9a8a5d033e18c02a53c10d7e56691d047adfca8fa2f1089` |
 
-These are the values returned by Railway for this custom domain, not the generated site's address. Namecheap uses ALIAS for an apex hostname; do not create a root CNAME. Replace only conflicting parking/routing records at `@` (A, AAAA, CNAME or URL Redirect), preserving MX, TXT and unrelated hosts. If the domain uses other nameservers, change the records at that DNS provider instead. No signed-in Namecheap session was available during setup, so DNS has not been changed by this session. The initial local DNS lookup returned `ENOTFOUND`; Railway independently reports the required routing record absent.
+These are the values returned by Railway for this custom domain, not the generated site's address. Namecheap uses ALIAS for an apex hostname. The user made the DNS changes; this session verified the result with public reads only.
 
-After saving, inspect `railway domain status trialoom.xyz --service web --json` and verify HTTPS without bypassing certificate checks. Once ownership and the certificate are ready, check `/`, `/demo`, `/api/health` and `/api/ready`, then change the authentication origin:
+**Verification after the user saved the records:** both `dns1.registrar-servers.com` and `dns2.registrar-servers.com` return an authoritative A answer of `69.46.46.97`, matching `wm8pongc.up.railway.app`. The first server returns the exact expected ownership TXT. The official registry [RDAP record](https://rdap.centralnic.com/xyz/domain/trialoom.xyz) confirms registration at `2026-11-04T17:51:18Z` (18:51:18 Africa/Lagos), lists those nameservers and reports no client/server hold. However, a direct query to the `.xyz` authoritative server `ns0.centralnic.net` returns `NXDOMAIN`, as do Google's and Cloudflare's public resolvers for the domain and verification record. The saved zone is ready at Namecheap, but registry DNS publication/propagation is not complete. Do not diagnose this as a missing TXT or replace the working records. Direct HTTPS requests fail name resolution; no certificate bypass was used. The generated Railway health endpoint still returns 200 with `privileged: false` and testing unavailable.
+
+After public DNS starts resolving, inspect `railway domain status trialoom.xyz --service web --json` and verify HTTPS without bypassing certificate checks. Once ownership and the certificate are ready, check `/`, `/demo`, `/api/health` and `/api/ready`, then change the authentication origin:
 
 ```sh
 railway variable set BETTER_AUTH_URL=https://trialoom.xyz --service web
@@ -232,7 +234,7 @@ Hosting and generated-domain HTTPS are verified. The remaining gates below stay 
 | Gate | Owner | State |
 | --- | --- | --- |
 | A host | User | **Railway, chosen 2026-11-03; deployed 2026-11-04.** Web, worker and Postgres online |
-| A domain | User / us | `trialoom.xyz` purchased and attached to Railway; DNS saving/verification pending |
+| A domain | User / us | `trialoom.xyz` purchased, attached to Railway and correct DNS saved; registry publication/propagation pending |
 | TLS termination and HTTPS redirect | Us | Generated Railway HTTPS verified; custom-domain certificate pending DNS/ownership; custom HTTP redirect not yet checked |
 | Verified sending domain for signup mail | User | Not started. Signup is unusable without it |
 | Secret storage and separate process credentials | Us | Railway runtime variables configured for the live services; production credential separation, rotation and access review remain open |

@@ -156,6 +156,44 @@
         "/api/health still reports privileged false after the redeploy"
       ],
       "checks": "62 browser checks pass with 4 skipped, four more than before: / joined the accessibility and viewport loop on desktop and mobile, and a new check asserts the page agrees with the configuration its server was started with"
+    },
+    "customDomain": {
+      "date": "2026-11-04",
+      "origin": "https://trialoom.xyz",
+      "railwayDomainId": "52814d09-8e4f-4153-bda4-0ae6d147a857",
+      "targetPort": 8080,
+      "publicDns": {
+        "nameservers": ["dns1.registrar-servers.com", "dns2.registrar-servers.com"],
+        "routingHostname": "wm8pongc.up.railway.app",
+        "observedAddress": "69.46.46.97",
+        "ownershipTxtMatches": true,
+        "initialRegistryNxdomainResolved": true
+      },
+      "ownershipVerified": true,
+      "certificateStatus": "VALID",
+      "certificateDetailedStatus": "COMPLETE",
+      "httpRedirect": {"status": 301, "location": "https://trialoom.xyz/"},
+      "authOrigin": "https://trialoom.xyz",
+      "authOriginReadBack": true,
+      "webDeploymentId": "f4b2b6f0-58b6-496d-99b4-500b440f4e80",
+      "webDeploymentStatus": "SUCCESS",
+      "verifiedAfterDeployment": [
+        "GET / returns 200 with the Trialoom landing page",
+        "GET /demo and /sign-in return 200",
+        "Anonymous GET /api/auth/get-session with the custom Origin returns 200 and null",
+        "Anonymous GET /workspace returns 307 to /sign-in",
+        "GET /api/health returns 200 with status ok, mode invited-alpha, testing unavailable and privileged false",
+        "GET /api/ready returns 200 with status ready",
+        "GET /sign-up returns 200 with the public-signup-unavailable notice",
+        "The generated Railway address still serves the landing page with 200"
+      ],
+      "routingDiagnostic": "Railway's raw CNAME detail still reports REQUIRES_UPDATE with an empty current value. Namecheap serves a flattened ALIAS; public DNS, verified ownership, valid TLS and successful HTTP requests establish working routing. No DNS change made to satisfy that diagnostic.",
+      "limits": [
+        "No existing-account sign-in performed; session and protected-route checks were anonymous",
+        "Public signup, hosted browser execution and sponsored purchases remain unavailable",
+        "Only BETTER_AUTH_URL changed; no feature flag, key, account data, payment or DNS record changed",
+        "The hackathon entry and GitLab remote were not updated in this step"
+      ]
     }
   }
 }

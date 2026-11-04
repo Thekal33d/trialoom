@@ -1,6 +1,6 @@
 # Hosted staging and launch operations
 
-FREE-03. Started 2026-11-03. **In progress.** Railway's web, worker and Postgres services are live as of 2026-11-04. The generated HTTPS address serves the landing page and example workspace. The user purchased `trialoom.xyz`; its Railway attachment and Namecheap DNS records are in place, with registry DNS publication/propagation and certificate verification pending. Public signup, hosted browser execution and sponsored purchases remain unavailable on this deployment. This guide records verified hosting work and the remaining launch gates.
+FREE-03. Started 2026-11-03. **In progress.** Railway's web, worker and Postgres services are live as of 2026-11-04. **https://trialoom.xyz** serves the landing page and example workspace, with verified DNS/ownership, valid HTTPS, HTTP redirect and the authentication origin switched successfully. The generated Railway address remains attached. Public signup, hosted browser execution and sponsored purchases remain unavailable on this deployment. The custom-domain handoff is complete; FREE-03 remains open for the full-beta launch gates.
 
 ## What exists and was verified
 
@@ -176,7 +176,7 @@ That prints the generated address. `/api/health` answers on it straight away, be
 railway variable set BETTER_AUTH_URL=https://GENERATED.up.railway.app --service web
 ```
 
-No `--skip-deploys` on that one: the redeploy is how the new origin takes effect. `authSettings()` is read per authentication request rather than at startup, so the service serves `/api/health`, `/api/ready` and the demo throughout.
+No `--skip-deploys` on that one: the redeploy is how the new origin takes effect. `getAuth()` initializes and caches the auth instance lazily within each process. The new process reads the updated origin; health, readiness and the demo do not require an authenticated session.
 
 `/` now serves the landing page with availability read from the deployment's configuration; `/demo` remains the seeded sample walkthrough. With `TRIALOOM_PUBLIC_SIGNUP=false`, `/sign-up` explains that signup is unavailable. Turning signup on requires `RESEND_API_KEY` and `TRIALOOM_EMAIL_FROM` on a verified domain first; signup refuses rather than falling back to a fake sender.
 
@@ -204,9 +204,9 @@ Expect `container.dropping_privileges` when started as root, or `container.evide
 
 ### 6. Connect trialoom.xyz
 
-The user confirmed purchase and saved the DNS records on 2026-11-04. The existing `web` service has custom domain `52814d09-8e4f-4153-bda4-0ae6d147a857`, targeting port **8080**. Railway's attachment is `ACTIVE`, but public DNS and HTTPS are not yet ready: Railway still reports the routing record requires an update, ownership is unverified, and the certificate is `VALIDATING_OWNERSHIP`.
+**Complete on 2026-11-04.** The existing `web` service has custom domain `52814d09-8e4f-4153-bda4-0ae6d147a857`, targeting port **8080**. Public DNS resolves, Railway's ownership verification is true, and the certificate is `VALID` / `COMPLETE`. Ordinary HTTPS requests succeed with certificate validation enabled.
 
-These records are saved under **Namecheap → Domain List → Manage → Advanced DNS → Host Records**, with the default TTL. Keep them for reference; do not recreate them while propagation is pending:
+These records are saved under **Namecheap → Domain List → Manage → Advanced DNS → Host Records**, with the default TTL. Keep them in place:
 
 | Type | Host | Value |
 | --- | --- | --- |
@@ -215,27 +215,31 @@ These records are saved under **Namecheap → Domain List → Manage → Advance
 
 These are the values returned by Railway for this custom domain, not the generated site's address. Namecheap uses ALIAS for an apex hostname. The user made the DNS changes; this session verified the result with public reads only.
 
-**Verification after the user saved the records:** both `dns1.registrar-servers.com` and `dns2.registrar-servers.com` return an authoritative A answer of `69.46.46.97`, matching `wm8pongc.up.railway.app`. The first server returns the exact expected ownership TXT. The official registry [RDAP record](https://rdap.centralnic.com/xyz/domain/trialoom.xyz) confirms registration at `2026-11-04T17:51:18Z` (18:51:18 Africa/Lagos), lists those nameservers and reports no client/server hold. However, a direct query to the `.xyz` authoritative server `ns0.centralnic.net` returns `NXDOMAIN`, as do Google's and Cloudflare's public resolvers for the domain and verification record. The saved zone is ready at Namecheap, but registry DNS publication/propagation is not complete. Do not diagnose this as a missing TXT or replace the working records. Direct HTTPS requests fail name resolution; no certificate bypass was used. The generated Railway health endpoint still returns 200 with `privileged: false` and testing unavailable.
+**The initial propagation delay is resolved.** Both authoritative Namecheap servers returned the correct routing address and ownership TXT was correct while the new domain's delegation was still absent from registry DNS. A later public DNS check now returns those nameservers, A address `69.46.46.97` and the exact TXT; Railway verifies ownership and HTTPS succeeds. The dated diagnostic history is preserved in [BUILD_LOG.md](../memory/BUILD_LOG.md).
 
-After public DNS starts resolving, inspect `railway domain status trialoom.xyz --service web --json` and verify HTTPS without bypassing certificate checks. Once ownership and the certificate are ready, check `/`, `/demo`, `/api/health` and `/api/ready`, then change the authentication origin:
+**Railway diagnostic caveat:** its raw CNAME record detail still reports `REQUIRES_UPDATE` and an empty current value, while Namecheap serves a flattened ALIAS. Actual public DNS, verified ownership, valid TLS and successful HTTP requests demonstrate working routing. Keep the apex ALIAS; do not replace it just to satisfy the raw CNAME diagnostic.
+
+After DNS and HTTPS passed, the web authentication origin was changed with:
 
 ```sh
 railway variable set BETTER_AUTH_URL=https://trialoom.xyz --service web
 ```
 
-Let the configuration redeploy and verify `/api/auth/get-session` as well as health/readiness on the custom origin. This origin change has **not** been made yet. Keep the existing generated domain attached while DNS and HTTPS are being verified. Domain purchase/connection does not configure signup email or open hosted testing.
+Railway web deployment `f4b2b6f0-58b6-496d-99b4-500b440f4e80` succeeded. A filtered variable readback confirms `BETTER_AUTH_URL=https://trialoom.xyz` without printing any secrets. Final live checks: `/`, `/demo` and `/sign-in` return 200; an anonymous `/api/auth/get-session` returns 200 with `null`; `/workspace` returns 307 to `/sign-in`; `/api/health` returns 200 with `privileged: false`, `testing: unavailable`; `/api/ready` returns 200 with `status: ready`. HTTP redirects to the same HTTPS origin with 301. `/sign-up` still shows the unavailable notice. No real account sign-in was performed. The generated Railway address remains attached and serves the landing page. [Machine-readable checkpoint](evidence/FREE-03.json).
+
+Domain connection does not configure signup email or open hosted testing. No feature flag, signing key, account data or DNS record was changed during the authentication-origin redeploy.
 
 Sources checked 2026-11-04: [Railway domain routing and ownership verification](https://docs.railway.com/networking/domains/working-with-domains), [Namecheap apex ALIAS records](https://www.namecheap.com/support/knowledgebase/article.aspx/10128/2237/how-to-create-an-alias-record/).
 
 ## Remaining gates
 
-Hosting and generated-domain HTTPS are verified. The remaining gates below stay open; several need an account or a payment and are the user's to decide.
+Hosting, custom-domain HTTPS and the authentication-origin switch are verified. Remaining full-beta gates stay open; several need an account or a payment and are the user's to decide.
 
 | Gate | Owner | State |
 | --- | --- | --- |
 | A host | User | **Railway, chosen 2026-11-03; deployed 2026-11-04.** Web, worker and Postgres online |
-| A domain | User / us | `trialoom.xyz` purchased, attached to Railway and correct DNS saved; registry publication/propagation pending |
-| TLS termination and HTTPS redirect | Us | Generated Railway HTTPS verified; custom-domain certificate pending DNS/ownership; custom HTTP redirect not yet checked |
+| A domain | User / us | `trialoom.xyz` live; public DNS, ownership and authentication origin verified |
+| TLS termination and HTTPS redirect | Us | Valid certificate on `trialoom.xyz`; HTTP returns 301 to HTTPS; generated Railway HTTPS remains available |
 | Verified sending domain for signup mail | User | Not started. Signup is unusable without it |
 | Secret storage and separate process credentials | Us | Railway runtime variables configured for the live services; production credential separation, rotation and access review remain open |
 | Linux runner host adapter and a server gVisor bootstrap | Us | Not started, and not reachable on Railway: its containers are non-privileged. Gates hosted execution, and with it the free-beta promise |

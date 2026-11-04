@@ -116,11 +116,13 @@ The web image is Next's traced bundle and contains no project source, so **it ca
 railway variable set DATABASE_URL='${{Postgres.DATABASE_URL}}' RAILWAY_DOCKERFILE_PATH=Dockerfile.worker --service worker --skip-deploys
 ```
 
+Then, in the dashboard — this is the one step with no CLI equivalent — set **worker → Settings → Deploy → Pre-deploy Command** to `node scripts/migrate.ts`. Railway runs it in a separate container with the service's variables, and a failure fails the deploy while the previous version keeps serving. The pre-deploy container has no volume access, which does not matter because migrations touch only Postgres.
+
+**Set it before the first upload, not after.** A pre-deploy command runs only on the deploys that follow it, so a worker uploaded first starts against an empty schema and crash-loops until something redeploys it. This runbook had the two steps the other way round and that is exactly what happened on the first real deploy, 2026-11-04: eight restarts reporting `worker.failed` with no reason, because the catch logged the event and discarded the error. The worker now reports the SQLSTATE and a redacted message, so the same mistake reads as `{"event":"worker.failed","code":"42P01","detail":"relation \"assignments\" does not exist"}` and names itself.
+
 ```sh
 railway up --service worker
 ```
-
-Then, in the dashboard — this is the one step with no CLI equivalent — set **worker → Settings → Deploy → Pre-deploy Command** to `node scripts/migrate.ts` and redeploy. Railway runs it in a separate container with the service's variables, and a failure fails the deploy while the previous version keeps serving. The pre-deploy container has no volume access, which does not matter because migrations touch only Postgres.
 
 ### 4. The web service
 

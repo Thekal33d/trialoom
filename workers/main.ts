@@ -6,12 +6,14 @@ import { createPool, databaseUrl } from '../src/server/database.ts';
 import { releaseSettledAssignments } from '../src/server/decisions.ts';
 import { processOne } from '../src/server/jobs.ts';
 import { deliverNotice, webhookTransport } from '../src/server/notices.ts';
+import { redactText } from '../src/server/redaction.ts';
 import { configuredPayments } from '../src/server/remesso.ts';
 import { reconcilePurchase } from '../src/server/resources.ts';
 import { dispatchPayout } from '../src/server/settlement.ts';
 import { reconcileSponsoredPurchase } from '../src/server/sponsored.ts';
 
-const pool = createPool(databaseUrl());
+const url = databaseUrl();
+const pool = createPool(url);
 // Built once rather than per job: the provider's journals, its signer lock and
 // its nonce floor belong to one client, and a fresh one per job would
 // re-initialize that storage every time.
@@ -69,9 +71,23 @@ try {
     if (once) break;
     if (!worked) await setTimeout(1000, undefined, { signal: controller.signal });
   } while (!controller.signal.aborted);
-} catch {
+} catch (error) {
   if (!controller.signal.aborted) {
-    console.error(JSON.stringify({ event: 'worker.failed' }));
+    // A crash loop that reports nothing cannot be diagnosed from outside the
+    // container, which is the only place the operator stands. Postgres puts the
+    // useful part in `code`: 42P01 is an unmigrated schema, 28P01 a rejected
+    // password. The message goes through the evidence redaction policy with the
+    // connection string as a known secret, so no credential reaches a log line
+    // by way of an error shape nobody anticipated.
+    const code = (error as { code?: string }).code;
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(
+      JSON.stringify({
+        event: 'worker.failed',
+        code: typeof code === 'string' && /^[A-Z0-9_]{1,20}$/.test(code) ? code : 'unknown',
+        detail: redactText(message, [url]).text.slice(0, 500),
+      }),
+    );
     process.exitCode = 1;
   }
 } finally {

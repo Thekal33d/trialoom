@@ -1,8 +1,8 @@
 {
   "task": "FREE-03",
-  "checkedAt": "2026-11-03T20:15:00.000Z",
+  "checkedAt": "2026-11-04T15:10:00.000Z",
   "timezone": "Africa/Lagos",
-  "scope": "Deployable web and worker container images, verified from an empty database and under Railway-like conditions. Railway chosen for the web process, worker and Postgres; nothing provisioned.",
+  "scope": "Deployable web and worker container images, verified from an empty database and under Railway-like conditions. Railway provisioned on 2026-11-04: Postgres and the worker exist, the web service is not deployed.",
   "artifacts": [
     "Dockerfile",
     "Dockerfile.worker",
@@ -10,7 +10,8 @@
     "next.config.ts",
     "scripts/container-entrypoint.sh",
     "src/app/api/health/route.ts",
-    "src/server/storage.ts"
+    "src/server/storage.ts",
+    "workers/main.ts"
   ],
   "baseImage": "node:24-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c",
   "images": {
@@ -72,10 +73,29 @@
       "Postgres"
     ],
     "cannotHost": "the gVisor test runner, because Railway containers are non-privileged",
-    "provisioned": false
+    "provisioned": true,
+    "provisionedOn": "2026-11-04",
+    "provisionedBy": "the user, from the runbook in docs/FREE-03.md",
+    "state": {
+      "project": "trialoom",
+      "postgres": "online, private, DATABASE_URL resolved to a private postgresql host on 5432",
+      "worker": "deployed from Dockerfile.worker, crash-looping until migrations run",
+      "web": "created, not deployed"
+    }
   },
   "toVerifyOnFirstDeploy": [
-    "Whether a custom Start Command preserves the image ENTRYPOINT; if it does not, the privilege drop is bypassed and /api/health reports privileged true",
-    "Whether the no-build-target, non-privileged-container and one-volume-per-service limits still hold, since they rest partly on staff replies and community threads"
-  ]
+    "Whether a custom Start Command preserves the image ENTRYPOINT; if it does not, the privilege drop is bypassed and /api/health reports privileged true. Still unanswered: the web service is not deployed",
+    "Whether the non-privileged-container and one-volume-per-service limits still hold, since they rest partly on staff replies and community threads. The no-build-target limit is now confirmed by the worker deploy"
+  ],
+  "firstDeploy": {
+    "date": "2026-11-04",
+    "confirmed": "RAILWAY_DOCKERFILE_PATH builds the named file's last stage, so the one-file-per-service answer to Railway having no build target works in practice",
+    "failure": "The worker restarted eight times reporting worker.failed with no detail, because its catch logged the event name and discarded the error",
+    "cause": "The schema was never migrated. A Railway pre-deploy command runs only on the deploys that follow it, and the runbook set it after the first upload",
+    "notTheCause": "The DATABASE_URL reference resolved correctly, checked by printing only its shape - scheme, hostname presence, port, path - and never its value",
+    "fix": "workers/main.ts reports the SQLSTATE and the error message, with the message passed through the evidence redaction policy and the connection string supplied as a known secret",
+    "reproduced": "{\"event\":\"worker.failed\",\"code\":\"42P01\",\"detail\":\"relation \\\"assignments\\\" does not exist\"} against a fresh disposable local database, created and dropped for the purpose",
+    "fixVerified": "Applying the 23 migrations to that same database and re-running the worker produced no failure",
+    "runbookCorrected": "docs/FREE-03.md now sets the pre-deploy command before the first upload and records why"
+  }
 }

@@ -31,7 +31,7 @@ const correctReports: Record<string, Record<string, unknown>> = {
   },
 };
 async function signIn(page: Page, fixture: Fixture) {
-  await page.goto('/sign-in');
+  await page.goto('/sign-in/email');
   await page.getByLabel('Email address').fill(fixture.operatorEmail);
   await page.getByLabel('Password', { exact: true }).fill(fixture.password);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
@@ -133,7 +133,7 @@ test('an operator registers, proves a payout wallet, claims work, and keeps a le
   // The builder publishes one exact terms version from their own session.
   const builder = await browser.newContext({ baseURL: 'http://127.0.0.1:3100' });
   const builderPage = await builder.newPage();
-  await builderPage.goto('/sign-in');
+  await builderPage.goto('/sign-in/email');
   await builderPage.getByLabel('Email address').fill(fixture.ownerEmail);
   await builderPage.getByLabel('Password', { exact: true }).fill(fixture.password);
   await builderPage.getByRole('button', { name: 'Sign in', exact: true }).click();

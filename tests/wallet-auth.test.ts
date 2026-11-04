@@ -169,12 +169,16 @@ test('a wrong signature burns the challenge, and another purpose cannot authenti
   assert.equal((await verify({ ...proof, signature: wrong })).status, 401);
   assert.equal((await verify(proof)).status, 401);
   const otherPurpose = await challenge(account);
-  const signature = await account.signMessage({
-    message: otherPurpose.message.replace(
-      'Create a free Trialoom workspace',
-      'Prove operator payout control',
-    ),
-  });
+  const changedMessage = otherPurpose.message.replace(
+    'Sign in to Trialoom or create a free workspace',
+    'Prove operator payout control',
+  );
+  assert.notEqual(
+    changedMessage,
+    otherPurpose.message,
+    'The negative control must change the signed purpose.',
+  );
+  const signature = await account.signMessage({ message: changedMessage });
   assert.equal((await verify({ ...otherPurpose, signature })).status, 401);
 });
 

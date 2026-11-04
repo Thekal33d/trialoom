@@ -13,8 +13,9 @@ export function ProductHeader({ children }: { children?: ReactNode }) {
         {children ?? (
           <>
             <Link href="/demo/guide">How it works</Link>
+            <Link href="/agents">For agents</Link>
             <Link href="/sign-in" className="button secondary">
-              Sign in
+              Connect wallet
             </Link>
           </>
         )}

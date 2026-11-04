@@ -201,7 +201,7 @@ export async function openPlayground({
     await sample.goto(sampleOrigin);
     await expect(sample.getByLabel('Teammate email')).toBeVisible();
     const page = await context.newPage();
-    await page.goto('/sign-in');
+    await page.goto('/sign-in/email');
     await page.getByLabel('Email address').fill(fixture.evidenceOwnerEmail);
     await page.getByLabel('Password', { exact: true }).fill(fixture.password);
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();

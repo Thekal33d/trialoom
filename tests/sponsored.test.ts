@@ -234,6 +234,11 @@ test('verified cost and receipt supersede provider claims without rewriting thei
   );
   await purchaseSponsoredReport(db.pool, report.id, spender);
   assert.equal((await purchases())[0].transaction_hash, null);
+  const pending = Object.values(await workspaceExplanations(db.pool, account.workspaceId))[0];
+  assert.equal(pending.purchase?.settlement, 'pending');
+  assert.equal(pending.purchase?.transactionHash, null);
+  assert.equal(pending.purchase?.amountUnits, '9000');
+  assert.equal(JSON.stringify(pending).includes(reportedHash), false);
   const job = await lease();
   assert.equal(await reconcileSponsoredPurchase(db.pool, job, spender), 'reconciled');
   const [row] = await purchases();
@@ -241,6 +246,12 @@ test('verified cost and receipt supersede provider claims without rewriting thei
   assert.equal(row.cost_units, '9000');
   assert.equal(row.reported_transaction_hash, reportedHash);
   assert.equal(row.transaction_hash, verifiedHash);
+  const verified = Object.values(await workspaceExplanations(db.pool, account.workspaceId))[0];
+  assert.equal(verified.purchase?.settlement, 'verified');
+  assert.equal(verified.purchase?.transactionHash, verifiedHash);
+  assert.equal(verified.purchase?.amountUnits, '9000');
+  const stranger = await seedFreeAccount(db.pool);
+  assert.deepEqual(await workspaceExplanations(db.pool, stranger.workspaceId), {});
   assert.equal((await budget()).settled_units, '9000');
   assert.equal(await reconcileSponsoredPurchase(db.pool, job, spender), 'done');
   assert.equal(spender.resolved, 1);
@@ -261,6 +272,11 @@ test('a delivered answer whose authorization expires unused releases only once a
   assert.equal(row.delivery, 'usable');
   assert.equal(row.cost_units, '0');
   assert.equal(row.reported_cost_units, '9000');
+  const explanationView = Object.values(
+    await workspaceExplanations(db.pool, account.workspaceId),
+  )[0];
+  assert.equal(explanationView.purchase?.settlement, 'unpaid');
+  assert.equal(explanationView.purchase?.transactionHash, null);
   assert.equal((await budget()).reserved_units, '0');
   assert.equal(await reconcileSponsoredPurchase(db.pool, job, spender), 'done');
   assert.equal((await budget()).reserved_units, '0');

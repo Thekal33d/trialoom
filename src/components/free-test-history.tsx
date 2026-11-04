@@ -1,4 +1,5 @@
 'use client';
+import { formatUnits } from 'viem';
 import {
   activeFreeTest,
   type FreeTestExplanation,
@@ -29,44 +30,99 @@ const actionNames: Record<string, string> = {
   click: 'Followed a link',
   waitForSelector: 'Waited for an element',
 };
+function PurchaseProof({ purchase }: { purchase: NonNullable<FreeTestExplanation['purchase']> }) {
+  const verified = purchase.settlement === 'verified';
+  return (
+    <details className="purchase-proof">
+      <summary>
+        <span>Service purchase</span>
+        <span className={`result-label ${verified ? '' : 'neutral'}`}>
+          {verified
+            ? 'Verified on Celo'
+            : purchase.settlement === 'unpaid'
+              ? 'Not paid'
+              : 'Confirmation pending'}
+        </span>
+      </summary>
+      <p>
+        {verified ? 'Paid' : 'Quoted'} {formatUnits(BigInt(purchase.amountUnits), 6)}{' '}
+        {purchase.token} · Trialoom’s budget
+      </p>
+      <dl>
+        <div>
+          <dt>Service</dt>
+          <dd>Cencori analysis through buy</dd>
+        </div>
+        <div>
+          <dt>Request fingerprint</dt>
+          <dd>
+            <code>{purchase.requestHash}</code>
+          </dd>
+        </div>
+      </dl>
+      {verified && purchase.transactionHash ? (
+        <a
+          className="text-link"
+          href={`https://celoscan.io/tx/${purchase.transactionHash}`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          View payment on Celo ↗
+        </a>
+      ) : (
+        <p>
+          {purchase.settlement === 'unpaid'
+            ? 'This service request was not paid.'
+            : 'Delivery and payment are checked separately. This is not yet a verified payment.'}
+        </p>
+      )}
+      <p>No charge to your connected wallet.</p>
+    </details>
+  );
+}
 function Explanation({ explanation }: { explanation: FreeTestExplanation }) {
   if (explanation.state === 'skipped') return null;
-  if (explanation.state === 'pending')
-    return (
-      <p className="product-note" role="status">
-        Preparing a suggestion…
-      </p>
-    );
-  if (explanation.state !== 'ready' || !explanation.body)
-    return (
-      <details className="product-disclosure">
-        <summary>AI suggestion unavailable</summary>
-        <p>Your test results are still available. No charge was made to you.</p>
-      </details>
-    );
   return (
     <section className="result-suggestion" aria-label="AI suggestion">
-      <span className="product-kicker">AI suggestion</span>
-      <h4>What to try next</h4>
-      <p>{explanation.body.nextStep}</p>
-      <details className="product-disclosure">
-        <summary>Why this was suggested</summary>
-        <p>{explanation.body.summary}</p>
-        <p>
-          Based on:{' '}
-          {explanation.body.evidenceRefs
-            .map((ref) => {
-              const observation = explanation.observations.find((item) => item.ref === ref);
-              return observation ? checks[observation.name] : ref;
-            })
-            .join(', ')}
-          .
+      <span className="product-kicker">Agent analysis · via buy</span>
+      {explanation.state === 'ready' && explanation.body ? (
+        <>
+          <h4>What to try next</h4>
+          <p>{explanation.body.nextStep}</p>
+          <details className="product-disclosure">
+            <summary>Why this was suggested</summary>
+            <p>{explanation.body.summary}</p>
+            <p>
+              Based on:{' '}
+              {explanation.body.evidenceRefs
+                .map((ref) => {
+                  const observation = explanation.observations.find((item) => item.ref === ref);
+                  return observation ? checks[observation.name] : ref;
+                })
+                .join(', ')}
+              .
+            </p>
+            <p>
+              This is advice, not a test result. Only test observations are shared with the
+              suggestion service, at Trialoom’s expense.
+            </p>
+          </details>
+        </>
+      ) : explanation.state === 'pending' ? (
+        <p className="product-note" role="status">
+          {explanation.purchase
+            ? 'Waiting for the analysis service…'
+            : 'Analysis has not been purchased yet. Your browser result is ready.'}
         </p>
-        <p>
-          This is advice, not a test result. Only test observations are shared with the suggestion
-          service, at Trialoom’s expense.
+      ) : (
+        <p className="product-note">
+          {explanation.state === 'unusable'
+            ? 'The service response could not be used.'
+            : 'Analysis is unavailable for this test.'}{' '}
+          Your browser result is still available.
         </p>
-      </details>
+      )}
+      {explanation.purchase && <PurchaseProof purchase={explanation.purchase} />}
     </section>
   );
 }

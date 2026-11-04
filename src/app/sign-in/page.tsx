@@ -1,6 +1,6 @@
-import { AuthForm } from '@/components/auth-form';
-import { walletLoginEnabled } from '@/server/auth/wallet';
+import { WalletEntry } from '@/components/wallet-entry';
+import { walletLoginEnabled, walletSignupEnabled } from '@/server/auth/wallet';
 export const dynamic = 'force-dynamic';
 export default function SignIn() {
-  return <AuthForm walletEnabled={walletLoginEnabled()} />;
+  return <WalletEntry enabled={walletLoginEnabled()} signup={walletSignupEnabled()} />;
 }

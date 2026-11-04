@@ -72,7 +72,7 @@ try {
   context.once('close', stop);
   const page = await context.newPage();
   page.once('close', stop);
-  await page.goto('/sign-in');
+  await page.goto('/sign-in/email');
   await page.getByLabel('Email address').fill(setup.email);
   await page.getByLabel('Password', { exact: true }).fill(setup.password);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();

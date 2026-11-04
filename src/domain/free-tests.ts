@@ -23,6 +23,14 @@ export type FreeTestExplanation = {
   state: 'skipped' | 'pending' | 'unavailable' | 'unusable' | 'ready';
   observations: { ref: string; name: string; passed: boolean }[];
   body: { title: string; summary: string; nextStep: string; evidenceRefs: string[] } | null;
+  purchase?: {
+    service: string;
+    settlement: 'pending' | 'verified' | 'unpaid';
+    token: string;
+    amountUnits: string;
+    transactionHash: string | null;
+    requestHash: string;
+  } | null;
 };
 export type FreeTestsView = {
   available: boolean;

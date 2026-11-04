@@ -279,3 +279,16 @@ The user explicitly requested a less verbose, easier product for people without 
 Present human outcomes before HTTP codes, build fingerprints and network records. Preserve these details in accessible disclosures, with an obvious View replay action. An incomplete test is not a defect; AI advice is not a test result; a proposed fix is not an approved repair. Future marketplace explanations belong outside the primary free-beta path, while real work/payment obligations in the invited application remain visible.
 
 Use the existing light paper/forest-green identity, restrained lists and a labelled report preview. That visual direction is a reversible implementation choice; the optional preference question had no reply. The change does not grant new access, alter paid acceptance or enable hosting. [Implementation and verification](../docs/UX-01.md).
+
+
+## D062 — Wallet-first entry and a narrower agent demonstration
+
+Date: 2026-11-04. User explicitly rejected the email-first Web3 experience and authorized removing or rebuilding parts that obscure a sensible direction. This supersedes D060's optional-wallet presentation, while retaining D049's free beta and the existing Build with buy choice.
+
+Make the public entry one **Connect wallet** flow for both new and returning builders. `/sign-up` redirects there. Preserve existing email accounts behind an explicit existing-account link, so invited operators and current workspace owners retain access and can link a wallet. Public onboarding does not ask for an email or password. Authentication proves control only; it grants no payment approval.
+
+The immediate product is a QA agent: authorize a website → run a bounded browser check → inspect the replay and advice → inspect any independently verified service payment. Support builder agents through a small wallet-authenticated client against the same owner-scoped API, quotas and idempotent test requests. Keep the advanced operator marketplace available to admitted users, but defer its expansion until this narrow demonstration delivers value. Do not promise automatic repair, general autonomous navigation or an unrestricted agent marketplace.
+
+Expose analysis delivery and payment settlement separately. Provider claims are never labelled verified; unusable output retains its payment record. Platform sponsorship remains capped by the existing 50,000-unit total / 20,000-unit daily authorization, with at most 10,000 units per report. Do not add funding or buy repeated calls to manufacture activity. An all-passing real sample skips analysis.
+
+Past official winners inform this focus, not a claim that email is prohibited or that wallet login wins prizes. See the updated [bounty assessment](../docs/HACKATHON-REVIEW-2026-11-04.md). Hosting, useful paid output and independent-user benefit remain separate unfulfilled gates.

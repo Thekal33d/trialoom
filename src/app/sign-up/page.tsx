@@ -1,7 +1,4 @@
-import { SignupForm } from '@/components/signup-form';
-import { walletSignupEnabled } from '@/server/auth/wallet';
-import { signupEnabled } from '@/server/signup';
-export const dynamic = 'force-dynamic';
+import { redirect } from 'next/navigation';
 export default function SignUp() {
-  return <SignupForm enabled={signupEnabled()} walletEnabled={walletSignupEnabled()} />;
+  redirect('/sign-in');
 }

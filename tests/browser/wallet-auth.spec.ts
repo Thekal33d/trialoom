@@ -63,10 +63,12 @@ test('wallet signup, sign-out and returning login work without email or payments
   page,
 }, info) => {
   const { methods } = await installWallet(page);
-  await page.goto('/sign-up');
+  await page.goto('/sign-in');
+  await expect(page.getByLabel('Email address')).toHaveCount(0);
+  await expect(page.getByLabel('Password', { exact: true })).toHaveCount(0);
   await accessible(page);
   await page.screenshot({ path: info.outputPath('wallet-signup.png'), fullPage: true });
-  await page.getByRole('button', { name: 'Continue with a wallet' }).click();
+  await page.getByRole('button', { name: 'Connect wallet' }).click();
   await expect(page).toHaveURL('/workspace');
   await expect(page.getByRole('heading', { name: 'My websites' })).toBeVisible();
   const session = await (await page.request.get('/api/auth/get-session')).json();
@@ -82,7 +84,7 @@ test('wallet signup, sign-out and returning login work without email or payments
   await page.getByRole('link', { name: 'Back to workspace' }).click();
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page).toHaveURL('/sign-in');
-  await page.getByRole('button', { name: 'Sign in with a wallet' }).click();
+  await page.getByRole('button', { name: 'Connect wallet' }).click();
   await expect(page).toHaveURL('/workspace');
   const returning = await (await page.request.get('/api/auth/get-session')).json();
   expect(returning.user.id).toBe(session.user.id);
@@ -103,7 +105,7 @@ test('wallet signup, sign-out and returning login work without email or payments
 test('an email owner links a wallet and returns to the same account', async ({ page }, info) => {
   const fixture = fixtures[info.project.name];
   const { account } = await installWallet(page);
-  await page.goto('/sign-in');
+  await page.goto('/sign-in/email');
   await page.getByLabel('Email address').fill(fixture.ownerEmail);
   await page.getByLabel('Password', { exact: true }).fill(fixture.password);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
@@ -116,7 +118,7 @@ test('an email owner links a wallet and returns to the same account', async ({ p
   await page.getByRole('link', { name: 'Back to workspace' }).click();
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page).toHaveURL('/sign-in');
-  await page.getByRole('button', { name: 'Sign in with a wallet' }).click();
+  await page.getByRole('button', { name: 'Connect wallet' }).click();
   await expect(page).toHaveURL('/workspace');
   const after = await (await page.request.get('/api/auth/get-session')).json();
   expect(after.user.id).toBe(before.user.id);
@@ -127,13 +129,13 @@ test('missing and rejected wallets show an actionable error without creating a s
   page,
 }) => {
   await page.goto('/sign-in');
-  await page.getByRole('button', { name: 'Sign in with a wallet' }).click();
+  await page.getByRole('button', { name: 'Connect wallet' }).click();
   await expect(page.getByRole('main').getByRole('alert')).toContainText(
     'Open Trialoom in your wallet',
   );
   await installWallet(page, true);
   await page.goto('/sign-up');
-  await page.getByRole('button', { name: 'Continue with a wallet' }).click();
+  await page.getByRole('button', { name: 'Connect wallet' }).click();
   await expect(page.getByRole('main').getByRole('alert')).toBeVisible();
   expect(await (await page.request.get('/api/auth/get-session')).json()).toBeNull();
 });
@@ -176,7 +178,7 @@ test('a builder saves just a website address and can read an incomplete test and
 }, info) => {
   await installWallet(page);
   await page.goto('/sign-up');
-  await page.getByRole('button', { name: 'Continue with a wallet' }).click();
+  await page.getByRole('button', { name: 'Connect wallet' }).click();
   await expect(page).toHaveURL('/workspace');
   await page.getByRole('button', { name: 'Add website' }).click();
   await expect(page.getByLabel('Website address')).toBeFocused();
@@ -243,6 +245,14 @@ test('a builder saves just a website address and can read an incomplete test and
           nextStep: 'Check which resources this page needs.',
           evidenceRefs: ['check.scope'],
         },
+        purchase: {
+          service: 'cencori.v1.chat.completions',
+          settlement: 'pending',
+          token: 'USDT',
+          amountUnits: '9000',
+          transactionHash: null,
+          requestHash: 'a'.repeat(64),
+        },
       },
     },
   };
@@ -275,4 +285,27 @@ test('a builder saves just a website address and can read an incomplete test and
   await older.locator('summary').first().click();
   await page.getByRole('heading', { level: 1 }).click();
   await page.screenshot({ path: info.outputPath('readable-results.png'), fullPage: true });
+  await first.getByText('Service purchase', { exact: true }).click();
+  await expect(first).toContainText('Confirmation pending');
+  await expect(first).toContainText('Quoted 0.009 USDT');
+  await expect(first.getByRole('link', { name: 'View payment on Celo' })).toHaveCount(0);
+  const explanation = view.explanations['incomplete-ui-fixture'];
+  if (!explanation.purchase) throw new Error('Missing test purchase');
+  explanation.purchase.settlement = 'verified';
+  explanation.purchase.transactionHash = `0x${'b'.repeat(64)}`;
+  // Paid-but-unusable output must retain a visible receipt without inventing advice.
+  explanation.state = 'unusable';
+  explanation.body = null;
+  await page.reload();
+  // The initial server render is real; this UI fixture arrives on the ten-second idle poll.
+  await expect(first).toContainText('The service response could not be used.', { timeout: 15000 });
+  await first.getByText('Service purchase', { exact: true }).click();
+  await expect(first).toContainText('Verified on Celo');
+  await expect(first).toContainText('Paid 0.009 USDT');
+  await expect(first.getByRole('link', { name: 'View payment on Celo' })).toHaveAttribute(
+    'href',
+    `https://celoscan.io/tx/0x${'b'.repeat(64)}`,
+  );
+  await accessible(page);
+  await page.screenshot({ path: info.outputPath('service-payment-proof.png'), fullPage: true });
 });

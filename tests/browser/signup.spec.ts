@@ -20,20 +20,23 @@ async function accessible(page: Page) {
   );
 }
 
-test('public signup shows delivery failure honestly and limits retries', async ({
+test('public entry uses a wallet and legacy email requests still fail honestly', async ({
   page,
   request,
 }, info) => {
   await page.goto('/sign-up');
+  await expect(page).toHaveURL('/sign-in');
+  await expect(page.getByLabel('Email address')).toHaveCount(0);
+  await expect(page.getByLabel('Password', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Connect wallet' })).toBeVisible();
   await accessible(page);
   await page.screenshot({ path: info.outputPath('public-signup.png'), fullPage: true });
   const email = `${info.project.name}-missing-mail@example.test`;
-  await page.getByLabel('Email address').fill(email);
-  await page.getByRole('button', { name: 'Send signup link' }).click();
-  await expect(page.getByRole('main').getByRole('alert')).toContainText(
-    'Signup email is not available yet',
-  );
-  await expect(page.getByRole('heading', { name: 'Check your inbox' })).toHaveCount(0);
+  const first = await request.post('/api/signup/request', {
+    headers: { origin: 'http://127.0.0.1:3100' },
+    data: { email },
+  });
+  expect(first.status()).toBe(503);
   for (let i = 0; i < 3; i++) {
     const result = await request.post('/api/signup/request', {
       headers: { origin: 'http://127.0.0.1:3100' },
@@ -54,7 +57,7 @@ test('public signup shows delivery failure honestly and limits retries', async (
   expect(body.status()).toBe(413);
 });
 
-test('verified link creates a free workspace, persists a project and refuses operator access', async ({
+test('a previously issued email link creates a free workspace, persists a project and refuses operator access', async ({
   page,
 }, info) => {
   test.setTimeout(60000);

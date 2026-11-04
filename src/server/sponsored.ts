@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import { AppError } from '../domain/errors.ts';
+import type { FreeTestExplanation } from '../domain/free-tests.ts';
 import {
   buyReportService,
   parseBuyExplanation,
@@ -675,6 +676,7 @@ export type ReportExplanation = {
   /** The exact closed observations the explanation was bought against. */
   observations: { ref: string; name: string; passed: boolean }[];
   body: { title: string; summary: string; nextStep: string; evidenceRefs: string[] } | null;
+  purchase?: FreeTestExplanation['purchase'];
 };
 
 type ExplanationRow = {
@@ -684,6 +686,14 @@ type ExplanationRow = {
   state: string | null;
   delivery: string | null;
   body: ReportExplanation['body'];
+  purchase_id: string | null;
+  service: string | null;
+  request_hash: string | null;
+  quoted_units: string | null;
+  cost_units: string | null;
+  currency_address: string | null;
+  transaction_hash: string | null;
+  reconciled_at: Date | null;
 };
 
 /**
@@ -699,7 +709,8 @@ export async function workspaceExplanations(
 ): Promise<Record<string, ReportExplanation>> {
   const { rows } = await db.query<ExplanationRow>(
     `SELECT r.free_test_id, r.status AS report_status, r.observations,
-    p.state, p.delivery, o.body
+    p.state, p.delivery, o.body, p.id AS purchase_id, p.service, p.request_hash,
+    p.quoted_units, p.cost_units, p.currency_address, p.transaction_hash, p.reconciled_at
     FROM buy_report_inputs r
     LEFT JOIN sponsored_purchases p ON p.report_input_id=r.id
     LEFT JOIN sponsored_outputs o ON o.purchase_id=p.id
@@ -726,7 +737,28 @@ export async function workspaceExplanations(
             : row.state === 'refused'
               ? 'unavailable'
               : 'pending';
-    view[row.free_test_id] = { state, observations, body: row.body };
+    // Only independently reconciled evidence may be labelled paid. In particular,
+    // provider-reported hashes/costs never enter this view.
+    const verified =
+      row.state === 'reconciled' &&
+      row.reconciled_at !== null &&
+      row.cost_units !== null &&
+      /^0x[0-9a-fA-F]{64}$/.test(row.transaction_hash ?? '');
+    view[row.free_test_id] = {
+      state,
+      observations,
+      body: row.body,
+      purchase: row.purchase_id
+        ? {
+            service: row.service ?? buyReportService.id,
+            settlement: verified ? 'verified' : row.state === 'refused' ? 'unpaid' : 'pending',
+            token: pinnedAsset(row.currency_address ?? '')?.symbol ?? 'stablecoin',
+            amountUnits: verified ? String(row.cost_units) : String(row.quoted_units),
+            transactionHash: verified ? row.transaction_hash : null,
+            requestHash: row.request_hash ?? '',
+          }
+        : null,
+    };
   }
   return view;
 }

@@ -1,0 +1,120 @@
+{
+  "task": "WALLET-02",
+  "date": "2026-11-04",
+  "deployment": "local only",
+  "decision": "D062",
+  "realRuns": [
+    {
+      "testId": "230253fd-3f85-40be-87ea-88c174e8d640",
+      "kind": "homepage",
+      "phase": "interrupted",
+      "cleanupConfirmed": true,
+      "resultHash": null,
+      "checks": null,
+      "replayActions": 0,
+      "reportId": null,
+      "reportStatus": null,
+      "requestHash": null
+    },
+    {
+      "testId": "360c80e6-bcb0-49e3-848b-99970d163bb6",
+      "kind": "sample",
+      "phase": "completed",
+      "cleanupConfirmed": true,
+      "resultHash": "5cb971cf9dfccdd1565682ef1fa180629501402ee897fc4892821fbb6aa80a6f",
+      "checks": [
+        {
+          "check": "homepage",
+          "passed": true
+        },
+        {
+          "check": "navigation",
+          "passed": true
+        },
+        {
+          "check": "scope",
+          "passed": true
+        },
+        {
+          "check": "infrastructure",
+          "passed": true
+        }
+      ],
+      "replayActions": 7,
+      "reportId": "25c7ec0d-accd-4fa5-ad31-1cf6d5b2fd88",
+      "reportStatus": "skipped",
+      "requestHash": null
+    },
+    {
+      "testId": "02dc8b1b-abd7-4653-a892-6d96e6d87535",
+      "kind": "homepage",
+      "phase": "blocked",
+      "cleanupConfirmed": true,
+      "resultHash": "2d9dfd6965932c6a568f59c928bdd5c47f4f9aa4c205722d0e8719248c5dd933",
+      "checks": [
+        {
+          "check": "homepage",
+          "passed": false
+        },
+        {
+          "check": "scope",
+          "passed": false
+        },
+        {
+          "check": "infrastructure",
+          "passed": true
+        }
+      ],
+      "replayActions": 2,
+      "reportId": "c8bd29d8-e9d9-41da-b27b-87ebaf50a1c0",
+      "reportStatus": "prepared",
+      "requestHash": "efcd943ffee50e44de3bc2e857739420543b63ccb0c751e8c6fb72e73fc5e55d"
+    }
+  ],
+  "sponsor": {
+    "budget": [
+      {
+        "ceiling_units": "50000",
+        "reserved_units": "0",
+        "settled_units": "0",
+        "daily_user_units": "20000"
+      }
+    ],
+    "purchases": 0,
+    "payloadApproval": "pending after automatic approval review rejected unsigned egress",
+    "noPurchaseMade": true
+  },
+  "independentUsers": false,
+  "manualExtensionVerified": false,
+  "checks": {
+    "focusedDatabaseAndClient": 27,
+    "initialFullBrowser": {
+      "passed": 79,
+      "failed": 3,
+      "total": 82
+    },
+    "corrections": [
+      "Agent code samples wrap on narrow screens",
+      "Receipt fixture waits for existing idle refresh"
+    ],
+    "correctedBrowser": {
+      "passed": 6,
+      "failed": 0,
+      "scope": "All three failures plus desktop/mobile builder-agent isolation and agent guide; remaining 76 checks passed in the initial full run"
+    },
+    "lint": "passed",
+    "types": "passed",
+    "build": "passed",
+    "visualReview": [
+      "Desktop wallet entry",
+      "Desktop and mobile agent guide",
+      "Mobile service receipt (explicit UI fixture, not a real payment)"
+    ]
+  },
+  "limits": [
+    "Hosted deployment unchanged",
+    "No actual useful paid output yet",
+    "No independent-user benefit demonstrated",
+    "EOA injected wallets and Node signer interface only; no QR connector or smart-contract wallets"
+  ]
+}

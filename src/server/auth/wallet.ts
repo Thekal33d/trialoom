@@ -114,7 +114,7 @@ export function walletAuth(
               ctx.body.intent === 'link'
                 ? 'Link this wallet to your signed-in Trialoom account. This grants login access only, no spending permission.'
                 : ctx.body.intent === 'sign-up'
-                  ? 'Create a free Trialoom workspace with this wallet. This grants login access only, no spending permission.'
+                  ? 'Sign in to Trialoom or create a free workspace with this wallet. This grants login access only, no spending permission.'
                   : 'Sign in to Trialoom. This grants login access only, no spending permission.',
           });
           // Expired challenges carry no durable account information and can be removed.

@@ -2,11 +2,11 @@ import Link from 'next/link';
 import { ProductFooter, ProductHeader, ReportPreview } from './product-shell';
 
 export function Landing({
-  signup,
+  walletAccess,
   testing,
   purchases,
 }: {
-  signup: boolean;
+  walletAccess: boolean;
   testing: boolean;
   purchases: boolean;
 }) {
@@ -19,24 +19,22 @@ export function Landing({
       <main id="main" className="product-container">
         <section className="home-hero">
           <div className="home-intro">
-            <span className="product-kicker">Website testing, made simpler</span>
+            <span className="product-kicker">A QA agent on Celo</span>
             <h1>
-              Test your website.
+              Let an agent test your app.
               <br />
-              <span>See what needs fixing.</span>
+              <span>Follow the proof.</span>
             </h1>
-            <p>Get a clear report of what worked, what didn’t, and the steps that led there.</p>
+            <p>
+              Run browser checks, replay what happened, and see the outside help your agent paid
+              for.
+            </p>
             <div className="product-actions">
-              <Link href={testing && signup ? '/sign-up' : '/demo'} className="button primary">
-                {testing && signup ? 'Test my website' : 'See an example report'}{' '}
+              <Link href={walletAccess ? '/sign-in' : '/demo'} className="button primary">
+                {walletAccess ? 'Connect wallet' : 'Explore the example'}{' '}
                 <span aria-hidden="true">↗</span>
               </Link>
-              {signup && !testing && (
-                <Link href="/sign-up" className="text-link">
-                  Create a free account
-                </Link>
-              )}
-              {testing && signup && (
+              {walletAccess && (
                 <Link href="/demo" className="text-link">
                   See an example report
                 </Link>
@@ -92,8 +90,8 @@ export function Landing({
             <details>
               <summary>What can I try today?</summary>
               <p>
-                {signup
-                  ? 'You can create a free account and save up to three websites.'
+                {walletAccess
+                  ? 'Connect a wallet to access your workspace. New wallets can join when registration is enabled.'
                   : 'Account signup is not open yet. The example report is available to everyone.'}{' '}
                 {testing
                   ? 'Testing is available for the sample app and websites enabled for this beta.'
@@ -101,10 +99,10 @@ export function Landing({
               </p>
             </details>
             <details>
-              <summary>Do I need a wallet or a credit card?</summary>
+              <summary>What does connecting my wallet do?</summary>
               <p>
-                No credit card or payment setup. You can use email when email signup is enabled, or
-                a supported wallet when wallet signup is enabled.
+                Your wallet identifies your workspace. You sign a free login message, with no token
+                approval. Trialoom covers any enabled beta service purchases from its own budget.
               </p>
             </details>
             <details>

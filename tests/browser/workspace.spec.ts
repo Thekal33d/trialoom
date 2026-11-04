@@ -2,6 +2,26 @@ import { readFile } from 'node:fs/promises';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
+test('agent access is discoverable, explains wallet scope and fits narrow screens', async ({
+  page,
+}, info) => {
+  await page.goto('/');
+  await page.getByRole('link', { name: 'For agents', exact: true }).click();
+  await expect(page).toHaveURL('/agents');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('A result you can inspect');
+  await expect(page.locator('pre')).toContainText('scripts/trialoom-agent.ts --sample');
+  await expect(page.getByRole('main')).toContainText('It never signs a payment');
+  expect(
+    (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze())
+      .violations,
+  ).toEqual([]);
+  await page.screenshot({ path: info.outputPath('agent-access.png'), fullPage: true });
+  await page.setViewportSize({ width: 320, height: 800 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+});
+
 test('the example leads with the issue and opens its recorded steps', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -91,18 +111,32 @@ const testing = process.env.TRIALOOM_FREE_TESTS === 'true';
 
 test('the landing page offers an honest next action for this deployment', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Test your website.');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText(
+    'Let an agent test your app.',
+  );
   await expect(page.getByRole('region', { name: 'Example test result' })).toBeVisible();
   await expect(page.locator('.home-availability')).toContainText(
     testing ? 'Free during beta' : 'Live testing isn’t available here yet',
   );
   await page.getByText('What can I try today?', { exact: true }).click();
   await expect(
-    page.getByText(signup ? 'You can create a free account' : 'Account signup is not open yet', {
-      exact: false,
-    }),
+    page.getByText(
+      process.env.TRIALOOM_WALLET_LOGIN === 'true'
+        ? 'Connect a wallet to access'
+        : 'Account signup is not open yet',
+      {
+        exact: false,
+      },
+    ),
   ).toBeVisible();
-  await page.getByRole('link', { name: 'See an example report' }).click();
+  await page
+    .getByRole('link', {
+      name:
+        process.env.TRIALOOM_WALLET_LOGIN === 'true'
+          ? 'See an example report'
+          : 'Explore the example',
+    })
+    .click();
   await expect(page).toHaveURL('/demo');
 });
 

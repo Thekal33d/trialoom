@@ -2,7 +2,6 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { LoomMark } from './icons';
-import { WalletLogin } from './wallet-login';
 
 type Invitation = { email: string; role: string; workspace: string; existingAccount: boolean };
 async function post(url: string, body: unknown) {
@@ -16,13 +15,7 @@ async function post(url: string, body: unknown) {
     throw new Error(data.error?.message ?? data.message ?? 'Unable to continue. Please try again.');
   return data;
 }
-export function AuthForm({
-  join = false,
-  walletEnabled = false,
-}: {
-  join?: boolean;
-  walletEnabled?: boolean;
-}) {
+export function AuthForm({ join = false }: { join?: boolean }) {
   const [invitation, setInvitation] = useState<Invitation | null>(null),
     [token, setToken] = useState('');
   const [error, setError] = useState(''),
@@ -86,13 +79,13 @@ export function AuthForm({
       </Link>
       <div className="auth-layout">
         <section className="auth-intro">
-          <h1>{join ? 'Join your team' : 'Welcome back'}</h1>
+          <h1>{join ? 'Join your team' : 'Access your existing account'}</h1>
           <p>
             {invitation
               ? `Join ${invitation.workspace} as ${invitation.role}.`
               : join
                 ? 'Use your invitation to get started.'
-                : 'Sign in to see your websites and test results.'}
+                : 'Sign in, then link your wallet in Account settings.'}
           </p>
         </section>
         <section className="auth-form-panel" aria-label="Sign in">
@@ -154,13 +147,12 @@ export function AuthForm({
               </button>
             </form>
           )}
-          {!join && walletEnabled && <WalletLogin />}
           <p className="auth-footnote">
             {join ? (
               'Contact your workspace owner if you need a new invitation or account help.'
             ) : (
               <Link className="text-link" href="/sign-up">
-                New here? Create a free account
+                Continue with a wallet
               </Link>
             )}
           </p>

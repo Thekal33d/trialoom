@@ -8,9 +8,11 @@ type Wallet = { id: string; name: string; provider: EIP1193Provider };
 export function WalletLogin({
   intent = 'sign-in',
   primary = false,
+  label,
 }: {
   intent?: 'sign-in' | 'sign-up' | 'link';
   primary?: boolean;
+  label?: string;
 }) {
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [selected, setSelected] = useState('');
@@ -118,11 +120,12 @@ export function WalletLogin({
       >
         {busy
           ? 'Continue in your wallet…'
-          : intent === 'link'
-            ? 'Link a wallet'
-            : intent === 'sign-up'
-              ? 'Continue with a wallet'
-              : 'Sign in with a wallet'}
+          : (label ??
+            (intent === 'link'
+              ? 'Link a wallet'
+              : intent === 'sign-up'
+                ? 'Continue with a wallet'
+                : 'Sign in with a wallet'))}
       </button>
       <small className="wallet-note">
         A free sign-in signature. No payment or spending permission.

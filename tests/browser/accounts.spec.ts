@@ -17,7 +17,7 @@ const fixtures = JSON.parse(readFileSync(process.env.TRIALOOM_E2E_FIXTURE ?? '',
   Fixture
 >;
 async function signIn(page: Page, fixture: Fixture, email = fixture.ownerEmail) {
-  await page.goto('/sign-in');
+  await page.goto('/sign-in/email');
   await page.getByLabel('Email address').fill(email);
   await page.getByLabel('Password', { exact: true }).fill(fixture.password);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();

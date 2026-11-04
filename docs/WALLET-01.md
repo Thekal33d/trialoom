@@ -4,7 +4,7 @@ Updated: 2026-11-04. Decision: D060. Local implementation; not yet deployed to R
 
 ## Wallet accounts
 
-Trialoom supports optional Celo wallet login alongside email/password. A new wallet can create a free builder workspace from `/sign-up`. A returning wallet signs in at `/sign-in`. Existing email users should sign in with email, open **Account settings**, and choose **Link a wallet** to preserve their current account, workspace and roles. Linking requires a session created in the last 30 minutes and proof of the wallet; a wallet already owned by another account cannot be transferred or merged here.
+D062 supersedes the original optional-wallet presentation: Trialoom now leads with a unified **Connect wallet** flow at `/sign-in` for new and returning users. `/sign-up` redirects there. Email/password is retained at `/sign-in/email` for existing accounts, not as public onboarding. Existing email users should sign in with email, open **Account settings**, and choose **Link a wallet** to preserve their current account, workspace and roles. Linking requires a session created in the last 30 minutes and proof of the wallet; a wallet already owned by another account cannot be transferred or merged here.
 
 Supported: injected browser wallets, including EIP-6963 discovery, using ordinary Ethereum account signatures on Celo (chain 42220). No transaction, gas payment, token approval or server-held wallet key is involved. WalletConnect QR flows, smart contract wallets/EIP-1271, wallet removal, lost-wallet recovery and account merging are not implemented. Users can link an additional wallet while they retain access. A wallet-only account does not acquire a verified email address; the internal `.invalid` placeholder is never displayed as a verified contact.
 
@@ -42,7 +42,7 @@ curl -H "Authorization: Bearer $TRIALOOM_AGENT_TOKEN" https://trialoom.xyz/api/a
 
 Do not send browser cookies to these routes; they are explicitly rejected. Mutations such as claims require an `Idempotency-Key`. Run grants and agent credentials are distinct and cannot be substituted for each other. The current source of truth is `src/app/api/agent/v1/[...path]/route.ts`; early ALPHA-03 documents describe historical foundations that later steps implemented.
 
-**Public free builder signup does not enroll an operator.** Wallet login does not change that. A general public API for builder agents to create projects and request free tests is not implemented. Hosted browser execution remains unavailable until the dedicated runner is connected. The existing controlled API was exercised again in the operator browser checks; this is not a claim of live external agent adoption or bounty eligibility.
+**Public free builder signup does not enroll an operator.** Wallet login does not change that. The [builder agent client](AGENT-01.md) now signs in with a wallet, creates authorized projects and requests/reads/cancels bounded free tests through the same workspace API as the browser. Hosted browser execution remains unavailable until the dedicated runner is connected. The existing controlled API was exercised again in the operator browser checks; this is not a claim of live external agent adoption or bounty eligibility.
 
 ## Verification and references
 

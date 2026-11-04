@@ -1,6 +1,6 @@
 {
   "task": "FREE-03",
-  "checkedAt": "2026-11-04T17:45:00.000Z",
+  "checkedAt": "2026-11-04T19:20:00.000Z",
   "timezone": "Africa/Lagos",
   "scope": "Deployable web and worker container images, and the Railway deployment they were built for. Deployed and verified on 2026-11-04: Postgres, worker and web all running, with a public domain.",
   "artifacts": [
@@ -145,6 +145,17 @@
       "The web container logged container.evidence_ephemeral, so the image ENTRYPOINT runs here too"
     ],
     "portFinding": "Railway injects PORT and it overrides the ENV PORT=3000 in the image: the container listens on 8080, so the domain is created with --port 8080. A domain created against 3000 would route to nothing",
-    "orderingFinding": "Every knowable variable is set before the first upload, so only BETTER_AUTH_URL, which cannot exist until the domain does, forces a second deploy. authSettings is read per request rather than at startup, so health, readiness and the demo serve throughout"
+    "orderingFinding": "Every knowable variable is set before the first upload, so only BETTER_AUTH_URL, which cannot exist until the domain does, forces a second deploy. authSettings is read per request rather than at startup, so health, readiness and the demo serve throughout",
+    "landingPage": {
+      "date": "2026-11-04",
+      "path": "/",
+      "was": "A redirect to /sign-up or /demo, so a visitor handed the URL landed inside an example workspace with no idea what the product was",
+      "verifiedLive": [
+        "/ returns 200 and renders the landing page",
+        "The state block reads \"Being prepared\", \"Not available in this deployment\" and \"No wallet configured yet\" on the live deployment, from its own configuration rather than from the source",
+        "/api/health still reports privileged false after the redeploy"
+      ],
+      "checks": "62 browser checks pass with 4 skipped, four more than before: / joined the accessibility and viewport loop on desktop and mobile, and a new check asserts the page agrees with the configuration its server was started with"
+    }
   }
 }

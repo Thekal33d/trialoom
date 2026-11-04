@@ -884,3 +884,11 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - **The browser suite now pins `TRIALOOM_SPONSOR_AGENT_KEY` empty** for the port-3100 server. Without it a developer's own `.env` decides what the page is asserted to say — the first run of the new check failed for exactly that reason. Signup and free tests are deliberately *not* pinned, because `signup.spec.ts` skips itself on the same variable and the server and the runner have to agree.
 - The database suite failed once immediately after the browser suite with `canceling statement due to statement timeout`, and passed 285/285 on a clean re-run. The same pattern appeared earlier in this project and was then traced to concurrent load on the one local Postgres. Recorded as an observation; it is not explained.
 - Commit subject: `feat: explain the product on a landing page that reads its own configuration`.
+
+## 2026-11-04 — FREE-03 — The landing page is live
+
+- Deployed and verified on `https://web-production-0928b.up.railway.app`: `/` returns 200 and renders the landing page, and `/api/health` still reports `privileged: false` after the redeploy.
+- **The configuration-driven claim holds in production.** Live, the state block reads "Being prepared", "Not available in this deployment" and "No wallet configured yet" — three answers this container computed from its own environment, not three sentences written into the page. The local browser suite asserts the same block against a server started with pinned settings, so the mechanism is checked from both sides.
+- Noted while confirming the upload matched the commit, and **it affects the submission rather than the deployment**: the GitLab remote is 16 commits behind at `a8df98d`, and that repository is the one the hackathon entry names. A judge opening it today would not see the ERC-8004 identity work, the container build, the Railway deployment or this page. Pushing is the user's call and has not been done.
+- Validation: live HTTP checks against the deployment. No code changed in this step; the deployed tree is exactly commit `83e4df9` with a clean working tree.
+- Commit subject: `docs: record the landing page live on the deployment`.

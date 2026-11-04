@@ -1,0 +1,27 @@
+{
+  "task": "HACK-01",
+  "checkedOn": "2026-11-04",
+  "timezone": "Africa/Lagos",
+  "event": "agents-on-open-rails",
+  "projectId": "af3c7999-f24c-53f5-9634-e68dcfc55cf4",
+  "slug": "trialoom-d03b7",
+  "change": { "field": "demoUrl", "value": "https://trialoom.xyz" },
+  "explicitUserApproval": true,
+  "draftShownBeforeConfirm": true,
+  "created": false,
+  "missingFieldsAfterUpdate": [],
+  "readbackConfirmed": true,
+  "otherEntryFieldsChanged": false,
+  "selectedSponsor": "build-with-buy",
+  "evaluationRubricRetrieved": true,
+  "evaluation": "docs/HACKATHON-REVIEW-2026-11-04.md",
+  "deadlineUtc": "2026-11-09T09:00:00Z",
+  "deadlineLagos": "2026-11-09T10:00:00+01:00",
+  "limitations": [
+    "Complete form fields do not establish bounty eligibility",
+    "GitLab acceptance under the GitHub requirement remains unresolved",
+    "No real paid service output or external-user benefit verified",
+    "Entry copy needs refreshing after the paid proof",
+    "Local code commits were not pushed or deployed during this step"
+  ]
+}

@@ -17,13 +17,12 @@ The longer objective, from the original [PRD](docs/PRD.md), is the complete loop
 | **Replay you can read** | Recorded steps open at the first failure with expected and observed results. Traces are rebuilt without page contents or private values; anything it cannot sanitize stays private with a reason. [RUN-02](docs/RUN-02.md) |
 | **Signup to result, locally** | Public email-first signup, a free workspace, atomic per-account and per-origin quotas, and an automatic runner. [FREE-02](docs/FREE-02.md) |
 | **Money that refuses to lie** | A database-enforced ceiling, one shared token approval accounted across every brief that draws on it, inclusion and finality kept apart, and a payout that reconciles its key rather than sending twice. [PILOT-05](docs/PILOT-05.md) |
+| **Public website and agent identity** | [trialoom.xyz](https://trialoom.xyz) serves the landing page and sample workspace. Agent 10031 is registered on Celo; registration is separate from paid service usage. [Identity checkpoint](docs/evidence/ERC-8004-registered.json). |
 
 ## What is not true yet
 
-- **Nothing is deployed and no domain exists.** Everything above runs locally.
-- **No mainnet transaction has ever been made.** Payment recovery is proven on a disposable Celo fork, and the live adapter has moved USDC only there.
-- **No paid `buy` output exists.** The provider seam is verified and report inputs are bound; no purchase has been made. [BUY-01](docs/BUY-01.md)
-- **No ERC-8004 identity is registered.** The registry address is verified and the registration file is drafted. [ERC-8004](docs/ERC-8004.md)
+- **The full free beta is not enabled yet.** The landing page and sample workspace are live at [trialoom.xyz](https://trialoom.xyz); hosted signup, browser testing and sponsored purchases remain disabled. [Deployment checkpoint](docs/evidence/FREE-03.json).
+- **No useful paid buy call has been made.** Payment recovery is tested locally, including finalized receipt verification. The funded sponsor budget is unused; its first actual service purchase remains the next proof. [Settlement checkpoint](docs/evidence/BUY-01-settlement.json).
 - **No independent operator** has reproduced a repair, so that gate stays open.
 
 Claims in this repository are meant to be checkable. Each one links to a dated checkpoint, and where an input does not exist the record says so instead of reporting a number.

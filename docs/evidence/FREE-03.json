@@ -1,6 +1,6 @@
 {
   "task": "FREE-03",
-  "checkedAt": "2026-11-04T16:05:00.000Z",
+  "checkedAt": "2026-11-04T16:40:00.000Z",
   "timezone": "Africa/Lagos",
   "scope": "Deployable web and worker container images, verified from an empty database and under Railway-like conditions. Railway provisioned on 2026-11-04: Postgres and the worker exist, the web service is not deployed.",
   "artifacts": [
@@ -105,6 +105,16 @@
       "authority": "Railway public GraphQL API through railway api, not the dashboard appearance",
       "runbookCorrected": "The dashboard step is replaced by serviceInstanceUpdate plus a serviceInstance read-back before the upload. preDeployCommand is [String!] in the live schema, an argv rather than a shell line, so the runbook passes [\"sh\",\"-c\",\"node scripts/migrate.ts\"]",
       "stillUnverified": "Whether Railway accepts that mutation and runs the command. The field types come from live introspection and the read-back query is verified against the real service; the write and the deploy after it are the user\u2019s"
+    },
+    "preDeployCommandSet": {
+      "date": "2026-11-04",
+      "setBy": "serviceInstanceUpdate through railway api, with the user\u2019s approval, after the dashboard route silently saved nothing",
+      "accepted": [
+        "node scripts/migrate.ts"
+      ],
+      "refused": "preDeployCommand [\"sh\",\"-c\",\"node scripts/migrate.ts\"] is refused with BAD_USER_INPUT, \"Error in preDeployCommand - Invalid input\", so the [String!] type is misleading: it is one element holding the whole command line, not an argv",
+      "readBack": "serviceInstance reports preDeployCommand [\"node scripts/migrate.ts\"] and preDeployTimeoutSeconds 300",
+      "stillUnverified": "Whether Railway runs it. The redeploy that would prove it was not run here"
     }
   }
 }

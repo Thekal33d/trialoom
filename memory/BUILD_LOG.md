@@ -842,3 +842,12 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Not yet verified: whether Railway accepts that mutation and runs the command. The mutation and field types come from the live introspection schema, and the read-back query is verified against the real service, but the write is the user's to make on their own account and the deploy after it is what will prove the release step runs.
 - Validation: read-only API queries against the live project; no deploy, no write, no spend. Lint and types unchanged from the previous commit; no application code changed in this step.
 - Commit subject: `docs: set the pre-deploy command by API and read it back`.
+
+## 2026-11-04 — FREE-03 — The pre-deploy command, set and read back
+
+- Set the worker's pre-deploy command through `serviceInstanceUpdate` with the user's approval, after the dashboard route saved nothing. `serviceInstance` now reports `preDeployCommand` `["node scripts/migrate.ts"]` and `preDeployTimeoutSeconds` 300.
+- **The schema's type is misleading and the previous entry's reading of it was wrong.** `preDeployCommand` is `[String!]`, which looks like an argv, so `["sh","-c","node scripts/migrate.ts"]` seemed the robust choice — Railway refuses it outright with `BAD_USER_INPUT` and `Error in preDeployCommand - Invalid input`. One element holding the whole command line is accepted. The runbook is corrected; reading the value back is what caught this before it cost a deploy.
+- The two fields are written in separate calls because that is how each was confirmed. A single call setting both is untested, and the runbook says so rather than implying it works.
+- **The redeploy was not run here**: `railway up --service worker` was refused as a production deploy, which is the correct boundary — it is the user's account and their deploy. So whether Railway actually runs the command is still unverified, and the next deploy is what answers it.
+- Validation: the mutation returned true twice and the read-back query confirms both values against the live service. No deploy, no spend, no application code changed.
+- Commit subject: `docs: correct the pre-deploy command shape Railway accepts`.

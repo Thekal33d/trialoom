@@ -1,6 +1,6 @@
 {
   "task": "FREE-03",
-  "checkedAt": "2026-11-04T15:10:00.000Z",
+  "checkedAt": "2026-11-04T16:05:00.000Z",
   "timezone": "Africa/Lagos",
   "scope": "Deployable web and worker container images, verified from an empty database and under Railway-like conditions. Railway provisioned on 2026-11-04: Postgres and the worker exist, the web service is not deployed.",
   "artifacts": [
@@ -96,6 +96,15 @@
     "fix": "workers/main.ts reports the SQLSTATE and the error message, with the message passed through the evidence redaction policy and the connection string supplied as a known secret",
     "reproduced": "{\"event\":\"worker.failed\",\"code\":\"42P01\",\"detail\":\"relation \\\"assignments\\\" does not exist\"} against a fresh disposable local database, created and dropped for the purpose",
     "fixVerified": "Applying the 23 migrations to that same database and re-running the worker produced no failure",
-    "runbookCorrected": "docs/FREE-03.md now sets the pre-deploy command before the first upload and records why"
+    "runbookCorrected": "docs/FREE-03.md now sets the pre-deploy command before the first upload and records why",
+    "secondAttempt": {
+      "date": "2026-11-04",
+      "result": "Crashed the same way, and the new log line named the cause in one read: worker.failed code 42P01, relation \"assignments\" does not exist",
+      "cause": "The pre-deploy command had been typed into the dashboard and Railway had not saved it. serviceInstance.preDeployCommand reads null on the worker and on web, so it was not set on the wrong service: Railway stages dashboard configuration and applies it on a separate action",
+      "notReported": "Nothing in a deploy says a pre-deploy command is missing. There is no log line for a release step that does not exist",
+      "authority": "Railway public GraphQL API through railway api, not the dashboard appearance",
+      "runbookCorrected": "The dashboard step is replaced by serviceInstanceUpdate plus a serviceInstance read-back before the upload. preDeployCommand is [String!] in the live schema, an argv rather than a shell line, so the runbook passes [\"sh\",\"-c\",\"node scripts/migrate.ts\"]",
+      "stillUnverified": "Whether Railway accepts that mutation and runs the command. The field types come from live introspection and the read-back query is verified against the real service; the write and the deploy after it are the user\u2019s"
+    }
   }
 }

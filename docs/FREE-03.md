@@ -116,9 +116,23 @@ The web image is Next's traced bundle and contains no project source, so **it ca
 railway variable set DATABASE_URL='${{Postgres.DATABASE_URL}}' RAILWAY_DOCKERFILE_PATH=Dockerfile.worker --service worker --skip-deploys
 ```
 
-Then, in the dashboard — this is the one step with no CLI equivalent — set **worker → Settings → Deploy → Pre-deploy Command** to `node scripts/migrate.ts`. Railway runs it in a separate container with the service's variables, and a failure fails the deploy while the previous version keeps serving. The pre-deploy container has no volume access, which does not matter because migrations touch only Postgres.
+Then set the pre-deploy command, which is the release gate. **Set it through the API and read it back, rather than typing it into the dashboard.** On 2026-11-04 the dashboard field was filled in and the service instance still reported `preDeployCommand: null` on both services — Railway stages dashboard configuration and applies it on a separate action — so the next deploy migrated nothing and crash-looped exactly like the one before it. Service and environment ids come from `railway status --json`.
 
-**Set it before the first upload, not after.** A pre-deploy command runs only on the deploys that follow it, so a worker uploaded first starts against an empty schema and crash-loops until something redeploys it. This runbook had the two steps the other way round and that is exactly what happened on the first real deploy, 2026-11-04: eight restarts reporting `worker.failed` with no reason, because the catch logged the event and discarded the error. The worker now reports the SQLSTATE and a redacted message, so the same mistake reads as `{"event":"worker.failed","code":"42P01","detail":"relation \"assignments\" does not exist"}` and names itself.
+```sh
+railway api 'mutation($s:String!,$e:String!){ serviceInstanceUpdate(serviceId:$s, environmentId:$e, input:{ preDeployCommand:["sh","-c","node scripts/migrate.ts"], preDeployTimeoutSeconds:300 }) }' --raw-var s=WORKER_SERVICE_ID --raw-var e=ENVIRONMENT_ID
+```
+
+`ServiceInstanceUpdateInput.preDeployCommand` is `[String!]` in the live schema — an argv, not a shell line — and Railway does not wrap it in a shell, so `sh -c` is what makes a shell-shaped command run at all and what makes a failure print something.
+
+Read it back before uploading, because a null here costs a whole deploy and reports nothing about itself:
+
+```sh
+railway api 'query($e:String!,$s:String!){ serviceInstance(environmentId:$e, serviceId:$s){ preDeployCommand preDeployTimeoutSeconds } }' --raw-var e=ENVIRONMENT_ID --raw-var s=WORKER_SERVICE_ID
+```
+
+Railway runs the command in a separate container with the service's variables, and a failure fails the deploy while the previous version keeps serving. The pre-deploy container has no volume access, which does not matter because migrations touch only Postgres.
+
+**Set it before the first upload, not after.** A pre-deploy command runs only on the deploys that follow it, so a worker uploaded first starts against an empty schema and crash-loops until something redeploys it. This runbook had the two steps the other way round and that is exactly what happened on the first real deploy, 2026-11-04: eight restarts reporting `worker.failed` with no reason, because the catch logged the event and discarded the error. The worker now reports the SQLSTATE and a redacted message, so the same mistake reads as `{"event":"worker.failed","code":"42P01","detail":"relation \"assignments\" does not exist"}` and names itself — which is how the second crash was diagnosed in one read instead of guessed at.
 
 ```sh
 railway up --service worker

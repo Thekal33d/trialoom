@@ -851,3 +851,13 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - **The redeploy was not run here**: `railway up --service worker` was refused as a production deploy, which is the correct boundary — it is the user's account and their deploy. So whether Railway actually runs the command is still unverified, and the next deploy is what answers it.
 - Validation: the mutation returned true twice and the read-back query confirms both values against the live service. No deploy, no spend, no application code changed.
 - Commit subject: `docs: correct the pre-deploy command shape Railway accepts`.
+
+## 2026-11-04 — FREE-03 — The worker runs on Railway, and the schema is live there
+
+- `railway up --service worker` with the pre-deploy command in place: deployment `73b26a65` reports `SUCCESS`, the pre-deploy container logged `migrations.complete` with all 23 files, and the worker has logged **no** `worker.failed` since. Silence is the correct output — it is polling an empty job queue.
+- **The image's `ENTRYPOINT` survives a managed deploy.** D057 recorded that as unverified, and it is the question the whole privilege-drop design rests on: the worker container printed `container.evidence_ephemeral`, which only the entrypoint emits, so the script runs on Railway. `/api/health` reporting `privileged: false` on Railway still needs the web deploy, since the worker serves nothing.
+- **Railway's pre-deploy container bypasses the `ENTRYPOINT`.** It printed no entrypoint line at all, only `migrations.complete`. Harmless here — migrations touch Postgres only and need no volume, so nothing depends on the privilege drop or the evidence-directory check in that container — but worth knowing, because it shows Railway does replace the entrypoint on some paths.
+- One upload immediately before failed with `Failed to upload code with status code 500 Internal Server Error` and left deployment `c36b65f1` `FAILED`. The identical command succeeded on retry, so that was Railway-side and not reproducible; recorded rather than explained.
+- The first deploy attempt this session was refused locally as a production deploy, which is the correct boundary. It ran after the user said to deploy the worker.
+- Validation: deployment status and logs read back from Railway; 23 migrations applied against the real database; zero `worker.failed` in 200 log lines. No application code changed in this step.
+- Commit subject: `docs: record the worker running on Railway with its schema migrated`.

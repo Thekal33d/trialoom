@@ -1,6 +1,6 @@
 {
   "task": "FREE-03",
-  "checkedAt": "2026-11-04T16:40:00.000Z",
+  "checkedAt": "2026-11-04T17:05:00.000Z",
   "timezone": "Africa/Lagos",
   "scope": "Deployable web and worker container images, verified from an empty database and under Railway-like conditions. Railway provisioned on 2026-11-04: Postgres and the worker exist, the web service is not deployed.",
   "artifacts": [
@@ -84,8 +84,8 @@
     }
   },
   "toVerifyOnFirstDeploy": [
-    "Whether a custom Start Command preserves the image ENTRYPOINT; if it does not, the privilege drop is bypassed and /api/health reports privileged true. Still unanswered: the web service is not deployed",
-    "Whether the non-privileged-container and one-volume-per-service limits still hold, since they rest partly on staff replies and community threads. The no-build-target limit is now confirmed by the worker deploy"
+    "Whether a custom Start Command preserves the image ENTRYPOINT. No custom start command is set, and with none the ENTRYPOINT runs: confirmed by the worker container on 2026-11-04. /api/health reporting privileged false on Railway still needs the web deploy",
+    "Whether the non-privileged-container and one-volume-per-service limits still hold, since they rest partly on staff replies and community threads. The no-build-target limit is confirmed by the worker deploy"
   ],
   "firstDeploy": {
     "date": "2026-11-04",
@@ -115,6 +115,16 @@
       "refused": "preDeployCommand [\"sh\",\"-c\",\"node scripts/migrate.ts\"] is refused with BAD_USER_INPUT, \"Error in preDeployCommand - Invalid input\", so the [String!] type is misleading: it is one element holding the whole command line, not an argv",
       "readBack": "serviceInstance reports preDeployCommand [\"node scripts/migrate.ts\"] and preDeployTimeoutSeconds 300",
       "stillUnverified": "Whether Railway runs it. The redeploy that would prove it was not run here"
+    },
+    "workerRunning": {
+      "date": "2026-11-04",
+      "deployment": "73b26a65-8597-40a1-bf11-97921af8f86d",
+      "status": "SUCCESS",
+      "migrations": "The pre-deploy container applied all 23 migrations, 0001_runtime.sql through 0023_sponsored_purchases.sql, and logged migrations.complete",
+      "worker": "Started after it, logged container.evidence_ephemeral and both adapters unconfigured, and has logged no worker.failed since",
+      "entrypointPreserved": "Confirmed on a managed host: the worker container printed container.evidence_ephemeral, so the image ENTRYPOINT runs and the privilege-drop path is intact. This was recorded as unverified in D057",
+      "entrypointBypassedInPreDeploy": "The pre-deploy container printed no entrypoint line, so Railway runs that command without the image ENTRYPOINT. Harmless here: migrations touch only Postgres and need no volume",
+      "flake": "One upload immediately before failed with a Railway-side HTTP 500 (deployment c36b65f1, FAILED) and succeeded unchanged on retry"
     }
   }
 }

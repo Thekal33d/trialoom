@@ -24,6 +24,13 @@ export default defineConfig({
     {
       command: 'npm run start -- --port 3100',
       url: 'http://127.0.0.1:3100/api/health',
+      // The landing page reports what this deployment has configured, so the
+      // sponsor wallet is pinned absent. Nothing else in this suite reads it,
+      // and without pinning it a developer's own .env decides what the page is
+      // asserted to say. Signup and free tests are deliberately NOT pinned:
+      // signup.spec.ts skips itself on the same variable, so the server and the
+      // runner have to agree about them.
+      env: { TRIALOOM_SPONSOR_AGENT_KEY: '' },
       reuseExistingServer: false,
       timeout: 60000,
     },

@@ -5,8 +5,7 @@ import { expect, test } from '@playwright/test';
 test('journeys filter, search, recover from empty results, and open evidence', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto('/');
-  await expect(page).toHaveURL('/demo');
+  await page.goto('/demo');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Your release,');
   await expect(page.locator('.journey-row')).toHaveCount(3);
   await page.getByRole('button', { name: 'Needs review', exact: true }).click();
@@ -71,7 +70,7 @@ test('navigation reaches payments and the guide on both screen sizes', async ({ 
   await expect(page.getByRole('heading', { name: 'Choose a journey' })).toBeVisible();
 });
 
-for (const path of ['/demo', '/demo/evidence', '/demo/payments', '/demo/guide']) {
+for (const path of ['/', '/demo', '/demo/evidence', '/demo/payments', '/demo/guide']) {
   test(`${path} is accessible and fits the viewport`, async ({ page }, testInfo) => {
     await page.goto(path);
     await page.evaluate(() => document.fonts.ready);
@@ -90,6 +89,31 @@ for (const path of ['/demo', '/demo/evidence', '/demo/payments', '/demo/guide'])
     await page.screenshot({ path: testInfo.outputPath('page.png'), fullPage: true });
   });
 }
+
+test('the landing page explains the product and states what is unavailable', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Authorize a preview URL.');
+  await expect(page.getByRole('link', { name: 'See an example report' })).toBeVisible();
+  // The page must agree with the configuration this server was started with
+  // rather than carry a hardcoded promise, so the expectations come from the
+  // same variables. The sponsor wallet is pinned absent in playwright.config.ts.
+  const signup = process.env.TRIALOOM_PUBLIC_SIGNUP === 'true';
+  const state = page.getByRole('region', { name: 'Where this is today' });
+  await expect(state.getByText(signup ? 'Open to anyone' : 'Being prepared')).toBeVisible();
+  await expect(
+    state.getByText(
+      process.env.TRIALOOM_FREE_TESTS === 'true'
+        ? 'Available here'
+        : 'Not available in this deployment',
+    ),
+  ).toBeVisible();
+  await expect(state.getByText('No wallet configured yet')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Create a free workspace' })).toHaveCount(
+    signup ? 1 : 0,
+  );
+  await page.getByRole('link', { name: 'See an example report' }).click();
+  await expect(page).toHaveURL('/demo');
+});
 
 test('health, readiness, and demo security headers are explicit', async ({ request }) => {
   const health = await request.get('/api/health');

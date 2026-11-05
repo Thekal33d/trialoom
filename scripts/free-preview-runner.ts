@@ -21,6 +21,7 @@ export function freePreviewRunner(
   return {
     image,
     allowedOrigins,
+    acceptsVerifiedTargets: true,
     async run(row, signal) {
       const sample = row.kind === 'sample';
       assert.equal(row.image, image);
@@ -30,7 +31,11 @@ export function freePreviewRunner(
           origin: 'https://preview.example.com',
           addresses: ['127.0.0.1'],
         });
-      } else assert(allowedOrigins.includes(row.target.origin));
+      } else {
+        // Only the database dispatcher calls this adapter, after current proof checks.
+        assert(row.project_id || allowedOrigins.includes(row.target.origin));
+        assert.equal(parseTarget(row.target.url).url.origin, row.target.origin);
+      }
       const host = previewHost(row.image, !sample, signal, row.container_prefix);
       hosts.set(row.id, host);
       // The dispatcher records capture before cleanup and always calls cleanup separately.

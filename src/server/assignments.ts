@@ -25,6 +25,7 @@ import {
 import { requirePublicFunding, requirePublicOperator } from './marketplace.ts';
 import { approvedQuote, repairRole } from './repairs.ts';
 import { requireMarketplaceWorkspace } from './signup.ts';
+import { requireVerifiedTarget } from './target-verification.ts';
 
 export const leaseSeconds = 900;
 type CampaignRow = {
@@ -183,6 +184,7 @@ async function publish(
     // brief whose authority cannot cover it is refused rather than published
     // with a promise two campaigns are both relying on.
     const authority = await resolveAuthority(db, workspaceId, campaignId, data.authorityId);
+    if (visibility === 'public') await requireVerifiedTarget(db, projectId);
     if (visibility === 'public')
       await requirePublicFunding(db, authority?.id ?? null, authorization);
     if (authorization > 0n) {
@@ -413,7 +415,10 @@ export async function claimAssignment(db: PoolClient, session: AgentSession, inp
       )
     ).rows[0];
     if (!campaign) throw new AppError('NOT_FOUND', 'That campaign is not available.', 404);
-    if (campaign.visibility === 'public') await requirePublicFunding(db, campaign.authority_id);
+    if (campaign.visibility === 'public') {
+      await requireVerifiedTarget(db, campaign.project_id);
+      await requirePublicFunding(db, campaign.authority_id);
+    }
     // Serialize every claim on this campaign behind one row.
     const account = await lockAccount(db, campaignId);
     await expireLapsedAssignments(db, campaignId);

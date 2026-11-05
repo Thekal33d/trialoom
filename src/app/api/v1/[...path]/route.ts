@@ -80,6 +80,12 @@ import { qualificationStatus } from '@/server/qualification';
 import { redactionPolicy } from '@/server/redaction';
 import { configuredPayments } from '@/server/remesso';
 import { decideQuote, proposeQuote } from '@/server/repairs';
+import {
+  issueTargetChallenge,
+  revokeTargetVerification,
+  targetVerificationView,
+  verifyTargetChallenge,
+} from '@/server/target-verification';
 import { listWorkspaces, workspaceAccess } from '@/server/workspaces';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -159,6 +165,29 @@ async function handler(request: Request) {
           return json(await createProject(pool, actor, workspaceId, await readJson(request)), 201);
         if (parts.length >= 4) {
           const projectId = uuid.parse(parts[3]);
+          if (parts.length === 5 && parts[4] === 'verification') {
+            if (method === 'GET')
+              return json(await targetVerificationView(pool, actor, workspaceId, projectId));
+            if (method === 'POST')
+              return json(await issueTargetChallenge(pool, actor, workspaceId, projectId), 201);
+            if (method === 'DELETE')
+              return json(await revokeTargetVerification(pool, actor, workspaceId, projectId));
+          }
+          if (
+            parts.length === 6 &&
+            parts[4] === 'verification' &&
+            parts[5] === 'check' &&
+            method === 'POST'
+          )
+            return json(
+              await verifyTargetChallenge(
+                pool,
+                actor,
+                workspaceId,
+                projectId,
+                await readJson(request, 1024),
+              ),
+            );
           if (parts.length === 4 && method === 'GET')
             return json(await projectDetail(pool, actor, workspaceId, projectId));
           if (parts.length === 5 && parts[4] === 'builds' && method === 'POST')

@@ -29,14 +29,14 @@ try {
   );
   const origins = configuredFreeOrigins();
   const runner = freePreviewRunner(await buildPreviewImage(), origins);
-  await freeRunnerHeartbeat(pool, origins);
+  await freeRunnerHeartbeat(pool, origins, runner.acceptsVerifiedTargets);
   console.log(
     JSON.stringify({ event: 'free_runner.ready', concurrency: 1, externalOrigins: origins.length }),
   );
   heart = (async () => {
     while (!abort.signal.aborted) {
       await delay(3000, undefined, { signal: abort.signal });
-      await freeRunnerHeartbeat(pool, origins);
+      await freeRunnerHeartbeat(pool, origins, runner.acceptsVerifiedTargets);
     }
   })().catch(() => abort.abort());
   do {

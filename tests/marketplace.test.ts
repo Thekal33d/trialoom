@@ -17,6 +17,12 @@ import {
 } from '../src/server/operators.ts';
 import { addBuild, createCampaign, createProject, listProjects } from '../src/server/projects.ts';
 import { submitAttempt } from '../src/server/qualification.ts';
+import { startRun } from '../src/server/runner.ts';
+import {
+  issueTargetChallenge,
+  revokeTargetVerification,
+  verifyTargetChallenge,
+} from '../src/server/target-verification.ts';
 import { disposableDatabase } from './helpers/database.ts';
 import { seedFreeAccount } from './helpers/free-account.ts';
 
@@ -54,6 +60,20 @@ before(async () => {
     async () => ['93.184.216.34'],
   );
   projectId = project.id;
+  const challenge = await issueTargetChallenge(
+    db.pool,
+    builder.actor,
+    builder.workspaceId,
+    projectId,
+  );
+  await verifyTargetChallenge(
+    db.pool,
+    builder.actor,
+    builder.workspaceId,
+    projectId,
+    { challengeId: challenge.id },
+    { txt: async () => [[challenge.record.value]], resolver: async () => ['93.184.216.34'] },
+  );
   buildId = (
     await addBuild(
       db.pool,
@@ -343,5 +363,31 @@ test('a valid sibling policy cannot make an inactive authority publicly claimabl
   await assert.rejects(
     transaction(db.pool, (client) => requirePublicFunding(client, sibling.authorityId)),
     code('PUBLIC_FUNDING_REQUIRED'),
+  );
+});
+
+test('withdrawn website permission blocks public publication, discovery, claims and run starts', async () => {
+  const agent = await operator();
+  const offer = await job();
+  await offer.publish();
+  const assignment = await claim(db.pool, agent.session, { campaignId: offer.campaignId });
+  const draft = await job();
+  await revokeTargetVerification(db.pool, builder.actor, builder.workspaceId, projectId);
+  await assert.rejects(draft.publish(), code('TARGET_VERIFICATION_REQUIRED'));
+  await assert.rejects(
+    claim(db.pool, agent.session, { campaignId: offer.campaignId }),
+    code('TARGET_VERIFICATION_REQUIRED'),
+  );
+  assert.equal(
+    (await listEligibleWork(db.pool, agent.session)).items.some(
+      (x) => x.campaign_id === offer.campaignId,
+    ),
+    false,
+  );
+  await assert.rejects(
+    startRun(db.pool, agent.session, assignment.assignmentId, {
+      attemptToken: assignment.attemptToken,
+    }),
+    code('TARGET_VERIFICATION_REQUIRED'),
   );
 });

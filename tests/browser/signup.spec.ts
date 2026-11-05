@@ -91,6 +91,14 @@ test('a previously issued email link creates a free workspace, persists a projec
   await expect(page.getByRole('heading', { name: 'My preview' })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('heading', { name: 'My preview' })).toBeVisible();
+  await page.getByText('Verify website permission', { exact: true }).click();
+  await page.getByRole('button', { name: 'Get verification code' }).click();
+  await expect(page.getByLabel('DNS record name')).toHaveValue('_trialoom.example.com');
+  await expect(page.getByLabel('DNS record value')).toHaveValue(/^trialoom-verification=/);
+  const verificationValue = await page.getByLabel('DNS record value').inputValue();
+  await page.reload();
+  await page.getByText('Verify website permission', { exact: true }).click();
+  await expect(page.getByLabel('DNS record value')).toHaveValue(verificationValue);
   await accessible(page);
   await page.screenshot({ path: info.outputPath('free-workspace.png'), fullPage: true });
   const registered = await page.request.post('/api/v1/operator', {

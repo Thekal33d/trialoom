@@ -4,9 +4,11 @@ import { setTimeout as delay } from 'node:timers/promises';
 import type { Pool } from 'pg';
 import type { FreeTestResult, FreeTestSummary } from '../domain/free-tests.ts';
 import { canonicalJson } from '../domain/values.ts';
+import { targetVerified } from './target-verification.ts';
 
 export type FreeExecution = {
   id: string;
+  project_id: string | null;
   kind: 'sample' | 'homepage';
   phase: FreeTestSummary['phase'];
   target: { url: string; origin: string; addresses: string[] };
@@ -20,15 +22,20 @@ export type FreeExecution = {
 export type FreeRunner = {
   image: string;
   allowedOrigins: string[];
+  acceptsVerifiedTargets?: boolean;
   run: (execution: FreeExecution, signal: AbortSignal) => Promise<FreeTestResult>;
   cleanup: (execution: FreeExecution) => Promise<void>;
 };
 const digest = (value: unknown) => createHash('sha256').update(canonicalJson(value)).digest('hex');
-export async function freeRunnerHeartbeat(pool: Pool, allowedOrigins: string[]) {
+export async function freeRunnerHeartbeat(
+  pool: Pool,
+  allowedOrigins: string[],
+  acceptsVerifiedTargets = false,
+) {
   await pool.query(
-    `INSERT INTO free_test_runtime (id,heartbeat_at,allowed_origins) VALUES (true,clock_timestamp(),$1)
-    ON CONFLICT(id) DO UPDATE SET heartbeat_at=excluded.heartbeat_at,allowed_origins=excluded.allowed_origins`,
-    [JSON.stringify(allowedOrigins)],
+    `INSERT INTO free_test_runtime (id,heartbeat_at,allowed_origins,accepts_verified_targets) VALUES (true,clock_timestamp(),$1,$2)
+    ON CONFLICT(id) DO UPDATE SET heartbeat_at=excluded.heartbeat_at,allowed_origins=excluded.allowed_origins,accepts_verified_targets=excluded.accepts_verified_targets`,
+    [JSON.stringify(allowedOrigins), acceptsVerifiedTargets],
   );
 }
 
@@ -66,7 +73,15 @@ export async function dispatchFreeTest(
     ).rows[0];
     if (!row) return false;
     if (row.phase === 'queued') {
-      if (row.kind === 'homepage' && !runner.allowedOrigins.includes(row.target.origin)) {
+      if (
+        row.kind === 'homepage' &&
+        !runner.allowedOrigins.includes(row.target.origin) &&
+        !(
+          runner.acceptsVerifiedTargets &&
+          row.project_id &&
+          (await targetVerified(client, row.project_id, row.target.origin))
+        )
+      ) {
         await client.query(
           "UPDATE free_tests SET phase='cancelled',cancel_requested=true,cleanup_at=clock_timestamp() WHERE id=$1 AND phase='queued'",
           [row.id],

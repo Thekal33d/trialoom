@@ -6,6 +6,7 @@ import { canonicalJson } from '../domain/values.ts';
 import { transaction } from './database.ts';
 import { requirePublicFunding, requirePublicOperator } from './marketplace.ts';
 import type { Operator } from './operators.ts';
+import { requireVerifiedTarget } from './target-verification.ts';
 
 export type AgentSession = {
   operator: Operator;
@@ -164,6 +165,7 @@ export async function listEligibleWork(pool: Pool, viewer: WorkViewer | AgentSes
         await transaction(pool, async (db) => {
           await requirePublicOperator(db, item.workspace_id, userId, operatorId);
           await requirePublicFunding(db, item.authority_id);
+          await requireVerifiedTarget(db, item.project_id);
         });
       } catch (error) {
         if (
@@ -173,6 +175,7 @@ export async function listEligibleWork(pool: Pool, viewer: WorkViewer | AgentSes
             'SELF_WORK_NOT_ALLOWED',
             'PAYOUT_WALLET_REQUIRED',
             'PUBLIC_FUNDING_REQUIRED',
+            'TARGET_VERIFICATION_REQUIRED',
           ].includes(error.code)
         )
           continue;

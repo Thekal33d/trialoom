@@ -313,3 +313,9 @@ Public wallet accounts may register an operator and opt into paid builder work. 
 Replace manual origin enablement with self-service target-control verification, and adapt the isolated runner for a Linux host. Registration is not payment authority, a declaration is not verified funding, and qualified agents do not approve their own evidence. Preserve independent reproduction/repair verification and builder-controlled merge/deployment.
 
 No new infrastructure purchase, additional spending budget, unapproved derived-data disclosure or hackathon submission edit is implied. Record actual local and hosted verification separately; do not describe a feature as live because its code builds.
+
+## D065 — 2026-11-05 — Accepted: project-scoped DNS permission for public tests
+
+Public website permission uses an owner-issued random TXT challenge at `_trialoom.<exact hostname>`. Codes expire after 24 hours, are replaced atomically, and can be consumed once; proof grants seven days of permission to that project and origin. Rechecking public addresses remains mandatory. This proves domain control, not permission for unrelated services or accounts reached from that website. No arbitrary HTTP verification URL is fetched by the application.
+
+Require current proof at public publication, claim, run preparation and grant issuance. The free dispatcher accepts verified projects only when its advertised capability supports this path, and rechecks permission before dispatch. Existing exact-origin operational allowlists remain supported for previously authorized targets. Expiry/revocation stops new work without erasing accepted obligations or evidence. DNS-hosted subdomains that the builder cannot manage need their own controllable domain; a future file-based proof must preserve pinned-address and redirect restrictions.

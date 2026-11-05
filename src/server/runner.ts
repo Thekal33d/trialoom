@@ -10,6 +10,7 @@ import { emit } from './events.ts';
 import { bindHost, hostContract, requiredIsolation } from './isolation.ts';
 import type { TermsDocument } from './ledger.ts';
 import { assertRunLive } from './run-access.ts';
+import { requireVerifiedTarget } from './target-verification.ts';
 import { type ResolveTarget, validateTarget } from './targets.ts';
 
 /** Limits the manifest publishes and ingestion enforces. */
@@ -192,6 +193,11 @@ async function runContext(
 ): Promise<RunContext> {
   return transaction(pool, async (db) => {
     const assignment = await liveAssignment(db, session, assignmentId, attemptToken);
+    if (
+      (await db.query('SELECT visibility FROM campaigns WHERE id=$1', [assignment.campaign_id]))
+        .rows[0]?.visibility === 'public'
+    )
+      await requireVerifiedTarget(db, assignment.project_id);
     const build = (
       await db.query(
         'SELECT id,revision,fixture_version,target_url,admission_addresses FROM builds WHERE id=$1',
@@ -307,6 +313,11 @@ export async function issueRun(db: PoolClient, session: AgentSession, prepared: 
     prepared.attemptToken,
   );
   const { document, targetCheck } = prepared;
+  if (
+    (await db.query('SELECT visibility FROM campaigns WHERE id=$1', [assignment.campaign_id]))
+      .rows[0]?.visibility === 'public'
+  )
+    await requireVerifiedTarget(db, assignment.project_id);
   const required = requiredIsolation(document);
   const bound = await bindHost(db, prepared.hostId, required);
   const readOnlyDependencies = prepared.readOnlyDependencies ?? [];

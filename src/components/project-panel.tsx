@@ -4,6 +4,7 @@ import { formatUnits } from '@/domain/values';
 import { CampaignPanel } from './campaign-panel';
 import type { ProjectDetail, TermsRecord } from './live-types';
 import { api, field } from './live-types';
+import { TargetVerification } from './target-verification';
 import { TermsForm } from './terms-form';
 export function ProjectPanel({
   data,
@@ -63,7 +64,7 @@ export function ProjectPanel({
           <h1>{data.project.name}</h1>
           <p className="break-text">{data.project.target_url}</p>
         </div>
-        <span className="neutral-label">Testing permission recorded</span>
+        <span className="neutral-label">Website workspace</span>
       </section>
       <div className="project-context">
         <span>
@@ -74,6 +75,7 @@ export function ProjectPanel({
           <strong>{new Date(data.project.authorized_at).toLocaleDateString()}</strong>
         </span>
       </div>
+      {isOwner && <TargetVerification base={base} />}
       {editor === 'terms' ? (
         <TermsForm
           builds={data.builds}

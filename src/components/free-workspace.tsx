@@ -5,6 +5,7 @@ import { activeFreeTest, type FreeTestsView } from '@/domain/free-tests';
 import { FreeTestHistory } from './free-test-history';
 import { api, type ProjectSummary } from './live-types';
 import { ProductFooter, ProductHeader } from './product-shell';
+import { TargetVerification } from './target-verification';
 
 export function FreeWorkspace({
   workspace,
@@ -309,9 +310,10 @@ export function FreeWorkspace({
                       </form>
                     </details>
                   ) : (
-                    <span className="result-label neutral">
-                      Testing not enabled for this site yet
-                    </span>
+                    <TargetVerification
+                      base={`/api/v1/workspaces/${workspace.id}/projects/${project.id}`}
+                      onVerified={async () => setTests(await api<FreeTestsView>(base))}
+                    />
                   )}
                 </li>
               ))}

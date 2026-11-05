@@ -6,6 +6,7 @@ import type { FreeTestsView } from '../domain/free-tests.ts';
 import { type Actor, audit, requireRole } from './access.ts';
 import { transaction } from './database.ts';
 import { workspaceExplanations } from './sponsored.ts';
+import { targetVerified } from './target-verification.ts';
 
 const requestSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('sample'), requestId: z.uuid() }).strict(),
@@ -36,7 +37,7 @@ async function owner(db: PoolClient, actor: Actor, workspaceId: string) {
 async function runtime(db: PoolClient) {
   return (
     await db.query(
-      "SELECT allowed_origins, heartbeat_at > clock_timestamp()-interval '60 seconds' AS ready FROM free_test_runtime WHERE id=true",
+      "SELECT allowed_origins,accepts_verified_targets, heartbeat_at > clock_timestamp()-interval '60 seconds' AS ready FROM free_test_runtime WHERE id=true",
     )
   ).rows[0];
 }
@@ -50,10 +51,13 @@ export async function freeTestsView(
     await owner(db, actor, workspaceId);
     const service = await runtime(db);
     const projectOrigins = (
-      await db.query('SELECT DISTINCT authorized_origin FROM projects WHERE workspace_id=$1', [
-        workspaceId,
-      ])
-    ).rows.map((row) => row.authorized_origin as string);
+      await db.query(
+        `SELECT DISTINCT authorized_origin,
+        EXISTS (SELECT 1 FROM target_verifications v WHERE v.project_id=p.id AND v.origin=p.authorized_origin AND v.revoked_at IS NULL AND v.expires_at>clock_timestamp()) AS verified
+        FROM projects p WHERE workspace_id=$1`,
+        [workspaceId],
+      )
+    ).rows;
     const count = (
       await db.query(
         `SELECT count(*)::integer AS total FROM free_tests WHERE user_id=$1 AND created_at>=${utcDay}`,
@@ -70,7 +74,13 @@ export async function freeTestsView(
       explanations: await workspaceExplanations(db, workspaceId),
       available: enabled && service?.ready === true,
       allowedOrigins: enabled
-        ? projectOrigins.filter((origin) => service?.allowed_origins.includes(origin))
+        ? projectOrigins
+            .filter(
+              (row) =>
+                service?.allowed_origins.includes(row.authorized_origin) ||
+                (service?.accepts_verified_targets && row.verified),
+            )
+            .map((row) => row.authorized_origin as string)
         : [],
       remaining: Math.max(0, freeTestLimits.perAccount - count),
       tests,
@@ -128,10 +138,16 @@ export async function requestFreeTest(
         ])
       ).rows[0];
       if (!project) throw new AppError('NOT_FOUND', 'Project not found in this workspace.', 404);
-      if (!service.allowed_origins.includes(project.authorized_origin))
+      if (
+        !service.allowed_origins.includes(project.authorized_origin) &&
+        !(
+          service.accepts_verified_targets &&
+          (await targetVerified(db, project.id, project.authorized_origin))
+        )
+      )
         throw new AppError(
           'TARGET_NOT_ENABLED',
-          'Testing for this origin has not been enabled yet. Try the prepared sample.',
+          'Verify control of this website before testing it. The runner must also support verified websites.',
           409,
         );
       target = {

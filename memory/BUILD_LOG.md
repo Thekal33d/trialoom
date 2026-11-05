@@ -1060,3 +1060,10 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 
 - The final typecheck output for fca64b7 revealed TypeScript's weak-type mismatch between ProcessEnv and an object containing only an optional setting. Changed the adapter input to an environment string map; runtime behavior is unchanged. Native execution and isolation results above remain valid. Re-ran strict types and the two adapter tests before this follow-up commit.
 - Commit subject: `fix: accept environment maps in runner configuration` (MARKET-03).
+
+## 2026-11-05 — MARKET-03 — Shared private evidence storage
+
+- Added authenticated S3-compatible storage for content-addressed evidence, with explicit credentials, bounded requests/objects, digest verification and no public ACL or URLs. Partial hosted settings fail closed; local private storage remains available when all S3 settings are absent. Railway bucket and AWS SDK official documentation checked. No production bucket was created.
+- Checks: three storage transport/corruption checks pass, existing runner and export checks pass (29 final storage/runner; six exports previously). Strict types and production build pass. Clean npm ci succeeds after refreshing the lockfile; npm's peer resolution also relocates the existing Base Account dependency to satisfy its wallet peers. No blind audit fix performed: 58 production audit findings, including 18 high, remain a release review item; none of the high findings comes from the added S3 chain.
+- Initial corrupt-object error changed an established API contract; restored ARTIFACT_CORRUPT and reran successfully. The local S3 fixture verifies real SDK signing/transport but is not evidence of hosted bucket interoperability.
+- Commit subject: `feat: share private evidence through S3 storage` (MARKET-03). Paid dispatch, payment setup, and UI changes remain separate in progress.

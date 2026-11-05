@@ -6,6 +6,9 @@
   "engines": {
     "node": ">=24"
   },
+  "overrides": {
+    "ws@8.18.0": "8.21.0"
+  },
   "scripts": {
     "browser:install": "PLAYWRIGHT_BROWSERS_PATH=.cache/ms-playwright playwright install chromium --no-shell",
     "test": "node --test spikes/*/tests/*.test.mjs",

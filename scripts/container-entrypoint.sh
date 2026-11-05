@@ -11,6 +11,15 @@ set -eu
 uid=1000
 gid=1000
 dir="${TRIALOOM_EVIDENCE_DIR:-}"
+storage=local
+if [ -n "${TRIALOOM_S3_ENDPOINT:-}${TRIALOOM_S3_BUCKET:-}${TRIALOOM_S3_ACCESS_KEY_ID:-}${TRIALOOM_S3_SECRET_ACCESS_KEY:-}" ]; then
+  if [ -z "${TRIALOOM_S3_ENDPOINT:-}" ] || [ -z "${TRIALOOM_S3_BUCKET:-}" ] || [ -z "${TRIALOOM_S3_ACCESS_KEY_ID:-}" ] || [ -z "${TRIALOOM_S3_SECRET_ACCESS_KEY:-}" ]; then
+    echo '{"event":"container.evidence_incomplete","detail":"Configure every required S3 setting before starting shared storage"}' >&2
+    exit 1
+  fi
+  storage=s3
+  dir=
+fi
 
 if [ "$(id -u)" = 0 ]; then
   if [ -n "$dir" ]; then
@@ -36,6 +45,8 @@ if [ -n "$dir" ]; then
     exit 1
   fi
   rm -f "$dir/.writable"
+elif [ "$storage" = s3 ]; then
+  echo '{"event":"container.evidence_shared","detail":"Private S3-compatible storage is configured; connectivity is checked when evidence is stored or read"}'
 else
   # Said out loud rather than looking like a working private store.
   echo '{"event":"container.evidence_ephemeral","detail":"TRIALOOM_EVIDENCE_DIR is unset, so stored artifacts live in the container filesystem and are lost on redeploy"}'

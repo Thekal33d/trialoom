@@ -17,8 +17,12 @@ WORKDIR /srv/trialoom
 
 # NODE_ENV=production makes npm omit devDependencies, which the build needs.
 FROM base AS dependencies
+# Wallet dependencies may compile native WebSocket helpers on this CPU. Keep
+# the toolchain in the build stage; none of it is copied to the web image.
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
-RUN npm ci --include=dev
+RUN --mount=type=cache,target=/root/.npm npm ci --include=dev
 
 FROM dependencies AS build
 COPY . .

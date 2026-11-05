@@ -9,7 +9,11 @@ test('agent access is discoverable, explains wallet scope and fits narrow screen
   await page.getByRole('link', { name: 'For agents', exact: true }).click();
   await expect(page).toHaveURL('/agents');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('A result you can inspect');
-  await expect(page.locator('pre')).toContainText('scripts/trialoom-agent.ts --sample');
+  await expect(
+    page
+      .getByRole('region', { name: 'Test your own website with the builder client' })
+      .locator('pre'),
+  ).toContainText('scripts/trialoom-agent.ts --sample');
   await expect(page.getByRole('main')).toContainText('It never signs a payment');
   expect(
     (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze())
@@ -70,7 +74,9 @@ test('comparison preserves pending acceptance and exports a labelled demo report
   await expect(page.getByRole('heading', { name: 'Invitation rejected' })).toBeVisible();
 });
 
-test('the guide keeps future paid work separate from the free beta', async ({ page }) => {
+test('the guide explains paid testing without treating example records as live obligations', async ({
+  page,
+}) => {
   await page.goto('/demo');
   await page
     .getByRole('navigation', { name: 'Main navigation' })
@@ -78,7 +84,7 @@ test('the guide keeps future paid work separate from the free beta', async ({ pa
     .click();
   await expect(page.getByRole('heading', { name: 'Start with a website.' })).toBeVisible();
   await page.getByText('Will Trialoom fix my website for me?', { exact: true }).click();
-  await page.getByRole('link', { name: 'About future paid work' }).click();
+  await page.getByRole('link', { name: 'About paid testing' }).click();
   await expect(page.getByRole('heading', { name: 'No accepted work to pay yet.' })).toBeVisible();
   await expect(page.getByText('No spending authorized.', { exact: false })).toBeVisible();
 });
@@ -116,7 +122,9 @@ test('the landing page offers an honest next action for this deployment', async 
   );
   await expect(page.getByRole('region', { name: 'Example test result' })).toBeVisible();
   await expect(page.locator('.home-availability')).toContainText(
-    testing ? 'Free during beta' : 'Live testing isn’t available here yet',
+    testing
+      ? 'A free browser check is also available'
+      : 'Free browser checks are currently offline',
   );
   await page.getByText('What can I try today?', { exact: true }).click();
   await expect(

@@ -4,6 +4,7 @@ import { formatUnits } from '@/domain/values';
 import { CampaignPanel } from './campaign-panel';
 import type { ProjectDetail, TermsRecord } from './live-types';
 import { api, field } from './live-types';
+import { PaidTestForm } from './paid-test-form';
 import { TargetVerification } from './target-verification';
 import { TermsForm } from './terms-form';
 export function ProjectPanel({
@@ -23,7 +24,7 @@ export function ProjectPanel({
   reload: () => Promise<void>;
   onBack: () => void;
 }) {
-  const [editor, setEditor] = useState<'build' | 'terms' | null>(null),
+  const [editor, setEditor] = useState<'build' | 'terms' | 'paid-test' | null>(null),
     [current, setCurrent] = useState<TermsRecord>(),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
@@ -76,7 +77,9 @@ export function ProjectPanel({
         </span>
       </div>
       {isOwner && <TargetVerification base={base} />}
-      {editor === 'terms' ? (
+      {editor === 'paid-test' ? (
+        <PaidTestForm builds={data.builds} onSave={save} onCancel={() => setEditor(null)} />
+      ) : editor === 'terms' ? (
         <TermsForm
           builds={data.builds}
           current={current}
@@ -184,17 +187,30 @@ export function ProjectPanel({
                   className="button primary"
                   onClick={() => {
                     setCurrent(undefined);
-                    setEditor('terms');
+                    setEditor('paid-test');
                   }}
                 >
-                  New work brief
+                  Create paid test
                 </button>
               )}
             </div>
             <p className="section-description">
               A brief records scope and delivery terms. Publishing one offers an exact terms version
-              to admitted operators and reserves its maximum liability from an authorized budget.
+              to eligible operators. Claims reserve their maximum liability from the authorized
+              budget.
             </p>
+            {canWrite && data.builds.length > 0 && (
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => {
+                  setCurrent(undefined);
+                  setEditor('terms');
+                }}
+              >
+                Advanced work brief
+              </button>
+            )}
             {data.campaigns.length ? (
               data.campaigns.map((campaign) => {
                 const versions = data.terms.filter((term) => term.campaign_id === campaign.id);

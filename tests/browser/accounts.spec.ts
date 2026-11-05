@@ -90,7 +90,7 @@ test('builder creates a project, pins a build, saves terms, and preserves old ve
   await page.getByLabel('Fixture version').fill('fixture-v1');
   await page.getByRole('button', { name: 'Save pinned build' }).click();
   await expect(page.getByText('immutable-commit-one', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'New work brief' }).click();
+  await page.getByRole('button', { name: 'Advanced work brief' }).click();
   await page.getByLabel('Brief name').fill('Invite a teammate');
   await page
     .getByRole('textbox', { name: 'Scope', exact: true })
@@ -148,6 +148,7 @@ test('builder creates a project, pins a build, saves terms, and preserves old ve
 
   // Publishing the brief authorizes a ceiling and opens it to admitted operators.
   await page.getByRole('button', { name: 'Publish to operators' }).click();
+  await page.getByLabel('Who can take this job?').selectOption('private');
   await page.getByLabel('Terms version to offer').selectOption({ index: 0 });
   await page.getByLabel('Assignment slots').fill('2');
   await page.getByLabel('Concurrent assignments').fill('2');
@@ -311,7 +312,7 @@ test('an owner registers a payment authority and sees one shared approval', asyn
   await expect(panel).toContainText('every payout blocks as owed');
   await expect(panel).toContainText('it is not escrow');
 
-  await panel.getByRole('button', { name: 'Register an authority' }).click();
+  await panel.getByRole('button', { name: 'Advanced: register authority' }).click();
   await page.getByLabel('Your name for it').fill('Treasury policy');
   await page.getByLabel('Remesso policy id').fill('77');
   await page.getByLabel('Approved amount').fill('10');
@@ -330,10 +331,18 @@ test('an owner registers a payment authority and sees one shared approval', asyn
   await expect(row).toContainText('10.00 USDC left to promise');
   await expect(row).toContainText('declared, never read from the chain');
 
-  // With no provider configured, verifying refuses rather than inventing a
-  // reading, and the declaration stays visibly unverified.
+  // Exercise an unavailable chain response without contacting a public RPC.
+  // The reader and policy invariants are covered separately by database tests.
+  await page.route('**/payment-authorities/*/verification', (route) =>
+    route.fulfill({
+      status: 503,
+      json: {
+        error: { code: 'AUTHORITY_READ_FAILED', message: 'The payment network could not be read.' },
+      },
+    }),
+  );
   await row.getByRole('button', { name: 'Verify against the chain' }).click();
-  await expect(panel).toContainText('No payment provider is configured');
+  await expect(panel).toContainText('The payment network could not be read');
   await expect(row).toContainText('declared, never read from the chain');
   // A provider that is absent is not an incident: nothing about the approval
   // changed, so the refusal leaves no notice behind.
@@ -341,7 +350,7 @@ test('an owner registers a payment authority and sees one shared approval', asyn
   await expect(told).not.toContainText('could not be read');
 
   // A second handle on the same wallet describes the same approval.
-  await panel.getByRole('button', { name: 'Register an authority' }).click();
+  await panel.getByRole('button', { name: 'Advanced: register authority' }).click();
   await page.getByLabel('Your name for it').fill('Same wallet again');
   await page.getByLabel('Remesso policy id').fill('78');
   await page.getByLabel('Approved amount').fill('10');
@@ -370,8 +379,7 @@ test('an owner registers a payment authority and sees one shared approval', asyn
   // declaration rather than a fact.
   await page.getByRole('button', { name: "What's waiting" }).click();
   const queue = page.locator('.attention-panel');
-  await expect(queue).toContainText('What can pay needs looking at');
-  await expect(queue).toContainText('None of this cancels an obligation');
+  await expect(queue).toContainText('what it can pay is only a declaration');
   const waiting = queue.locator('.member-row', { hasText: 'Treasury policy' });
   await expect(waiting).toContainText('Never read from the chain');
   await expect(waiting).toContainText('unverified');

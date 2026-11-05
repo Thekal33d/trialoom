@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { formatUnits, toUnits } from '@/domain/values';
 import { api, field } from './live-types';
+import { PaymentSetup } from './payment-setup';
 
 type Approval = {
   approvalId: string;
@@ -80,6 +81,7 @@ export function AuthorityPanel({ base }: { base: string }) {
   const money = (units: string) => `${formatUnits(units)} ${data.currency.symbol}`;
   return (
     <section className="live-section">
+      <PaymentSetup base={base} onImported={load} />
       <div className="section-heading">
         <h2>Payment authority</h2>
         <button
@@ -91,7 +93,7 @@ export function AuthorityPanel({ base }: { base: string }) {
             setError('');
           }}
         >
-          {adding ? 'Cancel' : 'Register an authority'}
+          {adding ? 'Cancel' : 'Advanced: register authority'}
         </button>
       </div>
       <p className="section-description">{data.note}</p>

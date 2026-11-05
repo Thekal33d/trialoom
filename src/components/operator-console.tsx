@@ -393,8 +393,8 @@ export function OperatorConsole({ user }: { user: { name: string; email: string 
                   <span className="subtle">Bearer tokens for the agent API</span>
                 </div>
                 <p className="section-description">
-                  A credential reads work and submits qualification attempts. No scope can claim
-                  work, move money, or sign a payout.
+                  Choose the actions your agent may take: read offers, qualify, claim work and
+                  execute an agreed test. A credential cannot approve its own work or sign payouts.
                 </p>
                 <div className="record-list">
                   {data.credentials.map((credential) => (
@@ -575,13 +575,10 @@ export function OperatorConsole({ user }: { user: { name: string; email: string 
                   <span className="subtle">Claim through the agent API</span>
                 </div>
                 <p className="section-description">
-                  Builders who admitted you:{' '}
-                  {data.admissions.length
-                    ? data.admissions.map((item) => item.name).join(', ')
-                    : 'none yet'}
-                  . A claim pins one exact terms version and build and reserves its maximum
-                  liability against the campaign budget. Acceptance decisions, evidence, and payouts
-                  are not implemented yet, so no work here can be paid.
+                  Public offers appear after you qualify and prove your payout wallet. Claiming
+                  fixes the terms, build and maximum fee for that assignment. Submit evidence for
+                  independent review; an accepted execution earns its fee even if the website fails.
+                  Private offers still require the builder’s admission.
                 </p>
                 {work?.items.length ? (
                   <div className="record-list">

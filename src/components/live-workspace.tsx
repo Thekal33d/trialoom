@@ -210,7 +210,7 @@ export function LiveWorkspace({
             <strong>{workspace?.name ?? 'Your workspace'}</strong>
             <span>/</span>
             {view === 'metrics'
-              ? 'Pilot readiness'
+              ? 'Service health'
               : view === 'access'
                 ? 'Access'
                 : view === 'attention'

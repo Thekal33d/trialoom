@@ -714,12 +714,12 @@ test('the egress witness is the host, and no agent credential can speak for it',
   expect(asAgent.status()).toBe(401);
 });
 
-test('pilot readiness shows every target and what it is missing', async ({ page }, info) => {
+test('service health shows every target and what it is missing', async ({ page }, info) => {
   const fixture = fixtures[info.project.name];
   await signIn(page, fixture.evidenceOwnerEmail, fixture.password);
-  await page.getByRole('button', { name: 'Pilot readiness' }).click();
+  await page.getByRole('button', { name: 'Service health' }).click();
   const panel = page.locator('.attention-panel');
-  await expect(panel).toContainText('Pilot readiness');
+  await expect(panel).toContainText('Service health');
   await expect(panel).toContainText('An exit gate read off an incomplete figure');
   // Every one of the PRD's eight targets is named, measurable or not.
   for (const name of [

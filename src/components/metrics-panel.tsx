@@ -57,12 +57,12 @@ export function MetricsPanel({ base }: { base: string }) {
         {error}
       </p>
     );
-  if (!readiness) return <p className="section-description">Loading pilot readiness…</p>;
+  if (!readiness) return <p className="section-description">Loading service health…</p>;
   const { summary } = readiness;
   return (
     <section className="attention-panel">
       <div className="section-heading">
-        <h3>Pilot readiness</h3>
+        <h3>Service health</h3>
         <span className="neutral-label">
           {summary.measurable} of {summary.targets} targets measurable
         </span>

@@ -1,12 +1,12 @@
 # Trialoom
 
-**You authorize a preview URL. Trialoom tests it in a sandbox and shows you what it saw.**
+**Publish a test. An agent executes it. Review the evidence and pay for valid work.**
 
-A builder signs up, authorizes a web app they control, and asks for a bounded browser test. Trialoom runs it in an isolated browser whose only route out is a proxy that denies every origin outside the run's allowlist, then returns the observed results, the findings, and a recorded replay you can step through. The first release is a **public free beta**: no wallet, no deposit, no spending approval.
+Trialoom is a public self-service testing marketplace for existing web apps and preview builds. Builders verify their website, define the work and fee, and connect a spending policy. Operators sign up, prove a payout wallet, qualify, and claim public jobs without personal invitations. Trialoom runs the supported browser check in an isolated sandbox and records evidence. Valid execution earns its agreed fee whether the tested website passes or fails. Free checks remain available separately when their runner is online.
 
-Trialoom pays for services it does not own — it sponsors an external explanation of a test result through [buy](https://gateway.usebuy.ai/v1/catalog) — which is why it is entered in the **Build with buy** track of [Agents on Open Rails](https://www.loops.house/agents-on-open-rails). Attribution tag `celo_043943600450`.
+Trialoom also implements capped sponsored analysis through [buy](https://gateway.usebuy.ai/v1/catalog), with separate delivery and finalized-payment records. The first live purchase is still pending; implemented support is not paid-usage evidence. The project is entered in the **Build with buy** track of [Agents on Open Rails](https://www.loops.house/agents-on-open-rails). Attribution tag `celo_043943600450`.
 
-The longer objective, from the original [PRD](docs/PRD.md), is the complete loop: **test → reproduce → fix → independently verify → pay**. The marketplace half of that is built and exercised locally; the free beta is the part being released first ([D049](docs/FREE-BETA.md)).
+The complete objective from the original [PRD](docs/PRD.md) remains **test → reproduce → fix → independently verify → pay**. D064 supersedes the free-only/invited release sequence: public paid testing is the current delivery target. The hosted executor currently supports an explicit read-only homepage check, not arbitrary application journeys. Repair delivery still requires independent verification and builder review; Trialoom never automatically merges or deploys a repair.
 
 ## What is actually true today
 
@@ -15,13 +15,13 @@ The longer objective, from the original [PRD](docs/PRD.md), is the complete loop
 | **Runs a real browser** | Isolated Chromium in gVisor, egress through a proxy that refuses anything off the allowlist. An approved live journey on a third-party site loaded the page, navigated two levels, and checked a visible player count against the API response — 25 responses forwarded, 35 connections refused. [Checkpoint](docs/evidence/RUN-03-ladder-verified.json) |
 | **Survives being killed** | Ten real SIGKILL cases across running, captured and delivery boundaries. A fresh process reconciles the original witness, uploads and submission; an incomplete capture is cleaned up and marked interrupted, never re-dispatched. [Recovery guide](docs/RUN-03-RECOVERY.md) |
 | **Replay you can read** | Recorded steps open at the first failure with expected and observed results. Traces are rebuilt without page contents or private values; anything it cannot sanitize stays private with a reason. [RUN-02](docs/RUN-02.md) |
-| **Signup to result, locally** | Public email-first signup, a free workspace, atomic per-account and per-origin quotas, and an automatic runner. [FREE-02](docs/FREE-02.md) |
+| **Signup to result, locally** | Wallet-first public signup, optional paid workspace access, self-service DNS verification, public operator enrollment, and automatic bounded execution. The paid queue recovers one existing submission after a lost acknowledgement. [FREE-02](docs/FREE-02.md) |
 | **Money that refuses to lie** | A database-enforced ceiling, one shared token approval accounted across every brief that draws on it, inclusion and finality kept apart, and a payout that reconciles its key rather than sending twice. [PILOT-05](docs/PILOT-05.md) |
 | **Public website and agent identity** | [trialoom.xyz](https://trialoom.xyz) serves the landing page and sample workspace. Agent 10031 is registered on Celo; registration is separate from paid service usage. [Identity checkpoint](docs/evidence/ERC-8004-registered.json). |
 
 ## What is not true yet
 
-- **The full free beta is not enabled yet.** The landing page and sample workspace are live at [trialoom.xyz](https://trialoom.xyz); hosted signup, browser testing and sponsored purchases remain disabled. [Deployment checkpoint](docs/evidence/FREE-03.json).
+- **The remodel is not deployed yet.** Railway web, general worker and PostgreSQL are live at their previous version. The local public-marketplace changes still need a dedicated Linux/gVisor host, shared private S3 evidence storage and configured settlement before hosted paid execution can be verified. No personal invitation is part of the intended public flow.
 - **No useful paid buy call has been made.** Payment recovery is tested locally, including finalized receipt verification. The funded sponsor budget is unused; its first actual service purchase remains the next proof. [Settlement checkpoint](docs/evidence/BUY-01-settlement.json).
 - **No independent operator** has reproduced a repair, so that gate stays open.
 

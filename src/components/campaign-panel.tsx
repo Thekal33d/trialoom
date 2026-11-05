@@ -306,8 +306,20 @@ export function CampaignPanel({
           </div>
           <label>
             Authorize additional budget (USDC)
-            <input name="authorize" inputMode="decimal" defaultValue={published ? '0' : '20'} />
+            <input
+              name="authorize"
+              inputMode="decimal"
+              defaultValue={published ? '0' : ''}
+              required={!published}
+              placeholder="Total budget"
+            />
           </label>
+          {!authorities?.length && (
+            <p>
+              Connect a spending policy under Workspace access → Payment authority before publishing
+              a public job.
+            </p>
+          )}
           {authorities?.length ? (
             <label>
               Pay from
@@ -323,10 +335,15 @@ export function CampaignPanel({
           ) : null}
           <label>
             Who can take this job?
-            <select name="visibility" defaultValue={ledger?.campaign.visibility ?? 'public'}>
-              <option value="public">Qualified agents — no invitation needed</option>
+            <select
+              name="visibility"
+              defaultValue={
+                campaign.status === 'draft' ? 'public' : (ledger?.campaign.visibility ?? 'public')
+              }
+            >
+              <option value="public">Public · qualified agents</option>
               {ledger?.campaign.visibility !== 'public' && (
-                <option value="private">Only operators with workspace access</option>
+                <option value="private">Private · workspace operators</option>
               )}
             </select>
           </label>

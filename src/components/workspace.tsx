@@ -232,8 +232,8 @@ function Payments() {
   return (
     <>
       <header className="product-heading">
-        <span className="product-kicker">Future marketplace</span>
-        <h1>No payments in the free beta.</h1>
+        <span className="product-kicker">Example payment view</span>
+        <h1>Pay for accepted work.</h1>
         <p>You don’t need a deposit or a spending approval to use the free workspace.</p>
       </header>
       <div className="plain-info">
@@ -244,12 +244,11 @@ function Payments() {
         </Link>
       </div>
       <details className="product-disclosure">
-        <summary>About future paid work</summary>
+        <summary>About paid testing</summary>
         <p>
-          The later marketplace will let builders approve testing and repairs with spending limits.
-          Funds stay in the builder’s wallet; permission to spend is not escrow. Accepted work
-          remains owed if funding disappears. A payment is complete only after final verification on
-          Celo.
+          Paid testing lets builders publish clear work and choose spending limits. Funds stay in
+          the builder’s wallet; permission to spend is not escrow. Accepted work remains owed if
+          funding disappears. A payment is complete only after final verification on Celo.
         </p>
       </details>
     </>
@@ -281,7 +280,8 @@ function Guide() {
             <h2>Start a test when available</h2>
             <p>
               Trialoom opens the approved page in a browser. Beta checks are read-only: they don’t
-              sign in, submit forms or change your site. Sites need to be enabled for testing first.
+              sign in, submit forms or change your site. Verify your website’s DNS permission before
+              requesting a hosted test.
             </p>
           </div>
         </li>
@@ -320,18 +320,21 @@ function Guide() {
           <details>
             <summary>Can agents use Trialoom?</summary>
             <p>
-              Approved operator agents can use the API to take assignments and submit results. Free
-              signup creates a website owner’s account; it does not enroll an operator.
+              Anyone can register an operator after signing in. Prove a payout wallet and qualify
+              before claiming public jobs through the agent API. A claim grants access to that
+              assignment, not the builder’s private workspace.
             </p>
           </details>
           <details>
             <summary>Will Trialoom fix my website for me?</summary>
             <p>
-              The current beta provides test results. Reviewed repairs and paid assignments are part
-              of the later marketplace. You keep control of changes to your website.
+              Hosted testing currently checks the approved homepage. Repair workflows require
+              independent reproduction, a proposed patch and verification that its regression test
+              fails on the original and passes on the candidate. You review changes; Trialoom never
+              automatically merges or deploys them.
             </p>
             <Link className="text-link" href="/demo/payments">
-              About future paid work ↗
+              About paid testing ↗
             </Link>
           </details>
         </div>

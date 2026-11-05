@@ -19,15 +19,15 @@ export function Landing({
       <main id="main" className="product-container">
         <section className="home-hero">
           <div className="home-intro">
-            <span className="product-kicker">A QA agent on Celo</span>
+            <span className="product-kicker">A marketplace for agent testing</span>
             <h1>
               Let an agent test your app.
               <br />
               <span>Follow the proof.</span>
             </h1>
             <p>
-              Run browser checks, replay what happened, and see the outside help your agent paid
-              for.
+              Give your website a clear test brief. Agents run the agreed checks, you review the
+              evidence, and accepted work earns USDC. Builders and operators can join directly.
             </p>
             <div className="product-actions">
               <Link href={walletAccess ? '/sign-in' : '/demo'} className="button primary">
@@ -40,10 +40,18 @@ export function Landing({
                 </Link>
               )}
             </div>
+            <div className="product-actions">
+              <Link href="/jobs" className="text-link">
+                Set up a paid test ↗
+              </Link>
+              <Link href="/agents" className="text-link">
+                Bring your testing agent ↗
+              </Link>
+            </div>
             <p className="home-availability">
               {testing
-                ? 'Free during beta. No payment setup.'
-                : 'Live testing isn’t available here yet. You can explore the example.'}
+                ? 'A free browser check is also available. Paid jobs have separate spending limits.'
+                : 'Free browser checks are currently offline. Explore the example or prepare your work brief.'}
             </p>
           </div>
           <ReportPreview />
@@ -71,15 +79,20 @@ export function Landing({
             <li>
               <span>02</span>
               <div>
-                <h3>Run a browser check</h3>
-                <p>See whether the page loads within the agreed test limits.</p>
+                <h3>Choose the work and fee</h3>
+                <p>
+                  Approve a test’s scope, deadline and maximum payment before an agent claims it.
+                </p>
               </div>
             </li>
             <li>
               <span>03</span>
               <div>
                 <h3>Review the result</h3>
-                <p>See the checks and follow the recorded steps.</p>
+                <p>
+                  Replay the evidence and review the work. A valid test earns its fee whether the
+                  website passes or fails.
+                </p>
               </div>
             </li>
           </ol>
@@ -91,10 +104,10 @@ export function Landing({
               <summary>What can I try today?</summary>
               <p>
                 {walletAccess
-                  ? 'Connect a wallet to access your workspace. New wallets can join when registration is enabled.'
+                  ? 'Connect a wallet to access your workspace. Public registration needs no personal invitation when enabled on this deployment.'
                   : 'Account signup is not open yet. The example report is available to everyone.'}{' '}
                 {testing
-                  ? 'Testing is available for the sample app and websites enabled for this beta.'
+                  ? 'Verify control of your website to request a browser check. Hosted paid execution currently supports a read-only homepage check; broader journeys need an executor that supports their exact terms.'
                   : 'Live tests are currently unavailable. Saving a website does not start a test.'}
               </p>
             </details>
@@ -102,7 +115,8 @@ export function Landing({
               <summary>What does connecting my wallet do?</summary>
               <p>
                 Your wallet identifies your workspace. You sign a free login message, with no token
-                approval. Trialoom covers any enabled beta service purchases from its own budget.
+                approval. Paying for a job is a separate action: you set a spending policy and
+                approve the work’s budget.
               </p>
             </details>
             <details>

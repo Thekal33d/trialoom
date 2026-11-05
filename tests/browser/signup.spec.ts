@@ -118,6 +118,26 @@ test('a previously issued email link creates a free workspace, persists a projec
   await expect(page.getByRole('navigation', { name: 'Workspace', exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('navigation', { name: 'Workspace', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: /My preview/ }).click();
+  await page.getByRole('button', { name: 'Pin a build', exact: true }).click();
+  await page.getByLabel('Revision or deployment ID').fill('public-preview-1');
+  await page.getByLabel('Fixture version').fill('homepage-1');
+  await page.getByRole('button', { name: 'Save pinned build' }).click();
+  await page.getByRole('button', { name: 'Create paid test', exact: true }).click();
+  await page.getByLabel('Fee per accepted test').fill('1.25');
+  await page.getByLabel('I approve this scope').check();
+  await accessible(page);
+  await page.getByRole('button', { name: 'Save paid test draft' }).click();
+  await expect(page.getByRole('heading', { name: 'Homepage check', exact: true })).toBeVisible();
+  await expect(
+    page.getByText('Load the approved homepage with GET/HEAD', { exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Publish to operators' }).click();
+  await expect(page.getByLabel('Who can take this job?')).toHaveValue('public');
+  await page.screenshot({ path: info.outputPath('public-paid-draft.png'), fullPage: true });
+  await page.getByLabel('Who can take this job?').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: info.outputPath('public-paid-publication.png') });
+  await accessible(page);
   await page.goto('/workspace');
   await expect(page.getByRole('heading', { name: 'My websites' })).toBeVisible();
   await page.getByRole('button', { name: 'Sign out' }).click();

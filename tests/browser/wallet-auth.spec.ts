@@ -156,11 +156,11 @@ test('wallet signup, sign-out and returning login work without email or payments
   await expect(page.getByRole('heading', { name: 'My websites' })).toBeVisible();
   const session = await (await page.request.get('/api/auth/get-session')).json();
   expect(session.user.emailVerified).toBe(false);
-  const denied = await page.request.post('/api/v1/operator', {
+  const registered = await page.request.post('/api/v1/operator', {
     headers: { origin: 'http://127.0.0.1:3100' },
     data: { handle: `wallet-${info.project.name}` },
   });
-  expect(denied.status()).toBe(403);
+  expect(registered.status()).toBe(201);
   await page.getByRole('link', { name: 'Account settings' }).click();
   await accessible(page);
   await page.screenshot({ path: info.outputPath('wallet-account.png'), fullPage: true });

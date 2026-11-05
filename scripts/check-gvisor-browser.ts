@@ -3,12 +3,13 @@ import { spawn, spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { cp, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { runnerCommand } from './runner-command.ts';
 
-// Dedicated development machine only. No arbitrary SSH host or shell arguments.
-const machine = ['-m', 'trialoom-runner', '-u', 'root', '-w', '/root'];
+// Dedicated host only. No arbitrary SSH host or shell arguments.
 const environment = { PATH: process.env.PATH, HOME: process.env.HOME, NODE_ENV: 'test' as const };
 function remote(args: string[], input?: Buffer, timeout = 30_000) {
-  const result = spawnSync('orb', [...machine, ...args], {
+  const command = runnerCommand(args);
+  const result = spawnSync(command.command, command.args, {
     env: environment,
     input,
     encoding: 'utf8',
@@ -148,7 +149,8 @@ try {
       assert.equal(before.Image, image.Id);
       assert((before.Mounts ?? []).every((entry: { Type: string }) => entry.Type === 'tmpfs'));
       const output = await new Promise<string>((done, reject) => {
-        const child = spawn('orb', [...machine, 'docker', 'start', '--attach', name], {
+        const command = runnerCommand(['docker', 'start', '--attach', name]);
+        const child = spawn(command.command, command.args, {
           env: environment,
         });
         let bytes = 0;

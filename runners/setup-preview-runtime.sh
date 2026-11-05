@@ -2,7 +2,12 @@
 # Add a dedicated socket-capable runtime; preserve the original runsc entry.
 set -euo pipefail
 test "$(id -u)" = 0
-test "$(hostname)" = trialoom-runner
+if test "${TRIALOOM_RUNNER_SETUP:-orb}" = linux; then
+  test -f /etc/trialoom-runner-host
+  test ! -e /.dockerenv
+else
+  test "$(hostname)" = trialoom-runner
+fi
 test ! -e /mnt/mac
 test -z "${SSH_AUTH_SOCK:-}"
 test -z "$(docker ps -q)"

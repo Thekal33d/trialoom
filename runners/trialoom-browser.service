@@ -1,0 +1,28 @@
+[Unit]
+Description=Trialoom isolated browser controller
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+ConditionPathExists=/etc/trialoom-runner-host
+ConditionPathExists=/etc/trialoom/runner.env
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/trialoom
+Environment=TRIALOOM_RUNNER_HOST=linux
+Environment=TRIALOOM_FREE_TESTS=true
+EnvironmentFile=/etc/trialoom/runner.env
+ExecStart=/usr/bin/env node workers/free-tests.ts
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=90
+KillMode=control-group
+UMask=0077
+LimitCORE=0
+# The trusted controller owns Docker and the external watchdog. Browser processes
+# run as uid 65534 inside gVisor with their own CPU/memory/network restrictions.
+# Do not mount this service's environment or the Docker socket into the browser.
+
+[Install]
+WantedBy=multi-user.target

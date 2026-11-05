@@ -63,6 +63,8 @@ export type RunnerHost = {
   ephemeral_filesystem: boolean;
   isolation_level: IsolationLevel;
   revoked_at: string | null;
+  workspace_id: string | null;
+  platform_managed: boolean;
 };
 
 /**
@@ -89,8 +91,8 @@ export async function registerHost(pool: Pool, actor: Actor, workspaceId: string
       host = (
         await db.query<{ id: string }>(
           `INSERT INTO runner_hosts (name,operator_id,contract_version,sandbox,egress_enforced,
-          ephemeral_filesystem,isolation_level,credential_hash,registered_by)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+          ephemeral_filesystem,isolation_level,credential_hash,registered_by,workspace_id)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
           [
             data.name,
             data.operatorId ?? null,
@@ -101,6 +103,7 @@ export async function registerHost(pool: Pool, actor: Actor, workspaceId: string
             data.isolationLevel,
             digest(secret),
             actor.id,
+            workspaceId,
           ],
         )
       ).rows[0];
@@ -131,8 +134,8 @@ export async function revokeHost(pool: Pool, actor: Actor, workspaceId: string, 
   return transaction(pool, async (db) => {
     await requireRole(db, actor, workspaceId, ['owner']);
     const { rowCount } = await db.query(
-      'UPDATE runner_hosts SET revoked_at=clock_timestamp() WHERE id=$1 AND revoked_at IS NULL',
-      [id],
+      'UPDATE runner_hosts SET revoked_at=clock_timestamp() WHERE id=$1 AND workspace_id=$2 AND NOT platform_managed AND revoked_at IS NULL',
+      [id, workspaceId],
     );
     if (!rowCount)
       throw new AppError('NOT_FOUND', 'Runner host not found or already revoked.', 404);
@@ -151,7 +154,7 @@ export async function workspaceHosts(pool: Pool, actor: Actor, workspaceId: stri
       `SELECT h.id,h.name,h.contract_version,h.sandbox,h.egress_enforced,h.ephemeral_filesystem,
         h.isolation_level,h.revoked_at,h.last_used_at,h.created_at,o.handle
       FROM runner_hosts h LEFT JOIN operators o ON o.id=h.operator_id
-      WHERE h.registered_by IN (SELECT user_id FROM memberships WHERE workspace_id=$1)
+      WHERE h.workspace_id=$1 AND NOT h.platform_managed
       ORDER BY h.created_at DESC LIMIT 100`,
       [id],
     );
@@ -168,6 +171,7 @@ export async function bindHost(
   db: PoolClient,
   hostId: string | undefined,
   required: IsolationLevel,
+  context: { workspaceId: string; publicWork: boolean },
 ): Promise<{ host: RunnerHost | null; level: IsolationLevel }> {
   if (!hostId) {
     if (required === 'witnessed')
@@ -183,6 +187,16 @@ export async function bindHost(
   ).rows[0];
   if (!host || host.revoked_at)
     throw new AppError('HOST_UNUSABLE', 'That runner host is not registered or was revoked.', 409);
+  if (
+    context.publicWork
+      ? !host.platform_managed
+      : !host.platform_managed && host.workspace_id !== context.workspaceId
+  )
+    throw new AppError(
+      'HOST_NOT_ADMITTED',
+      'This runner is not approved to execute this job. Public jobs use a platform-managed runner.',
+      403,
+    );
   if (!satisfies(host.isolation_level, required))
     throw new AppError(
       'ISOLATION_INSUFFICIENT',

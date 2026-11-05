@@ -319,7 +319,16 @@ export async function issueRun(db: PoolClient, session: AgentSession, prepared: 
   )
     await requireVerifiedTarget(db, assignment.project_id);
   const required = requiredIsolation(document);
-  const bound = await bindHost(db, prepared.hostId, required);
+  const context = (
+    await db.query(
+      'SELECT c.visibility,p.workspace_id FROM campaigns c JOIN projects p ON p.id=c.project_id WHERE c.id=$1',
+      [assignment.campaign_id],
+    )
+  ).rows[0];
+  const bound = await bindHost(db, prepared.hostId, required, {
+    workspaceId: context.workspace_id,
+    publicWork: context.visibility === 'public',
+  });
   const readOnlyDependencies = prepared.readOnlyDependencies ?? [];
   const scope = dependencyScope({
     primaryOrigin: targetCheck.origin,

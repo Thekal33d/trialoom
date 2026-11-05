@@ -5,12 +5,13 @@ import { cp, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { readBrokerFailure } from '../runners/preview-diagnostics.ts';
+import { runnerCommand } from './runner-command.ts';
 
 const env = { PATH: process.env.PATH, HOME: process.env.HOME, NODE_ENV: 'test' as const };
-const machine = ['-m', 'trialoom-runner', '-u', 'root', '-w', '/root'];
 const policy = 'application-preview-v1';
 export function remote(args: string[], input?: Buffer, timeout = 15000) {
-  const result = spawnSync('orb', [...machine, ...args], {
+  const command = runnerCommand(args);
+  const result = spawnSync(command.command, command.args, {
     env,
     input,
     encoding: 'utf8',
@@ -207,7 +208,8 @@ export function previewHost(
   }
   function start(name: string, input: unknown, cap: number) {
     signal.throwIfAborted();
-    const child = spawn('orb', [...machine, 'docker', 'start', '--attach', '--interactive', name], {
+    const command = runnerCommand(['docker', 'start', '--attach', '--interactive', name]);
+    const child = spawn(command.command, command.args, {
       env,
     });
     const chunks: Buffer[] = [];
@@ -269,7 +271,7 @@ export function previewHost(
         '--opt=o=size=1m,uid=65534,gid=65534,mode=0700',
         volume,
       ]);
-      // Root-owned systemd timer lives outside both containers and the Mac controller.
+      // Root-owned systemd timer lives outside both containers and the controller.
       // All interpolated names are generated hex identifiers, never target input.
       remote([
         'systemd-run',

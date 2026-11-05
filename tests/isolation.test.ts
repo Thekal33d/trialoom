@@ -21,6 +21,7 @@ import {
 } from '../src/server/invitations.ts';
 import {
   authenticateHost,
+  bindHost,
   hostContract,
   hostRunView,
   recordEgress,
@@ -37,6 +38,7 @@ import { submitAttempt } from '../src/server/qualification.ts';
 import { abandonRun, authenticateRun, isolationProfile, startRun } from '../src/server/runner.ts';
 import { digestOf } from '../src/server/storage.ts';
 import { disposableDatabase } from './helpers/database.ts';
+import { seedFreeAccount } from './helpers/free-account.ts';
 
 let db: Awaited<ReturnType<typeof disposableDatabase>>;
 let owner: Actor;
@@ -255,6 +257,45 @@ before(async () => {
 after(async () => {
   await db?.close();
   if (evidenceDir) await rm(evidenceDir, { recursive: true, force: true });
+});
+
+test('workspace host registration never grants cross-tenant or public platform trust', async () => {
+  const host = await registerHost(db.pool, owner, workspaceId, {
+    ...conforming,
+    name: 'Private tenant host',
+  });
+  const stranger = await seedFreeAccount(db.pool);
+  await assert.rejects(
+    revokeHost(db.pool, stranger.actor, stranger.workspaceId, host.hostId),
+    code('NOT_FOUND'),
+  );
+  await assert.rejects(
+    transaction(db.pool, (client) =>
+      bindHost(client, host.hostId, 'witnessed', {
+        workspaceId: stranger.workspaceId,
+        publicWork: false,
+      }),
+    ),
+    code('HOST_NOT_ADMITTED'),
+  );
+  await assert.rejects(
+    transaction(db.pool, (client) =>
+      bindHost(client, host.hostId, 'witnessed', { workspaceId, publicWork: true }),
+    ),
+    code('HOST_NOT_ADMITTED'),
+  );
+  await transaction(db.pool, (client) =>
+    bindHost(client, host.hostId, 'witnessed', { workspaceId, publicWork: false }),
+  );
+  // Only deployment provisioning, never the registration API, may mark a managed host.
+  await db.pool.query('UPDATE runner_hosts SET platform_managed=true WHERE id=$1', [host.hostId]);
+  await transaction(db.pool, (client) =>
+    bindHost(client, host.hostId, 'witnessed', {
+      workspaceId: stranger.workspaceId,
+      publicWork: true,
+    }),
+  );
+  await assert.rejects(revokeHost(db.pool, owner, workspaceId, host.hostId), code('NOT_FOUND'));
 });
 
 test('a host cannot claim the witnessed level without implementing it', async () => {

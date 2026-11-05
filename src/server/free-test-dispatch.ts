@@ -66,6 +66,10 @@ export async function dispatchFreeTest(
   try {
     locked = (await client.query('SELECT pg_try_advisory_lock(42120702) AS held')).rows[0].held;
     if (!locked || abort.signal.aborted) return false;
+    if (
+      (await client.query("SELECT 1 FROM hosted_test_jobs WHERE state='running' LIMIT 1")).rowCount
+    )
+      return false;
     let row = (
       await client.query<FreeExecution>(
         "SELECT * FROM free_tests WHERE phase IN ('running','captured','queued') ORDER BY CASE WHEN phase='queued' THEN 1 ELSE 0 END,created_at LIMIT 1",

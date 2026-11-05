@@ -88,10 +88,8 @@ test('wallet signup issues a real HttpOnly session and the same restricted free 
     )
   ).rows;
   assert.deepEqual(rows, [{ role: 'owner' }]);
-  await assert.rejects(
-    registerOperator(db.pool, current.user, { handle: 'wallet-public' }),
-    /Operator enrollment is not open/,
-  );
+  const operator = await registerOperator(db.pool, current.user, { handle: 'wallet-public' });
+  assert.equal(operator.handle, 'wallet-public');
   const out = await post('sign-out', {}, cookies(response));
   assert.equal(out.status, 200);
   assert.equal(await session(response), null);

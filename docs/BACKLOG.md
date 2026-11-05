@@ -12,9 +12,9 @@ The user authorized the remodel on 2026-11-05. Personal invitations are not a pu
 | --- | --- | --- | --- |
 | MARKET-01 | Public operator enrollment and public job access | Done (local) | Migration 0026, owner opt-in, public registration, qualified public claims without membership, private-job and self-work refusal, proven payout wallet, fresh exact-policy funding, atomic last-slot claims. 29 focused DB and four desktop/mobile checks pass; production build and lint pass. Hosted release remains MARKET-05. |
 | MARKET-02 | Self-service website permission | Done (local) | Migration 0027; 56 focused checks, final nine-case public-work regression run and four desktop/mobile checks pass. Owner-scoped, expiring domain challenge; verified targets become eligible without manual origin enablement. DNS/public-address protections and per-target limits remain. |
-| MARKET-03 | Hosted execution and paid job dispatch | In progress | Portable Linux runner, durable paid execution, bounded browser actions and evidence delivery; crash cleanup and repeat-delivery checks. Reuse existing Railway services. |
-| MARKET-04 | Builder/operator product flow | Ready | Clear public entry, website verification, priced publication, agent qualification, claim/results/review and payment setup; desktop/mobile checks. |
-| MARKET-05 | Public release verification | Ready | Fresh isolated end-to-end tests, production build, dependency review, hosted checks and actual authorized payment proof. No claims based on fixture settlement. |
+| MARKET-03 | Hosted execution and paid job dispatch | Done (local) | Native Linux/gVisor execution, private S3 evidence transport, durable paid homepage dispatch and lost-acknowledgement recovery verified. Real owned-target browser test delivers once; no payment is self-authorized. Dedicated production host/storage still require connection under MARKET-05. |
+| MARKET-04 | Builder/operator product flow | In progress | Clear public entry, website verification, priced publication, agent qualification, claim/results/review and payment setup; desktop/mobile checks. |
+| MARKET-05 | Public release verification | In progress | Fresh isolated end-to-end tests, production build, dependency review, hosted checks and actual authorized payment proof. No claims based on fixture settlement. |
 
 ## Foundation and capability validation (historical baseline)
 

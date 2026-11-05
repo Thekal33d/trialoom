@@ -37,6 +37,7 @@ export async function requirePublicFunding(
   db: PoolClient,
   authorityId: string | null,
   additional = 0n,
+  assignmentLiability = 0n,
 ) {
   const row = (
     await db.query(
@@ -44,11 +45,44 @@ export async function requirePublicFunding(
       p.observed_at>clock_timestamp()-interval '5 minutes' AS fresh,
       (SELECT policy_active AND created_at>clock_timestamp()-interval '5 minutes'
         FROM payment_approval_observations WHERE authority_id=a.id ORDER BY created_at DESC LIMIT 1) AS policy_fresh
+      ,(SELECT per_payment_units FROM payment_approval_observations WHERE authority_id=a.id ORDER BY created_at DESC LIMIT 1) AS per_payment_units
+      ,(SELECT remaining_today_units FROM payment_approval_observations WHERE authority_id=a.id ORDER BY created_at DESC LIMIT 1) AS remaining_today_units
+      ,(SELECT open_recipients FROM payment_approval_observations WHERE authority_id=a.id ORDER BY created_at DESC LIMIT 1) AS open_recipients
+      ,EXISTS (SELECT 1 FROM memberships m JOIN auth_account w ON w."userId"=m.user_id AND w."providerId"='celo-wallet'
+        WHERE m.workspace_id=a.workspace_id AND m.role='owner' AND lower(w."accountId")=lower(p.payer_address)) AS payer_proven
+      ,EXISTS (SELECT 1 FROM settlement_runtime r WHERE r.id=true AND lower(r.agent_address)=lower(a.agent_address)
+        AND r.heartbeat_at>clock_timestamp()-interval '60 seconds') AS settlement_ready
       FROM payment_authorities a JOIN payment_approvals p ON p.id=a.approval_id
       WHERE a.id=$1 FOR UPDATE OF p`,
       [authorityId],
     )
   ).rows[0];
+  if (row && !row.payer_proven)
+    throw new AppError(
+      'PUBLIC_PAYER_PROOF_REQUIRED',
+      'An owner of this workspace must link the paying wallet before it can fund public jobs.',
+      409,
+    );
+  if (
+    assignmentLiability > 0n &&
+    row &&
+    (!row.open_recipients ||
+      row.per_payment_units === null ||
+      row.remaining_today_units === null ||
+      BigInt(row.per_payment_units) < assignmentLiability ||
+      BigInt(row.remaining_today_units) < BigInt(row.committed_units) + additional)
+  )
+    throw new AppError(
+      'PUBLIC_POLICY_LIMIT',
+      'The payment policy must allow independent recipients and cover this assignment within its per-payment and remaining daily limits, including existing commitments. Refresh the policy reading or update its limits.',
+      409,
+    );
+  if (row && !row.settlement_ready)
+    throw new AppError(
+      'SETTLEMENT_UNAVAILABLE',
+      'The configured payment worker is offline or does not match this authority. Public work will reopen when it can process accepted payments.',
+      503,
+    );
   if (
     !row ||
     row.revoked_at ||

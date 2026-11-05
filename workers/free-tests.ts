@@ -1,11 +1,15 @@
 import { setTimeout as delay } from 'node:timers/promises';
 import { configuredFreeOrigins, freePreviewRunner } from '../scripts/free-preview-runner.ts';
+import { executePreviewRun } from '../scripts/preview-controller.ts';
 import { buildPreviewImage } from '../scripts/preview-host.ts';
 import { configuredSponsor } from '../src/server/buy-x402.ts';
 import { createPool, databaseUrl } from '../src/server/database.ts';
 import { dispatchFreeTest, freeRunnerHeartbeat } from '../src/server/free-test-dispatch.ts';
 import { prepareNextFreeTestReport } from '../src/server/free-test-reports.ts';
 import { freeTestsEnabled } from '../src/server/free-tests.ts';
+import { dispatchHostedTest } from '../src/server/hosted-test-dispatch.ts';
+import { dispatchKey, paidRunnerHeartbeat } from '../src/server/hosted-tests.ts';
+import { authenticateHost } from '../src/server/isolation.ts';
 import { purchaseNextSponsoredReport, sponsorBudgetFunded } from '../src/server/sponsored.ts';
 
 if (!freeTestsEnabled())
@@ -29,6 +33,17 @@ try {
   );
   const origins = configuredFreeOrigins();
   const runner = freePreviewRunner(await buildPreviewImage(), origins);
+  const hostCredential = process.env.TRIALOOM_HOST_CREDENTIAL;
+  const apiOrigin = process.env.TRIALOOM_RUNNER_API_ORIGIN;
+  let paidHostId: string | undefined;
+  if (hostCredential || apiOrigin) {
+    dispatchKey();
+    if (!hostCredential || !apiOrigin) throw new Error('PAID_RUNNER_CONFIG_INCOMPLETE');
+    const { host } = await authenticateHost(pool, hostCredential);
+    if (!host.platform_managed || host.operator_id) throw new Error('PLATFORM_HOST_REQUIRED');
+    paidHostId = host.id;
+    await paidRunnerHeartbeat(pool, host.id, runner.image);
+  }
   await freeRunnerHeartbeat(pool, origins, runner.acceptsVerifiedTargets);
   console.log(
     JSON.stringify({ event: 'free_runner.ready', concurrency: 1, externalOrigins: origins.length }),
@@ -37,10 +52,33 @@ try {
     while (!abort.signal.aborted) {
       await delay(3000, undefined, { signal: abort.signal });
       await freeRunnerHeartbeat(pool, origins, runner.acceptsVerifiedTargets);
+      if (paidHostId) await paidRunnerHeartbeat(pool, paidHostId, runner.image);
     }
   })().catch(() => abort.abort());
   do {
-    const worked = await dispatchFreeTest(pool, runner, abort.signal);
+    const paid =
+      paidHostId && hostCredential && apiOrigin
+        ? await dispatchHostedTest(
+            pool,
+            paidHostId,
+            (job, runToken, signal) =>
+              executePreviewRun({
+                journal: {
+                  pool,
+                  directory: process.env.TRIALOOM_CAPTURE_DIR ?? 'artifacts/paid-captures',
+                },
+                apiOrigin,
+                runId: job.run_id,
+                runToken,
+                hostCredential,
+                image: job.image,
+                mode: 'public',
+                signal,
+              }),
+            abort.signal,
+          )
+        : false;
+    const worked = paid || (await dispatchFreeTest(pool, runner, abort.signal));
     // Local preparation is recoverable and cannot pay. A report failure must not hide a test.
     await prepareNextFreeTestReport(pool).catch(() => {
       console.error(JSON.stringify({ event: 'free_report.preparation_unavailable' }));

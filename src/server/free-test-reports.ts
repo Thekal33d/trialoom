@@ -161,6 +161,14 @@ export async function prepareNextFreeTestReport(pool: Pool) {
         [buyReportService.id, freeReportVersion],
       )
     ).rows[0];
-    return source ? prepare(db, source) : null;
+    if (!source) return null;
+    // The selection's snapshot may predate a different worker's commit even
+    // when its row lock has already been released. Recheck under the lock in
+    // a fresh statement so this worker reports only work it actually prepared.
+    const alreadyPrepared = await db.query(
+      'SELECT 1 FROM buy_report_inputs WHERE free_test_id=$1 AND service=$2 AND template_version=$3',
+      [source.id, buyReportService.id, freeReportVersion],
+    );
+    return alreadyPrepared.rowCount ? null : prepare(db, source);
   });
 }

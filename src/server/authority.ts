@@ -88,6 +88,9 @@ export type AuthorityReading = {
   allowanceUnits: string;
   balanceUnits: string;
   policyActive: boolean;
+  perPaymentUnits?: string;
+  remainingTodayUnits?: string;
+  openRecipients?: boolean;
   detail: string;
 };
 export type AuthorityReader = {
@@ -231,6 +234,27 @@ export async function registerAuthority(
   return transaction(pool, async (db) => {
     await requireRole(db, actor, workspaceId, ['owner']);
     await requireMarketplaceWorkspace(db, workspaceId);
+    // Self-service accounts cannot reserve somebody else's shared approval,
+    // including through a private campaign or a manually entered policy.
+    const publicWorkspace = await db.query(
+      'SELECT 1 FROM marketplace_workspaces WHERE workspace_id=$1',
+      [workspaceId],
+    );
+    if (
+      publicWorkspace.rowCount &&
+      !(
+        await db.query(
+          `SELECT 1 FROM memberships m JOIN auth_account a ON a."userId"=m.user_id AND a."providerId"='celo-wallet'
+       WHERE m.workspace_id=$1 AND m.role='owner' AND lower(a."accountId")=lower($2)`,
+          [workspaceId, data.payerAddress],
+        )
+      ).rowCount
+    )
+      throw new AppError(
+        'PUBLIC_PAYER_PROOF_REQUIRED',
+        'Link the paying wallet in Account settings before registering its spending authority.',
+        403,
+      );
     // The approval is identified the way the chain identifies it, not by the
     // workspace or the policy, so two workspaces pointing at one wallet
     // contend on one row instead of each believing they are funded.
@@ -675,7 +699,7 @@ export async function observeAuthority(
     await db.query(
       `INSERT INTO payment_approval_observations
       (approval_id,authority_id,reader,allowance_units,balance_units,policy_active,
-      committed_at_read,detail) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      committed_at_read,detail,per_payment_units,remaining_today_units,open_recipients) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
       [
         approval.id,
         handle.id,
@@ -685,6 +709,9 @@ export async function observeAuthority(
         reading.policyActive,
         approval.committed_units,
         reading.detail.slice(0, 300),
+        reading.perPaymentUnits ?? null,
+        reading.remainingTodayUnits ?? null,
+        reading.openRecipients ?? null,
       ],
     );
     const short = !reading.policyActive || reachable < committed;

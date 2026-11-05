@@ -4,6 +4,7 @@ import { AppError } from '../domain/errors.ts';
 import type { AgentScope } from '../domain/schemas.ts';
 import { canonicalJson } from '../domain/values.ts';
 import { transaction } from './database.ts';
+import { maximumLiability, total } from './ledger.ts';
 import { requirePublicFunding, requirePublicOperator } from './marketplace.ts';
 import type { Operator } from './operators.ts';
 import { requireVerifiedTarget } from './target-verification.ts';
@@ -164,7 +165,8 @@ export async function listEligibleWork(pool: Pool, viewer: WorkViewer | AgentSes
       try {
         await transaction(pool, async (db) => {
           await requirePublicOperator(db, item.workspace_id, userId, operatorId);
-          await requirePublicFunding(db, item.authority_id);
+          const liability = total(maximumLiability(item.terms));
+          await requirePublicFunding(db, item.authority_id, 0n, liability);
           await requireVerifiedTarget(db, item.project_id);
         });
       } catch (error) {
@@ -175,6 +177,9 @@ export async function listEligibleWork(pool: Pool, viewer: WorkViewer | AgentSes
             'SELF_WORK_NOT_ALLOWED',
             'PAYOUT_WALLET_REQUIRED',
             'PUBLIC_FUNDING_REQUIRED',
+            'PUBLIC_PAYER_PROOF_REQUIRED',
+            'PUBLIC_POLICY_LIMIT',
+            'SETTLEMENT_UNAVAILABLE',
             'TARGET_VERIFICATION_REQUIRED',
           ].includes(error.code)
         )

@@ -16,6 +16,7 @@ import {
 import { getPool } from '@/server/database';
 import { openAppeal, operatorDecisions } from '@/server/decisions';
 import { storeArtifact, submitEvidence } from '@/server/evidence';
+import { hostedTestStatus, requestHostedTest } from '@/server/hosted-tests';
 import { handleApi, json, limitRequest, readBytes, readJson } from '@/server/http';
 import { operatorPayouts } from '@/server/payables';
 import { qualificationStatus, recordAttempt } from '@/server/qualification';
@@ -151,6 +152,15 @@ async function handler(request: Request) {
         }
       }
       if (parts[0] === 'assignments') {
+        if (parts.length === 3 && parts[2] === 'execute') {
+          const assignmentId = uuid.parse(parts[1]);
+          if (method === 'GET') return json(await hostedTestStatus(pool, session, assignmentId));
+          if (method === 'POST')
+            return json(
+              await requestHostedTest(pool, session, assignmentId, await readJson(request, 1024)),
+              202,
+            );
+        }
         if (parts.length === 1 && method === 'GET') {
           requireScope(session, 'assignments:read');
           return json(await operatorAssignments(pool, session.operator.id));
@@ -195,9 +205,9 @@ async function handler(request: Request) {
             return json(await releaseAssignment(pool, session, assignmentId, body));
         }
         throw new AppError(
-          'ASSIGNMENTS_UNAVAILABLE',
-          'Acceptance decisions and payouts are not implemented. They require the review and settlement work.',
-          501,
+          'NOT_FOUND',
+          'This assignment action is not available. Decisions and payouts have separate routes.',
+          404,
         );
       }
       throw new AppError('NOT_FOUND', 'This agent action is not available.', 404);

@@ -39,7 +39,7 @@ const viewSchema = z.object({
   grantExpiresAt: z.coerce.date(),
   manifest: z.object({
     binding,
-    service: z.literal('bug_discovery'),
+    service: z.enum(['test', 'bug_discovery']),
     allowedActions: z.array(z.string()),
     target: z.object({
       url: z.url(),
@@ -135,9 +135,10 @@ export async function executePreviewRun(options: {
   assert(!options.fixtureOutcome || (options.mode === 'owned' && options.journey === 'ladder'));
   assert(
     origin.origin === options.apiOrigin &&
-      origin.protocol === 'http:' &&
-      origin.hostname === '127.0.0.1' &&
-      origin.port,
+      !origin.username &&
+      !origin.password &&
+      (origin.protocol === 'https:' ||
+        (origin.protocol === 'http:' && origin.hostname === '127.0.0.1' && origin.port)),
   );
   assert(
     z.uuid().safeParse(options.runId).success &&
@@ -234,11 +235,7 @@ export async function executePreviewRun(options: {
         (manifest.target.origin === 'https://preview.example.com' &&
           manifest.binding.build.revision === 'owned-preview-v1'),
     );
-    if (options.mode === 'owned')
-      assert(
-        manifest.allowedActions.includes('Follow the owned Next page link') &&
-          manifest.readOnlyDependencies.length === 0,
-      );
+    if (options.mode === 'owned') assert(manifest.readOnlyDependencies.length === 0);
     let readUrl: string | undefined;
     if (options.journey === 'ladder') {
       assert(manifest.allowedActions.includes(ladderAction), 'LADDER_SCOPE_REQUIRED');
@@ -318,7 +315,12 @@ export async function executePreviewRun(options: {
         await check();
         const running = host.run({
           url: manifest.target.url,
-          journey: options.journey ?? (options.mode === 'owned' ? 'owned' : 'homepage'),
+          journey:
+            options.journey ??
+            (options.mode === 'owned' &&
+            manifest.allowedActions.includes('Follow the owned Next page link')
+              ? 'owned'
+              : 'homepage'),
           readUrl,
           durationMs: Math.floor(budget),
           maxNavigations: manifest.limits.maxNavigations,

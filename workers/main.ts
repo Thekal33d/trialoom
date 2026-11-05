@@ -1,4 +1,5 @@
 import { setTimeout } from 'node:timers/promises';
+import { privateKeyToAccount } from 'viem/accounts';
 import { sweepExpiredAssignments } from '../src/server/assignments.ts';
 import { verifyScheduled } from '../src/server/authority.ts';
 import { configuredSponsor } from '../src/server/buy-x402.ts';
@@ -6,8 +7,13 @@ import { createPool, databaseUrl } from '../src/server/database.ts';
 import { releaseSettledAssignments } from '../src/server/decisions.ts';
 import { processOne } from '../src/server/jobs.ts';
 import { deliverNotice, webhookTransport } from '../src/server/notices.ts';
+import { settlementHeartbeat } from '../src/server/payment-setup.ts';
 import { redactText } from '../src/server/redaction.ts';
-import { configuredPayments } from '../src/server/remesso.ts';
+import {
+  configuredPayments,
+  readOnlyAuthorityReader,
+  remessoConfig,
+} from '../src/server/remesso.ts';
 import { reconcilePurchase } from '../src/server/resources.ts';
 import { dispatchPayout } from '../src/server/settlement.ts';
 import { reconcileSponsoredPurchase } from '../src/server/sponsored.ts';
@@ -18,6 +24,11 @@ const pool = createPool(url);
 // its nonce floor belong to one client, and a fresh one per job would
 // re-initialize that storage every time.
 const payments = configuredPayments(pool);
+const reader = payments?.reader ?? readOnlyAuthorityReader();
+const signing = remessoConfig();
+const settlementAddress = signing
+  ? privateKeyToAccount(signing.agentKey as `0x${string}`).address
+  : null;
 // The sponsor signs x402 authorizations with its own key; it shares nothing
 // with the settlement signer, and absence is said out loud rather than looking
 // like a payment path that happens to pay nobody.
@@ -42,6 +53,7 @@ try {
   do {
     if (Date.now() >= nextSweep) {
       nextSweep = Date.now() + 30_000;
+      await settlementHeartbeat(pool, settlementAddress);
       const expired = await sweepExpiredAssignments(pool);
       if (expired) console.log(JSON.stringify({ event: 'assignments.expired', count: expired }));
       // A refused amount stays reserved until its appeal window closes.
@@ -58,7 +70,7 @@ try {
       'resource.reconcile': (client, lease) => reconcilePurchase(client, lease),
       // A declaration believed until somebody presses a button is not an
       // account of what can be paid, so each approval is re-read on a timer.
-      'authority.verify': (client, lease) => verifyScheduled(client, lease, payments?.reader),
+      'authority.verify': (client, lease) => verifyScheduled(client, lease, reader),
       // And a condition nobody is told about is only a notification if they
       // happen to open the queue. A workspace with no destination registered
       // keeps the notice, marked as having reached nobody.

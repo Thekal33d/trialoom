@@ -1,7 +1,8 @@
 import type { Pool } from 'pg';
-import type { PaymentStatus } from 'remesso-sdk';
+import type { PaymentStatus, Policy } from 'remesso-sdk';
 import { createRemesso, deployment } from 'remesso-sdk';
 import { createPostgresStorage } from 'remesso-sdk/postgres';
+import { createPublicClient, http } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { celo } from 'viem/chains';
 import { AppError } from '../domain/errors.ts';
@@ -284,11 +285,50 @@ export function remessoAdapter(pool: Pool, config: RemessoConfig): SettlementAda
 export function remessoReader(pool: Pool, config: RemessoConfig): AuthorityReader {
   let open: Promise<Client> | null = null;
   const connect = () => (open ??= client(pool, config));
+  return policyReader(connect);
+}
+/** Web verification never needs or receives the worker's signing key. */
+export function readOnlyAuthorityReader(env: NodeJS.ProcessEnv = process.env): AuthorityReader {
+  return policyReader(() => readOnlyPaymentClient(env));
+}
+export async function readOnlyPaymentClient(env: NodeJS.ProcessEnv = process.env) {
+  const sdk = createRemesso({
+    publicClient: createPublicClient({
+      chain: celo,
+      transport: http(env.TRIALOOM_CELO_RPC_URL || undefined, { timeout: 5000, retryCount: 0 }),
+    }),
+  });
+  try {
+    if ((await sdk.publicClient.getChainId()) !== 42220)
+      throw new AppError('CHAIN_MISMATCH', 'Payment verification requires Celo mainnet.', 503);
+    return sdk;
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    throw new AppError(
+      'AUTHORITY_READ_FAILED',
+      'The payment network could not be read. No funding was verified; try again shortly.',
+      503,
+    );
+  }
+}
+function policyReader(
+  connect: () => Promise<Pick<ReturnType<typeof createRemesso>, 'policies'>>,
+): AuthorityReader {
   return {
     name: 'remesso',
     async read(authority: AuthorityHandle): Promise<AuthorityReading> {
-      const sdk = await connect();
-      const policy = await sdk.policies.get(authority.policyId);
+      let policy: Policy;
+      try {
+        const sdk = await connect();
+        policy = await sdk.policies.get(authority.policyId);
+      } catch (error) {
+        if (error instanceof AppError) throw error;
+        throw new AppError(
+          'AUTHORITY_READ_FAILED',
+          'The payment network could not be read. No funding was verified; try again shortly.',
+          503,
+        );
+      }
       const same = (left: string, right: string) => left.toLowerCase() === right.toLowerCase();
       if (!same(policy.owner, authority.payerAddress))
         throw new AppError(
@@ -313,6 +353,9 @@ export function remessoReader(pool: Pool, config: RemessoConfig): AuthorityReade
         allowanceUnits: policy.ownerAllowance.toString(),
         balanceUnits: policy.ownerBalance.toString(),
         policyActive: policy.active,
+        perPaymentUnits: policy.perPayment.toString(),
+        remainingTodayUnits: policy.remainingToday.toString(),
+        openRecipients: !policy.allowlistOnly,
         detail: `Policy ${authority.policyId} allows ${exactUnits(policy.spendable.toString())} per payment now, with ${exactUnits(policy.remainingToday.toString())} left in its day window.`,
       };
     },

@@ -38,6 +38,9 @@ const reader = {
       balanceUnits: '1000000000',
       allowanceUnits: '1000000000',
       policyActive: true,
+      perPaymentUnits: '1000000000',
+      remainingTodayUnits: '1000000000',
+      openRecipients: true,
       detail: 'Disposable test reading; no live money.',
     };
   },
@@ -46,6 +49,13 @@ before(async () => {
   db = await disposableDatabase();
   await migrate(db.pool);
   builder = await seedFreeAccount(db.pool);
+  await db.pool.query('INSERT INTO settlement_runtime (id,agent_address) VALUES (true,$1)', [
+    `0x${'2'.repeat(40)}`,
+  ]);
+  await db.pool.query(
+    `INSERT INTO auth_account (id,"accountId","providerId","userId","createdAt","updatedAt") VALUES ($1,$2,'celo-wallet',$3,clock_timestamp(),clock_timestamp())`,
+    [randomUUID(), `0x${'1'.repeat(40)}`, builder.actor.id],
+  );
   await enableMarketplace(db.pool, builder.actor, builder.workspaceId, { acknowledged: true });
   const project = await createProject(
     db.pool,

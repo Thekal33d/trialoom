@@ -186,7 +186,7 @@ async function publish(
     const authority = await resolveAuthority(db, workspaceId, campaignId, data.authorityId);
     if (visibility === 'public') await requireVerifiedTarget(db, projectId);
     if (visibility === 'public')
-      await requirePublicFunding(db, authority?.id ?? null, authorization);
+      await requirePublicFunding(db, authority?.id ?? null, authorization, perAssignment);
     if (authorization > 0n) {
       if (authority) await commitOnAuthority(db, authority.id, campaignId, authorization, actor.id);
       await authorizeBudget(
@@ -473,6 +473,8 @@ export async function claimAssignment(db: PoolClient, session: AgentSession, inp
     if (counts.live >= (campaign.max_concurrent ?? 0))
       throw new AppError('NO_SLOTS', 'This campaign is at its concurrent assignment limit.', 409);
     const parts = maximumLiability(terms.document);
+    if (campaign.visibility === 'public')
+      await requirePublicFunding(db, campaign.authority_id, 0n, total(parts));
     const lease = new Date(Math.min(Date.now() + leaseSeconds * 1000, deadline.getTime()));
     let assignment: { id: string; attempt_token: string };
     try {

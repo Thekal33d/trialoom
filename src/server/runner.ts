@@ -10,7 +10,11 @@ import { emit } from './events.ts';
 import { bindHost, hostContract, requiredIsolation } from './isolation.ts';
 import type { TermsDocument } from './ledger.ts';
 import { assertRunLive } from './run-access.ts';
+import { type ProbeResult, type ProbeTarget, probeTarget } from './target-probe.ts';
 import { requireVerifiedTarget } from './target-verification.ts';
+
+export type { ProbeResult, ProbeTarget } from './target-probe.ts';
+
 import { type ResolveTarget, validateTarget } from './targets.ts';
 
 /** Limits the manifest publishes and ingestion enforces. */
@@ -39,34 +43,6 @@ export const isolationProfile = {
 } as const;
 export const targetPolicy = 'target-revalidation-v1';
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
-
-export type ProbeResult = { status: number; location: string | null; revision: string | null };
-export type ProbeTarget = (url: string) => Promise<ProbeResult>;
-const probeTarget: ProbeTarget = async (url) => {
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      method: 'GET',
-      redirect: 'manual',
-      signal: AbortSignal.timeout(5000),
-      headers: { 'user-agent': 'Trialoom-target-check/1', accept: 'text/html' },
-    });
-  } catch {
-    throw new AppError(
-      'TARGET_UNREACHABLE',
-      'The pinned build target did not respond. This is a blocked run, not a product defect.',
-      409,
-    );
-  }
-  // The response body is never read: a target check must not pull customer
-  // content into the web process.
-  await response.body?.cancel();
-  return {
-    status: response.status,
-    location: response.headers.get('location'),
-    revision: response.headers.get('x-build-revision'),
-  };
-};
 
 export type TargetCheck = {
   policy: string;
@@ -108,7 +84,7 @@ export async function revalidateTarget(
         409,
       );
     if (!hop) addresses = checked.addresses;
-    const probed = await probe(checked.targetUrl);
+    const probed = await probe(checked.targetUrl, checked.addresses);
     hops.push({ url: checked.targetUrl, status: probed.status });
     finalUrl = checked.targetUrl;
     if (probed.status >= 300 && probed.status < 400) {

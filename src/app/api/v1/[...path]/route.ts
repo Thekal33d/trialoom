@@ -13,7 +13,6 @@ import {
   registerAuthority,
   revokeAuthority,
   topUpAuthority,
-  unreadableAuthority,
   verifyAuthority,
   workspaceAuthorities,
 } from '@/server/authority';
@@ -68,6 +67,7 @@ import {
   revokeWallet,
 } from '@/server/operators';
 import { operatorPayouts } from '@/server/payables';
+import { importPaymentPolicy, paymentSetup } from '@/server/payment-setup';
 import {
   addBuild,
   createCampaign,
@@ -78,7 +78,7 @@ import {
 } from '@/server/projects';
 import { qualificationStatus } from '@/server/qualification';
 import { redactionPolicy } from '@/server/redaction';
-import { configuredPayments } from '@/server/remesso';
+import { readOnlyAuthorityReader } from '@/server/remesso';
 import { decideQuote, proposeQuote } from '@/server/repairs';
 import {
   issueTargetChallenge,
@@ -143,6 +143,13 @@ async function handler(request: Request) {
       return json({ workspaces: await listWorkspaces(pool, actor) });
     if (parts[0] === 'workspaces' && parts.length >= 3) {
       const workspaceId = uuid.parse(parts[1]);
+      if (parts.length === 3 && parts[2] === 'payment-setup' && method === 'GET')
+        return json(await paymentSetup(pool, actor, workspaceId));
+      if (parts.length === 3 && parts[2] === 'payment-setup' && method === 'POST')
+        return json(
+          await importPaymentPolicy(pool, actor, workspaceId, await readJson(request, 1024)),
+          201,
+        );
       if (parts.length === 3 && parts[2] === 'marketplace' && method === 'POST')
         return json(
           await enableMarketplace(pool, actor, workspaceId, await readJson(request, 1024)),
@@ -459,7 +466,7 @@ async function handler(request: Request) {
             actor,
             workspaceId,
             uuid.parse(parts[3]),
-            configuredPayments(pool)?.reader ?? unreadableAuthority,
+            readOnlyAuthorityReader(),
           ),
         );
       if (parts.length === 3 && parts[2] === 'invitations' && method === 'POST') {

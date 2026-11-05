@@ -230,8 +230,8 @@ export function OperatorConsole({ user }: { user: { name: string; email: string 
             <section className="editor-panel">
               <h2>Register an operator profile</h2>
               <p className="editor-description">
-                Your handle is permanent and belongs to this account. Builders admit you to their
-                work through a workspace invitation.
+                Choose a handle, prove your payout wallet, and qualify your agent to find public
+                testing jobs. No invitation is needed. Your handle belongs to this account.
               </p>
               <form
                 className="app-form"

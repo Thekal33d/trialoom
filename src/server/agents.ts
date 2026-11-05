@@ -4,6 +4,7 @@ import { AppError } from '../domain/errors.ts';
 import type { AgentScope } from '../domain/schemas.ts';
 import { canonicalJson } from '../domain/values.ts';
 import { transaction } from './database.ts';
+import { requirePublicFunding, requirePublicOperator } from './marketplace.ts';
 import type { Operator } from './operators.ts';
 
 export type AgentSession = {
@@ -129,7 +130,7 @@ export async function listEligibleWork(pool: Pool, viewer: WorkViewer | AgentSes
     'operator' in viewer ? { operatorId: viewer.operator.id, userId: viewer.userId } : viewer;
   const items = (
     await pool.query(
-      `SELECT c.id AS campaign_id,c.name,p.id AS project_id,w.id AS workspace_id,
+      `SELECT c.id AS campaign_id,c.name,c.visibility,c.authority_id,p.id AS project_id,w.id AS workspace_id,
         w.name AS workspace,t.id AS terms_version_id,t.version,t.build_id,t.content_hash,
         t.document->>'service' AS service,t.document->>'priceUnits' AS price_units,
         t.document->>'deadline' AS deadline,t.document AS terms,
@@ -145,16 +146,42 @@ export async function listEligibleWork(pool: Pool, viewer: WorkViewer | AgentSes
       FROM campaigns c
       JOIN projects p ON p.id=c.project_id
       JOIN workspaces w ON w.id=p.workspace_id
-      JOIN memberships m ON m.workspace_id=w.id AND m.user_id=$1 AND m.role='operator'
+      LEFT JOIN memberships m ON m.workspace_id=w.id AND m.user_id=$1 AND m.role='operator'
       JOIN terms_versions t ON t.id=c.published_terms_id
       JOIN campaign_accounts acc ON acc.campaign_id=c.id
       JOIN operator_eligibility e ON e.operator_id=$2 AND e.service=t.document->>'service'
         AND e.state='eligible'
-      WHERE c.status='open' AND (t.document->>'deadline')::timestamptz>clock_timestamp()
-      ORDER BY t.created_at`,
+      WHERE c.status='open' AND (c.visibility='public' OR m.user_id IS NOT NULL)
+        AND (t.document->>'deadline')::timestamptz>clock_timestamp()
+      ORDER BY t.created_at LIMIT 100`,
       [userId, operatorId],
     )
   ).rows;
+  const visible = [];
+  for (const item of items) {
+    if (item.visibility === 'public') {
+      try {
+        await transaction(pool, async (db) => {
+          await requirePublicOperator(db, item.workspace_id, userId, operatorId);
+          await requirePublicFunding(db, item.authority_id);
+        });
+      } catch (error) {
+        if (
+          error instanceof AppError &&
+          [
+            'OPERATOR_SUSPENDED',
+            'SELF_WORK_NOT_ALLOWED',
+            'PAYOUT_WALLET_REQUIRED',
+            'PUBLIC_FUNDING_REQUIRED',
+          ].includes(error.code)
+        )
+          continue;
+        throw error;
+      }
+    }
+    const { authority_id: _, ...offer } = item;
+    visible.push(offer);
+  }
   const admissions = (
     await pool.query(
       `SELECT w.id,w.name FROM memberships m JOIN workspaces w ON w.id=m.workspace_id
@@ -169,21 +196,16 @@ export async function listEligibleWork(pool: Pool, viewer: WorkViewer | AgentSes
     )
   ).rows.map((row) => row.service as string);
   const unavailable: { code: string; message: string }[] = [];
-  if (!admissions.length)
-    unavailable.push({
-      code: 'NO_WORKSPACE_ADMISSION',
-      message: 'No builder workspace has admitted this operator yet.',
-    });
   if (!eligible.length)
     unavailable.push({
       code: 'NOT_QUALIFIED',
       message: 'Pass the seeded qualification tasks for a service to become eligible.',
     });
-  if (admissions.length && eligible.length && !items.length)
+  if (eligible.length && !visible.length)
     unavailable.push({
       code: 'NO_OPEN_CAMPAIGN',
       message:
-        'No builder has an open campaign for a service you are eligible for, with budget and slots left.',
+        'No eligible funded jobs are available. Public work requires a proven payout wallet; private work requires workspace access.',
     });
-  return { items, admissions, eligibleServices: eligible, unavailable };
+  return { items: visible, admissions, eligibleServices: eligible, unavailable };
 }

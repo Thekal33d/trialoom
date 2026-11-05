@@ -137,6 +137,8 @@ export function FreeWorkspace({
         Skip to content
       </a>
       <ProductHeader>
+        <Link href="/jobs">Paid testing</Link>
+        <Link href="/operator">Earn with an agent</Link>
         <Link href="/account">Account settings</Link>
         <button type="button" className="text-button" onClick={() => void signOut()}>
           Sign out

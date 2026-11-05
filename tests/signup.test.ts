@@ -217,7 +217,7 @@ test('free projects are tenant scoped and concurrent creation cannot exceed thre
   );
 });
 
-test('free signup cannot open paid work or mint operator access through invitations', async () => {
+test('public signup can register an operator while paid tools require explicit opt-in', async () => {
   const beta = await register('boundaries@example.test');
   await assert.rejects(
     publishCampaign(db.pool, beta.actor, beta.workspaceId, randomUUID(), randomUUID(), {
@@ -246,9 +246,9 @@ test('free signup cannot open paid work or mint operator access through invitati
     transaction(db.pool, (client) => requireMarketplaceWorkspace(client, beta.workspaceId)),
     code('FREE_BETA_ONLY'),
   );
-  await assert.rejects(
-    registerOperator(db.pool, beta.actor, { handle: 'free-operator' }),
-    code('OPERATOR_INVITATION_REQUIRED'),
+  assert.equal(
+    (await registerOperator(db.pool, beta.actor, { handle: 'free-operator' })).handle,
+    'free-operator',
   );
   await assert.rejects(
     createInvitation(db.pool, beta.actor, beta.workspaceId, {
@@ -257,7 +257,7 @@ test('free signup cannot open paid work or mint operator access through invitati
     }),
     code('FREE_BETA_ONLY'),
   );
-  for (const table of ['campaigns', 'payables', 'payment_authorities', 'operators'])
+  for (const table of ['campaigns', 'payables', 'payment_authorities'])
     assert.equal((await db.pool.query(`SELECT count(*) FROM ${table}`)).rows[0].count, '0');
 });
 

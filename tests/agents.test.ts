@@ -477,7 +477,7 @@ test('an operator with no admission or qualification is told which gate applies'
   const work = await listEligibleWork(db.pool, await authenticateAgent(db.pool, credential.secret));
   assert.deepEqual(
     work.unavailable.map((entry) => entry.code),
-    ['NO_WORKSPACE_ADMISSION', 'NOT_QUALIFIED'],
+    ['NOT_QUALIFIED'],
   );
 });
 

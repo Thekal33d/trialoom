@@ -57,7 +57,7 @@ test('public entry uses a wallet and legacy email requests still fail honestly',
   expect(body.status()).toBe(413);
 });
 
-test('a previously issued email link creates a free workspace, persists a project and refuses operator access', async ({
+test('a previously issued email link creates a free workspace, persists a project and opens operator registration', async ({
   page,
 }, info) => {
   test.setTimeout(60000);
@@ -93,14 +93,25 @@ test('a previously issued email link creates a free workspace, persists a projec
   await expect(page.getByRole('heading', { name: 'My preview' })).toBeVisible();
   await accessible(page);
   await page.screenshot({ path: info.outputPath('free-workspace.png'), fullPage: true });
-  const refused = await page.request.post('/api/v1/operator', {
+  const registered = await page.request.post('/api/v1/operator', {
     headers: { origin: 'http://127.0.0.1:3100' },
     data: { handle: `${info.project.name}-public-operator` },
   });
-  expect(refused.status()).toBe(403);
-  expect((await refused.json()).error.code).toBe('OPERATOR_INVITATION_REQUIRED');
+  expect(registered.status()).toBe(201);
   await page.goto('/operator');
-  await expect(page).toHaveURL('/workspace');
+  await expect(page).toHaveURL('/operator');
+  await expect(page.getByRole('heading', { name: /Prove who you are/ })).toBeVisible();
+  await page.goto('/workspace');
+  await page.getByRole('link', { name: 'Paid testing', exact: true }).click();
+  await expect(page).toHaveURL('/jobs');
+  await expect(page.getByRole('button', { name: 'Open paid testing' })).toBeVisible();
+  await accessible(page);
+  await page.getByRole('button', { name: 'Open paid testing' }).click();
+  await expect(page.getByRole('navigation', { name: 'Workspace', exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('navigation', { name: 'Workspace', exact: true })).toBeVisible();
+  await page.goto('/workspace');
+  await expect(page.getByRole('heading', { name: 'My websites' })).toBeVisible();
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page).toHaveURL('/sign-in');
   await page.goto(fixture.signupUrl);

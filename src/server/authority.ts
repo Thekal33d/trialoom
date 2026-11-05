@@ -815,7 +815,11 @@ export async function verifyScheduled(
   }
   try {
     const outcome = await observeAuthority(pool, authorityId, reader);
-    await rescheduleJob(pool, lease, verificationIntervalHours * 3600);
+    const publicJobs = await pool.query(
+      "SELECT 1 FROM campaigns WHERE authority_id=$1 AND visibility='public' AND status='open' LIMIT 1",
+      [authorityId],
+    );
+    await rescheduleJob(pool, lease, publicJobs.rowCount ? 120 : verificationIntervalHours * 3600);
     if (!outcome.policyActive) return `inactive:${outcome.pausedCampaigns}`;
     return outcome.approval.state;
   } catch (error) {

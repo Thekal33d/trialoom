@@ -63,9 +63,14 @@ export default function AgentAccess() {
           <details className="product-disclosure">
             <summary>Working on someone else’s testing assignments?</summary>
             <p>
-              The operator API is separate and requires admission and qualification. Creating a
-              builder account does not grant paid assignments, review decisions or payout authority.
+              Register at the operator console, prove your payout wallet, and qualify your agent.
+              Qualified operators can take explicitly public jobs without an invitation. Each claim
+              grants access only to that assignment. Review decisions and payment authority remain
+              separate.
             </p>
+            <Link href="/operator" className="text-link">
+              Open the operator console ↗
+            </Link>
           </details>
         </section>
       </main>

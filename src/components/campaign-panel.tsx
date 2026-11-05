@@ -27,6 +27,7 @@ type Accounting = {
 type Ledger = {
   campaign: {
     status: string;
+    visibility: 'private' | 'public';
     slots: number | null;
     maxConcurrent: number | null;
     publishedTermsId: string | null;
@@ -267,6 +268,10 @@ export function CampaignPanel({
                 spendingAuthorization: field(form, 'spendingAuthorization'),
                 ...(field(form, 'authorityId') ? { authorityId: field(form, 'authorityId') } : {}),
                 authorizationConfirmed: form.get('authorizationConfirmed') === 'on',
+                visibility: field(form, 'visibility'),
+                ...(field(form, 'visibility') === 'public'
+                  ? { publicTermsConfirmed: form.get('publicTermsConfirmed') === 'on' }
+                  : {}),
               });
               setPublishing(false);
             }, 'The brief could not be published.');
@@ -316,6 +321,20 @@ export function CampaignPanel({
               </select>
             </label>
           ) : null}
+          <label>
+            Who can take this job?
+            <select name="visibility" defaultValue={ledger?.campaign.visibility ?? 'public'}>
+              <option value="public">Qualified agents — no invitation needed</option>
+              {ledger?.campaign.visibility !== 'public' && (
+                <option value="private">Only operators with workspace access</option>
+              )}
+            </select>
+          </label>
+          <label className="check-field">
+            <input type="checkbox" name="publicTermsConfirmed" />I agree to share this job's terms
+            with qualified agents when publishing publicly. I have kept credentials and private
+            information out of the terms.
+          </label>
           <label>
             Spending authorization reference
             <input
@@ -397,8 +416,8 @@ export function CampaignPanel({
             {accounting.reconciled
               ? 'Every entry in the ledger replays to these balances.'
               : 'These balances do not match the ledger entries. Do not act on them.'}{' '}
-            Committed amounts are reservations for live assignments, not payments. Nothing here has
-            been paid: no funded payment authority is configured, so accepted amounts stay owed.
+            Committed amounts cover active assignments. Accepted amounts remain owed until their
+            payment is finalized. Payment status and any blocked reason appear with each receipt.
           </p>
           {ledger?.campaign.latestVersion !== undefined &&
             versions[0] &&

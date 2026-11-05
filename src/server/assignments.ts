@@ -22,6 +22,7 @@ import {
   type TermsDocument,
   total,
 } from './ledger.ts';
+import { requirePublicFunding, requirePublicOperator } from './marketplace.ts';
 import { approvedQuote, repairRole } from './repairs.ts';
 import { requireMarketplaceWorkspace } from './signup.ts';
 
@@ -35,6 +36,8 @@ type CampaignRow = {
   published_terms_id: string | null;
   slots: number | null;
   max_concurrent: number | null;
+  visibility: 'private' | 'public';
+  authority_id: string | null;
 };
 
 async function lockCampaign(db: PoolClient, projectId: string, campaignId: string) {
@@ -117,6 +120,28 @@ async function publish(
     if (!['draft', 'open', 'paused'].includes(campaign.status))
       throw new AppError('CAMPAIGN_CLOSED', 'This brief can no longer be published.', 409);
     const terms = await termsVersion(db, campaignId, data.termsVersionId);
+    const visibility = data.visibility ?? campaign.visibility;
+    if (campaign.visibility === 'public' && visibility === 'private')
+      throw new AppError(
+        'PUBLICATION_IRREVERSIBLE',
+        'Published terms cannot become private again. Pause or close this job to stop new claims.',
+        409,
+      );
+    if (visibility === 'public' && data.publicTermsConfirmed !== true)
+      throw new AppError(
+        'PUBLIC_TERMS_CONFIRMATION_REQUIRED',
+        'Confirm that qualified operators may read this job and its terms.',
+        400,
+      );
+    if (
+      visibility === 'public' &&
+      (terms.document.minimumIsolation !== 'witnessed' || BigInt(terms.document.priceUnits) <= 0n)
+    )
+      throw new AppError(
+        'PUBLIC_JOB_INVALID',
+        'Public paid jobs require a positive execution fee and witnessed browser isolation.',
+        400,
+      );
     if (new Date(terms.document.deadline) <= new Date())
       throw new AppError('DEADLINE_PAST', 'These terms have passed their delivery deadline.');
     // A repair is bought against an approved quote, so the offer operators see
@@ -158,6 +183,8 @@ async function publish(
     // brief whose authority cannot cover it is refused rather than published
     // with a promise two campaigns are both relying on.
     const authority = await resolveAuthority(db, workspaceId, campaignId, data.authorityId);
+    if (visibility === 'public')
+      await requirePublicFunding(db, authority?.id ?? null, authorization);
     if (authorization > 0n) {
       if (authority) await commitOnAuthority(db, authority.id, campaignId, authorization, actor.id);
       await authorizeBudget(
@@ -186,7 +213,7 @@ async function publish(
     await db.query(
       `UPDATE campaigns SET status='open',slots=$2,max_concurrent=$3,published_terms_id=$4,
       published_by=$5,published_at=COALESCE(published_at,clock_timestamp()),closed_at=NULL,
-      spending_authorization=$6,authority_id=COALESCE($7,authority_id) WHERE id=$1`,
+      spending_authorization=$6,authority_id=COALESCE($7,authority_id),visibility=$8 WHERE id=$1`,
       [
         campaignId,
         data.slots,
@@ -195,8 +222,14 @@ async function publish(
         actor.id,
         data.spendingAuthorization,
         authority?.id ?? null,
+        visibility,
       ],
     );
+    if (visibility === 'public' && authority)
+      await db.query(
+        "UPDATE outbox_jobs SET available_at=LEAST(available_at,clock_timestamp()+interval '2 minutes') WHERE dedupe_key=$1 AND state='pending'",
+        [`authority:${authority.id}`],
+      );
     await audit(
       db,
       workspaceId,
@@ -375,11 +408,12 @@ export async function claimAssignment(db: PoolClient, session: AgentSession, inp
   {
     const campaign = (
       await db.query<CampaignRow & { workspace_id: string }>(
-        `SELECT c.*,p.workspace_id FROM campaigns c JOIN projects p ON p.id=c.project_id WHERE c.id=$1`,
+        `SELECT c.*,p.workspace_id FROM campaigns c JOIN projects p ON p.id=c.project_id WHERE c.id=$1 FOR UPDATE OF c`,
         [campaignId],
       )
     ).rows[0];
     if (!campaign) throw new AppError('NOT_FOUND', 'That campaign is not available.', 404);
+    if (campaign.visibility === 'public') await requirePublicFunding(db, campaign.authority_id);
     // Serialize every claim on this campaign behind one row.
     const account = await lockAccount(db, campaignId);
     await expireLapsedAssignments(db, campaignId);
@@ -389,7 +423,9 @@ export async function claimAssignment(db: PoolClient, session: AgentSession, inp
         'This campaign is not accepting claims. Existing assignments continue under their own terms.',
         409,
       );
-    if (
+    if (campaign.visibility === 'public') {
+      await requirePublicOperator(db, campaign.workspace_id, session.userId, session.operator.id);
+    } else if (
       !(
         await db.query(
           `SELECT 1 FROM memberships WHERE workspace_id=$1 AND user_id=$2 AND role='operator'`,
@@ -657,6 +693,7 @@ export async function campaignLedger(
         id: campaign.id,
         name: campaign.name,
         status: campaign.status,
+        visibility: campaign.visibility,
         slots: campaign.slots,
         maxConcurrent: campaign.max_concurrent,
         publishedTermsId: campaign.published_terms_id,

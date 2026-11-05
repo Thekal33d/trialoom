@@ -177,6 +177,8 @@ export const idempotencyKeySchema = z.string().trim().min(8).max(200);
 
 export const publicationSchema = z
   .object({
+    visibility: z.enum(['private', 'public']).optional(),
+    publicTermsConfirmed: z.literal(true).optional(),
     termsVersionId: uuid,
     slots: z.number().int().min(1).max(1000),
     maxConcurrent: z.number().int().min(1).max(100),

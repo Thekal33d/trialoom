@@ -131,6 +131,9 @@ export function LiveWorkspace({
           </select>
         </label>
         <nav aria-label="Workspace">
+          <Link className="nav-link" href="/workspace">
+            My websites &amp; free checks
+          </Link>
           <button
             className={`nav-link ${view === 'projects' ? 'active' : ''}`}
             type="button"
@@ -167,7 +170,7 @@ export function LiveWorkspace({
             }}
           >
             <Icon name="book" />
-            Pilot readiness
+            Service health
           </button>
           {workspace?.role === 'owner' && (
             <button

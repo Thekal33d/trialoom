@@ -54,6 +54,7 @@ import {
   revokeInvitation,
 } from '@/server/invitations';
 import { registerHost, revokeHost, workspaceHosts } from '@/server/isolation';
+import { enableMarketplace } from '@/server/marketplace';
 import { pilotReadiness } from '@/server/metrics';
 import { registerEndpoint, revokeEndpoint, workspaceNotices } from '@/server/notices';
 import {
@@ -136,6 +137,10 @@ async function handler(request: Request) {
       return json({ workspaces: await listWorkspaces(pool, actor) });
     if (parts[0] === 'workspaces' && parts.length >= 3) {
       const workspaceId = uuid.parse(parts[1]);
+      if (parts.length === 3 && parts[2] === 'marketplace' && method === 'POST')
+        return json(
+          await enableMarketplace(pool, actor, workspaceId, await readJson(request, 1024)),
+        );
       if (parts[2] === 'free-tests') {
         if (parts.length === 3 && method === 'GET')
           return json(await freeTestsView(pool, actor, workspaceId));

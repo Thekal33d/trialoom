@@ -6,6 +6,7 @@ import { AppError } from '../domain/errors.ts';
 import { emailSchema, tokenSchema } from '../domain/schemas.ts';
 import { audit } from './access.ts';
 import { transaction } from './database.ts';
+import { marketplaceEnabled } from './marketplace.ts';
 
 export const signupRequestSchema = z.object({ email: emailSchema }).strict();
 const signupCompleteSchema = z
@@ -141,20 +142,12 @@ export async function freeBetaAccount(db: Pool | PoolClient, userId: string) {
 export async function requireMarketplaceWorkspace(db: PoolClient, workspaceId: string) {
   if (
     (await db.query('SELECT 1 FROM free_beta_accounts WHERE workspace_id=$1', [workspaceId]))
-      .rowCount
+      .rowCount &&
+    !(await marketplaceEnabled(db, workspaceId))
   )
     throw new AppError(
       'FREE_BETA_ONLY',
-      'Paid work and payment setup are not available in a free beta workspace.',
-      403,
-    );
-}
-
-export async function requireInvitedOperator(db: PoolClient, userId: string) {
-  if (await freeBetaAccount(db, userId))
-    throw new AppError(
-      'OPERATOR_INVITATION_REQUIRED',
-      'Public signup provides a builder workspace. Operator enrollment is not open yet.',
+      'Open paid testing from your workspace to enable job and payment setup.',
       403,
     );
 }

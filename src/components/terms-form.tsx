@@ -276,7 +276,7 @@ export function TermsForm({
         </div>
         <label>
           Execution isolation
-          <select name="minimumIsolation" defaultValue={d?.minimumIsolation ?? 'attested'}>
+          <select name="minimumIsolation" defaultValue={d?.minimumIsolation ?? 'witnessed'}>
             <option value="attested">Attested: the agent reports its own isolation</option>
             <option value="witnessed">
               Witnessed: a registered host's proxy reports its egress

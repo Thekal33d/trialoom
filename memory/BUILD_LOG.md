@@ -1033,3 +1033,10 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Inspected public signup restrictions, operator/workspace admission, job claims, free dispatch, production Dockerfiles and evidence storage. Public claims will use explicit job visibility without granting private workspace membership.
 - Checks: tracking diff/whitespace review. No application behavior, hosting setting, payment or submission changed in this step. Implementation and hosted acceptance remain open.
 - Commit subject: `docs: adopt public self-service testing marketplace` (MARKET-01).
+
+## 2026-11-05 — MARKET-01 — Public operator enrollment and paid workspace access
+
+- Added migration 0026 for explicit workspace opt-in and private-by-default campaign visibility. Public registration no longer requires an invitation; public claims require qualification, a proven payout identity, fresh exact-policy funding and independence from workspace managers. Existing private jobs stay hidden and unclaimable without admission. Paid opt-in preserves free allowance and creates no payment authority.
+- Added /jobs entry, paid/operator navigation, explicit public-term consent and witnessed-isolation default. Public offer discovery does not grant project or workspace access. Public authority checks repeat every two minutes; claims serialize approval/account locks and reserve the maximum liability.
+- Checks: 42 initial access/ledger tests and 46 authority/ledger tests passed; final focused enrollment/agents/marketplace run passed 29, including self-work, stale funding, sibling-policy confusion and parallel last-slot regressions. Four desktop/mobile browser tests passed with accessibility/overflow checks. Production build and lint pass. Mobile workspace capture inspected. No money moved and no production settings changed.
+- Initial documentation commit hit the sandbox's Git-index restriction; the approved Git commit path succeeded as 2f2f604. This step's subject: `feat: open qualified public marketplace access` (MARKET-01). Website proof, hosted execution, product simplification and real settlement remain open.

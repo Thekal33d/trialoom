@@ -14,6 +14,7 @@ export function ProductHeader({ children }: { children?: ReactNode }) {
           <>
             <Link href="/demo/guide">How it works</Link>
             <Link href="/agents">For agents</Link>
+            <Link href="/jobs">Paid testing</Link>
             <Link href="/sign-in" className="button secondary">
               Connect wallet
             </Link>
@@ -27,7 +28,7 @@ export function ProductHeader({ children }: { children?: ReactNode }) {
 export function ProductFooter() {
   return (
     <footer className="product-footer">
-      <span>Trialoom · Free beta</span>
+      <span>Trialoom · Test. Fix. Ship.</span>
       <Link href="/demo/guide">Help &amp; how it works</Link>
     </footer>
   );

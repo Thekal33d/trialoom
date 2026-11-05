@@ -1,0 +1,61 @@
+{
+  "task": "WALLET-03",
+  "date": "2026-11-05",
+  "decision": "D063",
+  "deployment": "local only",
+  "implementation": {
+    "walletUi": "RainbowKit 2.2.11 / Wagmi 2.19.5",
+    "externalTransport": "EIP-6963 and direct EIP-1193 injection",
+    "reownProjectRequired": false,
+    "walletConnectRelayInitialized": false,
+    "optionalEmbeddedSdk": "@web3auth/modal 11.4.3",
+    "localEmbeddedNetwork": "sapphire_devnet",
+    "chainId": 42220,
+    "authBoundary": "Existing server-authored single-use browser-bound SIWE / Better Auth session",
+    "privateKeyExported": false
+  },
+  "verification": {
+    "lint": "passed, 211 files",
+    "types": "passed",
+    "productionBuild": "passed",
+    "backendAuthTests": { "passed": 7, "failed": 0 },
+    "proofAndConfigTests": { "passed": 4, "failed": 0 },
+    "browserSuite": {
+      "total": 14,
+      "finalFullRunPassed": 13,
+      "finalFullRunFailed": 1,
+      "failure": "Mobile contrast measurement occurred during the modal opening animation",
+      "fix": "Wait for modal animations before accessibility measurement",
+      "targetedRerunPassed": 1,
+      "targetedRerunFailed": 0,
+      "allCasesCoveredPassing": true,
+      "walletTransport": "simulated, real signatures and real auth/database/session boundaries",
+      "sizes": ["desktop", "mobile"]
+    },
+    "liveWeb3Auth": {
+      "projectConfigured": true,
+      "desktopModalInitialized": true,
+      "mobileModalInitialized": true,
+      "googleChoiceRendered": true,
+      "oauthCompleted": false,
+      "embeddedSessionEndToEndVerified": false
+    },
+    "walletPickerAccessibility": "zero axe WCAG A/AA violations after contrast/decorative-icon corrections and animation-aware measurement",
+    "visualInspection": "desktop/mobile entry and wallet/provider dialogs"
+  },
+  "productionDependencyAudit": {
+    "total": 57,
+    "critical": 0,
+    "high": 17,
+    "moderate": 21,
+    "low": 19,
+    "status": "review/remediation pending; propagated findings are not 57 distinct root advisories"
+  },
+  "notPerformed": [
+    "User wallet-extension approval",
+    "Completed social-provider login",
+    "New account creation via live Web3Auth",
+    "Remote push or Railway deployment",
+    "usebuy purchase or additional payload disclosure"
+  ]
+}

@@ -3,16 +3,13 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { LoomMark } from './icons';
 import { api } from './live-types';
-import { WalletLogin } from './wallet-login';
 
 export function SignupForm({
   complete = false,
   enabled,
-  walletEnabled = false,
 }: {
   complete?: boolean;
   enabled: boolean;
-  walletEnabled?: boolean;
 }) {
   const tokenRef = useRef<string | null>(null);
   const [email, setEmail] = useState('');
@@ -87,9 +84,7 @@ export function SignupForm({
           </h1>
           <p>
             {!enabled
-              ? walletEnabled
-                ? 'Use a wallet to get started. Email signup is coming soon.'
-                : 'Signup isn’t open yet. You can still explore the example report.'
+              ? 'Signup isn’t open yet. You can still explore the example report.'
               : sent
                 ? 'Open the link in your email within 30 minutes to continue.'
                 : complete
@@ -149,13 +144,10 @@ export function SignupForm({
               </button>
             </form>
           )}
-          {!enabled && !walletEnabled && (
+          {!enabled && (
             <Link href="/demo" className="button primary">
               See an example report
             </Link>
-          )}
-          {!complete && !sent && walletEnabled && (
-            <WalletLogin intent="sign-up" primary={!enabled} />
           )}
           <p className="auth-footnote">
             <Link className="text-link" href="/sign-in">

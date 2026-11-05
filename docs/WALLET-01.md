@@ -2,6 +2,8 @@
 
 Updated: 2026-11-04. Decision: D060. Local implementation; not yet deployed to Railway.
 
+Current UI/configuration: [WALLET-03](WALLET-03.md) supersedes the original dropdown with RainbowKit and optional Web3Auth. The server authentication boundary below is unchanged.
+
 ## Wallet accounts
 
 D062 supersedes the original optional-wallet presentation: Trialoom now leads with a unified **Connect wallet** flow at `/sign-in` for new and returning users. `/sign-up` redirects there. Email/password is retained at `/sign-in/email` for existing accounts, not as public onboarding. Existing email users should sign in with email, open **Account settings**, and choose **Link a wallet** to preserve their current account, workspace and roles. Linking requires a session created in the last 30 minutes and proof of the wallet; a wallet already owned by another account cannot be transferred or merged here.

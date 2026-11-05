@@ -16,14 +16,28 @@ const fixtures = JSON.parse(readFileSync(process.env.TRIALOOM_E2E_FIXTURE ?? '',
 
 // Only the wallet transport is simulated. Signatures are real, and all auth HTTP,
 // cookies, database records and account authorization use the application.
-async function installWallet(page: Page, rejected = false) {
+async function installWallet(
+  page: Page,
+  rejected = false,
+  kind: 'MetaMask' | 'Rabby' = 'MetaMask',
+  legacy = false,
+) {
   const account = privateKeyToAccount(generatePrivateKey());
   const methods: string[] = [];
   let chainId = '0x1';
   await page.exposeFunction(
-    'testWalletRequest',
+    `testWalletRequest${kind}`,
     async ({ method, params }: { method: string; params?: unknown[] }) => {
       methods.push(method);
+      if (method === 'wallet_requestPermissions') {
+        expect(params).toEqual([{ eth_accounts: {} }]);
+        return [
+          {
+            parentCapability: 'eth_accounts',
+            caveats: [{ type: 'restrictReturnedAccounts', value: [account.address] }],
+          },
+        ];
+      }
       if (method === 'eth_requestAccounts' || method === 'eth_accounts') return [account.address];
       if (method === 'eth_chainId') return chainId;
       if (method === 'wallet_switchEthereumChain') {
@@ -37,18 +51,87 @@ async function installWallet(page: Page, rejected = false) {
       throw new Error(`Unexpected wallet method: ${method}`);
     },
   );
-  await page.addInitScript(() => {
-    Object.defineProperty(window, 'ethereum', {
-      value: {
-        request: (args: unknown) =>
-          (
-            window as unknown as { testWalletRequest: (args: unknown) => Promise<unknown> }
-          ).testWalletRequest(args),
-      },
-    });
-  });
+  await page.addInitScript(
+    ({ kind, legacy }) => {
+      const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
+      const provider = {
+        isMetaMask: kind === 'MetaMask',
+        isRabby: kind === 'Rabby',
+        on: (event: string, listener: (...args: unknown[]) => void) => {
+          if (!listeners.has(event)) listeners.set(event, new Set());
+          listeners.get(event)?.add(listener);
+        },
+        removeListener: (event: string, listener: (...args: unknown[]) => void) => {
+          listeners.get(event)?.delete(listener);
+        },
+        request: async (args: { method: string }) => {
+          const result = await (
+            window as unknown as Record<string, (args: unknown) => Promise<unknown>>
+          )[`testWalletRequest${kind}`](args);
+          if (args.method === 'wallet_switchEthereumChain') {
+            for (const listener of listeners.get('chainChanged') ?? []) listener('0xa4ec');
+          }
+          return result;
+        },
+      };
+      if (!('ethereum' in window)) Object.defineProperty(window, 'ethereum', { value: provider });
+      const browser = window as Window & {
+        ethereum?: typeof provider & { providers?: (typeof provider)[] };
+      };
+      if (browser.ethereum) {
+        browser.ethereum.providers ??= [browser.ethereum];
+        if (!browser.ethereum.providers.includes(provider))
+          browser.ethereum.providers.push(provider);
+      }
+      if (legacy) return;
+      const announce = () =>
+        window.dispatchEvent(
+          new CustomEvent('eip6963:announceProvider', {
+            detail: {
+              provider,
+              info: {
+                uuid:
+                  kind === 'MetaMask'
+                    ? '95a8f379-3141-4d18-8255-8d6b8995ac04'
+                    : '95a8f379-3141-4d18-8255-8d6b8995ac05',
+                name: `Test ${kind}`,
+                rdns: kind === 'MetaMask' ? 'io.metamask' : 'io.rabby',
+                icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" fill="orange"/></svg>',
+              },
+            },
+          }),
+        );
+      window.addEventListener('eip6963:requestProvider', announce);
+      announce();
+    },
+    { kind, legacy },
+  );
   return { account, methods };
 }
+async function connectWallet(page: Page, label = 'Connect wallet', name = 'Test MetaMask') {
+  await page.getByRole('button', { name: label, exact: true }).click();
+  const walletName =
+    test.info().project.name === 'mobile'
+      ? name.replace('Test MetaMask', 'MetaMask').replace('Test Rabby', 'Rabby Wallet')
+      : name;
+  const wallet = page
+    .getByRole('button')
+    .filter({ hasText: new RegExp(`^${walletName}(Recent| Recent)?$`) });
+  await expect(page.getByRole('combobox')).toHaveCount(0);
+  if (test.info().title.startsWith('wallet signup')) {
+    // Wait for the sheet's opening transition before measuring text contrast.
+    await page.getByRole('dialog').evaluate(async (dialog) => {
+      await Promise.all(
+        dialog.getAnimations({ subtree: true }).map((animation) => animation.finished),
+      );
+    });
+    await accessible(page);
+  }
+  await page.screenshot({ path: test.info().outputPath('wallet-picker.png') });
+  await wallet.click();
+  await page.getByRole('button', { name: 'Sign message', exact: true }).click();
+}
+
 async function accessible(page: Page) {
   expect(
     (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze())
@@ -68,7 +151,7 @@ test('wallet signup, sign-out and returning login work without email or payments
   await expect(page.getByLabel('Password', { exact: true })).toHaveCount(0);
   await accessible(page);
   await page.screenshot({ path: info.outputPath('wallet-signup.png'), fullPage: true });
-  await page.getByRole('button', { name: 'Connect wallet' }).click();
+  await connectWallet(page);
   await expect(page).toHaveURL('/workspace');
   await expect(page.getByRole('heading', { name: 'My websites' })).toBeVisible();
   const session = await (await page.request.get('/api/auth/get-session')).json();
@@ -84,7 +167,7 @@ test('wallet signup, sign-out and returning login work without email or payments
   await page.getByRole('link', { name: 'Back to workspace' }).click();
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page).toHaveURL('/sign-in');
-  await page.getByRole('button', { name: 'Connect wallet' }).click();
+  await connectWallet(page);
   await expect(page).toHaveURL('/workspace');
   const returning = await (await page.request.get('/api/auth/get-session')).json();
   expect(returning.user.id).toBe(session.user.id);
@@ -96,6 +179,7 @@ test('wallet signup, sign-out and returning login work without email or payments
         'eth_accounts',
         'eth_chainId',
         'wallet_switchEthereumChain',
+        'wallet_requestPermissions',
         'personal_sign',
       ].includes(method),
     ),
@@ -112,32 +196,58 @@ test('an email owner links a wallet and returns to the same account', async ({ p
   await expect(page).toHaveURL('/workspace');
   const before = await (await page.request.get('/api/auth/get-session')).json();
   await page.getByRole('link', { name: 'Account settings' }).click();
-  await page.getByRole('button', { name: 'Link a wallet' }).click();
+  await connectWallet(page, 'Link a wallet');
   await expect(page.locator('.wallet-addresses')).toContainText(account.address.toLowerCase());
   await accessible(page);
   await page.getByRole('link', { name: 'Back to workspace' }).click();
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page).toHaveURL('/sign-in');
-  await page.getByRole('button', { name: 'Connect wallet' }).click();
+  await connectWallet(page);
   await expect(page).toHaveURL('/workspace');
   const after = await (await page.request.get('/api/auth/get-session')).json();
   expect(after.user.id).toBe(before.user.id);
   expect(after.user.email).toBe(fixture.ownerEmail);
 });
 
-test('missing and rejected wallets show an actionable error without creating a session', async ({
-  page,
-}) => {
+test('missing and rejected wallets do not create a session', async ({ page }) => {
   await page.goto('/sign-in');
   await page.getByRole('button', { name: 'Connect wallet' }).click();
-  await expect(page.getByRole('main').getByRole('alert')).toContainText(
-    'Open Trialoom in your wallet',
-  );
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('combobox')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(page.getByRole('link', { name: 'Get a wallet' })).toBeVisible();
+  expect(await (await page.request.get('/api/auth/get-session')).json()).toBeNull();
   await installWallet(page, true);
   await page.goto('/sign-up');
-  await page.getByRole('button', { name: 'Connect wallet' }).click();
-  await expect(page.getByRole('main').getByRole('alert')).toBeVisible();
+  await connectWallet(page);
+  await expect(page.getByRole('dialog')).toBeVisible();
   expect(await (await page.request.get('/api/auth/get-session')).json()).toBeNull();
+});
+
+test('multiple EIP-6963 wallets stay distinct and only the chosen wallet signs', async ({
+  page,
+}) => {
+  const first = await installWallet(page);
+  const second = await installWallet(page, false, 'Rabby');
+  await page.goto('/sign-in');
+  await connectWallet(page, 'Connect wallet', 'Test Rabby');
+  await expect(page).toHaveURL('/workspace');
+  await page.getByRole('link', { name: 'Account settings' }).click();
+  await expect(page.locator('.wallet-addresses')).toContainText(
+    second.account.address.toLowerCase(),
+  );
+  await expect(page.locator('.wallet-addresses')).not.toContainText(
+    first.account.address.toLowerCase(),
+  );
+  expect(first.methods).not.toContain('personal_sign');
+  expect(second.methods).toContain('personal_sign');
+});
+
+test('legacy window.ethereum wallets still connect without EIP-6963', async ({ page }) => {
+  await installWallet(page, false, 'MetaMask', true);
+  await page.goto('/sign-in');
+  await connectWallet(page, 'Connect wallet', 'MetaMask');
+  await expect(page).toHaveURL('/workspace');
 });
 
 test('wallet HTTP routes reject cross-origin requests and rate-limit challenge issuance', async ({
@@ -176,9 +286,11 @@ test('wallet HTTP routes reject cross-origin requests and rate-limit challenge i
 test('a builder saves just a website address and can read an incomplete test and replay', async ({
   page,
 }, info) => {
+  // Two deliberate ten-second idle polls plus real signup and accessibility scans.
+  test.setTimeout(60000);
   await installWallet(page);
   await page.goto('/sign-up');
-  await page.getByRole('button', { name: 'Connect wallet' }).click();
+  await connectWallet(page);
   await expect(page).toHaveURL('/workspace');
   await page.getByRole('button', { name: 'Add website' }).click();
   await expect(page.getByLabel('Website address')).toBeFocused();

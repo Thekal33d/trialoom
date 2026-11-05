@@ -1,10 +1,12 @@
 # Delivery roadmap
 
-Last updated: 2026-11-04. Baseline: [PRD v0.1](PRD.md). Live task state: [BACKLOG.md](BACKLOG.md).
+Last updated: 2026-11-05. Baseline: [PRD v0.1](PRD.md). Live task state: [BACKLOG.md](BACKLOG.md).
 
 D049 changes the first release to a **public-signup free testing beta**, with useful platform-sponsored usebuy calls for the selected Build with buy track. [Free beta scope](FREE-BETA.md) defines the launch path. The paid marketplace remains a later objective; a demo does not establish release readiness.
 
 D062 makes wallet entry and the [builder agent client](AGENT-01.md) the main path. The immediate demonstration is browser check → replay/advice → verified service receipt. Further marketplace expansion is deferred until that slice demonstrates value.
+
+[WALLET-03](WALLET-03.md) replaces the dropdown with standard direct-wallet entry and adds optional Web3Auth. Automated local authentication is verified; real provider confirmation, SDK dependency review and hosted release remain separate checks.
 
 [UX-01](UX-01.md) simplifies the free-beta journey for people without technical backgrounds. The redesign is locally verified; it does not close the hosted launch or real-user evidence gates.
 

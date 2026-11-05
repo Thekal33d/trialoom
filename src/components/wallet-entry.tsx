@@ -1,8 +1,17 @@
 import Link from 'next/link';
+import type { WalletConnectionConfig } from '@/domain/wallet-connections';
 import { LoomMark } from './icons';
 import { WalletLogin } from './wallet-login';
 
-export function WalletEntry({ enabled, signup }: { enabled: boolean; signup: boolean }) {
+export function WalletEntry({
+  enabled,
+  signup,
+  connections,
+}: {
+  enabled: boolean;
+  signup: boolean;
+  connections: WalletConnectionConfig;
+}) {
   return (
     <main className="auth-shell wallet-entry">
       <Link href="/" className="brand">
@@ -17,7 +26,12 @@ export function WalletEntry({ enabled, signup }: { enabled: boolean; signup: boo
         </header>
         {enabled ? (
           <>
-            <WalletLogin intent={signup ? 'sign-up' : 'sign-in'} primary label="Connect wallet" />
+            <WalletLogin
+              intent={signup ? 'sign-up' : 'sign-in'}
+              primary
+              label="Connect wallet"
+              connections={connections}
+            />
             <p className="wallet-entry-note">
               {signup
                 ? 'First visit? Your workspace is created when you sign.'

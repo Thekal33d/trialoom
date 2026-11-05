@@ -1,6 +1,6 @@
 # Core project memory
 
-Last updated: 2026-11-04.
+Last updated: 2026-11-05.
 
 ## Identity and purpose
 
@@ -9,6 +9,7 @@ Last updated: 2026-11-04.
 - First customer: solo builders and small teams with existing web applications and authorized preview environments.
 - First release (user-selected 2026-11-01, D049): public signup and free, bounded browser testing with findings and replay. A wallet now authenticates builders (D062); no deposit, spending approval or paid operator assignment is required. Platform-sponsored usebuy purchases support useful testing results within an explicitly funded cap.
 - Wallet-first entry was selected on 2026-11-04 (D062), superseding optional-wallet presentation in D060. New and returning builders connect at `/sign-in`; `/sign-up` redirects there. Existing email users can explicitly link a wallet after signing in through legacy access. A headless builder client uses the same wallet proof and owner-scoped APIs. Operator access remains admitted and scoped; public builder signup does not enroll operators.
+- Wallet entry uses RainbowKit/Wagmi with direct injected EVM providers on Celo; no Reown ID is required (D063). Optional Web3Auth proves its embedded EOA through the same SIWE session boundary. Social profiles never grant account ownership or merge identities. Its project IDs are public runtime configuration, not signing keys.
 - First release milestone: a real user signs up, authorizes a preview, receives a bounded real browser test and replay, and benefits from a useful usebuy service with verifiable Celo mainnet payment evidence. The later marketplace milestone remains **test → reproduce → fix → independently verify → pay**.
 - Differentiation hypothesis: a connected evidence-to-repair workflow with reusable regression tests and traceable settlement. Additional value over existing checks must be measured.
 

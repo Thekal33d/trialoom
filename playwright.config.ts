@@ -30,7 +30,11 @@ export default defineConfig({
       // asserted to say. Signup and free tests are deliberately NOT pinned:
       // signup.spec.ts skips itself on the same variable, so the server and the
       // runner have to agree about them.
-      env: { TRIALOOM_SPONSOR_AGENT_KEY: '' },
+      env: {
+        TRIALOOM_SPONSOR_AGENT_KEY: '',
+        WEB3AUTH_CLIENT_ID: '',
+        WEB3AUTH_NETWORK: 'sapphire_devnet',
+      },
       reuseExistingServer: false,
       timeout: 60000,
     },

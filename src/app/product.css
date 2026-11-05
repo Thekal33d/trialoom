@@ -1321,3 +1321,36 @@
   overflow-wrap: anywhere;
   font-size: 0.85em;
 }
+
+.web3auth-login {
+  display: grid;
+  gap: 10px;
+}
+.web3auth-login .button {
+  width: 100%;
+  min-height: 50px;
+  justify-content: center;
+}
+.wallet-divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 4px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.wallet-divider::before,
+.wallet-divider::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--border);
+}
+.wallet-install {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.wallet-install a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

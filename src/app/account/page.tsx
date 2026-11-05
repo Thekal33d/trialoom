@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { ProductFooter, ProductHeader } from '@/components/product-shell';
 import { WalletLogin } from '@/components/wallet-login';
 import { getAuth } from '@/server/auth/config';
+import { walletConnectionConfig } from '@/server/auth/connections';
 import { linkedWallets, walletLoginEnabled } from '@/server/auth/wallet';
 import { getPool } from '@/server/database';
 
@@ -39,7 +40,7 @@ export default async function AccountPage() {
             <p>No wallets linked yet.</p>
           )}
           {walletLoginEnabled() ? (
-            <WalletLogin intent="link" />
+            <WalletLogin intent="link" connections={walletConnectionConfig()} />
           ) : (
             <p>Wallet sign-in isn’t available here yet.</p>
           )}

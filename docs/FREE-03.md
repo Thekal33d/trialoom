@@ -43,16 +43,15 @@ Verified on 2026-11-03 against a **fresh disposable database** on the local Post
 
 **The build context must mirror the type-check scope, not the deployed file set.** `next build` type-checks the whole project per `tsconfig.json`, which includes `scripts/`, `tests/` and `playwright.config.ts`, and those import from `spikes/`. Each attempt to narrow the context failed with `TS2307: Cannot find module`, not with a useful message. [`.dockerignore`](../.dockerignore) therefore excludes only credentials, private evidence and regenerated output. Keeping the project out of the *image* is the bundler's job, as above.
 
-## The runner cannot be hosted on a managed container platform
+## Browser-host requirements and Railway Sandboxes
 
-[D013](../memory/DECISIONS.md) selected a Render Docker web service and background worker. That still fits the web and worker processes. It does not fit **execution**, for two independent reasons:
+**Correction, 2026-11-05:** the earlier blanket claim that Railway cannot host the runner was too broad. [Railway Sandboxes](https://docs.railway.com/sandboxes) are Linux VMs, distinct from the regular services used by the deployed web and payment worker. The installed Railway CLI 5.68.0 exposes sandbox creation, execution and destruction. No sandbox was created or billed during this assessment.
 
-- `scripts/preview-host.ts` sends every host command through `remote()`, which shells out to `orb` — the OrbStack CLI, which exists only on macOS. A Linux container has no `orb`.
-- The sandbox requires `runsc-preview` registered as a runtime on the Docker daemon that starts the browser, and [`runners/setup-local-gvisor.sh`](../runners/setup-local-gvisor.sh) installs gVisor into that daemon. A managed container platform does not expose its daemon, and nesting a second one inside a container does not give the syscall boundary the isolation evidence depends on.
+The native Linux adapter and Ubuntu 24.04 bootstrap now exist. Our current runner needs its own Docker daemon, registered gVisor runtime, Unix-socket egress proxy and independent systemd watchdog. A regular app service does not provide this host arrangement. A Railway Sandbox might, but its documentation does not establish compatibility with these exact requirements; do not describe it as a drop-in replacement or disable isolation to make it start.
 
-`remote()` is a single chokepoint — one `spawnSync('orb', [...machine, ...args])` — so a Linux host adapter is a configurable command prefix rather than a rewrite. The bootstrap script needs a server variant either way: it refuses any host but the OrbStack machine (`hostname = trialoom-runner`, no `/mnt/mac`, no forwarded SSH agent), and its VFS storage driver is recorded in [RUN-03-HOST.md](RUN-03-HOST.md) as a local compatibility choice, not a production default.
+[Railway staff guidance](https://station.railway.com/questions/railway-sandbox-security-review-for-untr-62c5ced5) currently calls Sandboxes beta, discourages production dependency on them, and states that no provider-level outbound deny-all/allowlist is available. The default ISOLATED setting prevents access to project-private services; it does not constrain public internet access. A compatible inner sandbox/proxy, external lifetime enforcement and lost-acknowledgement cleanup would still need proof. No provider choice or new resource spending has been approved.
 
-Until that exists, a hosted deployment can serve signup, the workspace and the recorded sample, and must report testing as unavailable rather than queue tests that cannot run. `/api/health` reports exactly that, and `freeTestsEnabled()` already refuses to start the free worker without it.
+For the existing code, the direct option is a dedicated-purpose Ubuntu 24.04 VM with Node 24, Docker and gVisor. As a starting capacity estimate, use 2 vCPU/4 GB RAM and run one browser job at a time; verify host performance before raising concurrency. DigitalOcean currently lists a Basic Regular bundled 2-vCPU/4-GiB/80-GiB Droplet at $24/month, excluding tax/add-ons ([pricing](https://www.digitalocean.com/pricing/droplets)). This is a recommendation, not a provisioned or load-tested host. Keep Railway web/worker/PostgreSQL and use a private [Railway Bucket](https://docs.railway.com/storage-buckets) for shared evidence; current storage pricing is $0.015/GB-month, with service-upload egress charged separately.
 
 ## Environment contract
 
@@ -76,7 +75,7 @@ docker run --rm -e DATABASE_URL=... trialoom-worker node scripts/migrate.ts
 
 ## Railway, chosen 2026-11-03
 
-The user chose Railway for the web process, the worker and Postgres. It cannot host the runner, so hosted execution stays out of scope until a Linux host exists. Checked against Railway's live documentation on 2026-11-03.
+The user chose Railway for the web process, the worker and Postgres. The original 2026-11-03 assessment covered regular services; the 2026-11-05 correction above distinguishes the separate Sandbox VM product. Hosted execution still requires an actual compatible, verified browser host.
 
 **What fits with no code change.** Automatic SSL certificates and custom domains cover HTTPS, and `authSettings()` already refuses a non-HTTPS `BETTER_AUTH_URL` on a non-loopback host. Private networking is dual-stack for environments created after 2025-10-16 and encrypted with Wireguard, so `DATABASE_URL` over `<service>.railway.internal` needs neither TLS nor a change to `createPool`. Migrations belong in the **pre-deploy command**, which Railway runs in a separate container with the service's variables and whose failure fails the deploy while the previous version keeps serving — exactly the release gate `scripts/migrate.ts` wants. The pre-deploy container has no volume access, which does not matter because migrations touch only Postgres.
 
@@ -257,8 +256,8 @@ Hosting, custom-domain HTTPS and the authentication-origin switch are verified. 
 | TLS termination and HTTPS redirect | Us | Valid certificate on `trialoom.xyz`; HTTP returns 301 to HTTPS; generated Railway HTTPS remains available |
 | Verified sending domain for signup mail | User | Not started. Signup is unusable without it |
 | Secret storage and separate process credentials | Us | Railway runtime variables configured for the live services; production credential separation, rotation and access review remain open |
-| Linux runner host adapter and a server gVisor bootstrap | Us | Not started, and not reachable on Railway: its containers are non-privileged. Gates hosted execution, and with it the free-beta promise |
-| S3-compatible private evidence store | Us | Not started. Required once execution is hosted, because a Railway volume attaches to one service only |
+| Linux runner host adapter and a server gVisor bootstrap | Us | Implemented and verified in the local dedicated VM. No cloud host exists. External Ubuntu deployment is the direct option; Railway Sandbox compatibility remains unverified |
+| S3-compatible private evidence store | Us | Transport implemented and fixture-tested. Railway Bucket provisioning and real cross-process upload/read verification remain open |
 | Backup and a verified restore | Us | Not started |
 | Monitoring and alerting | Us | Not started |
 | Retention and deletion of private evidence | Us | Not started |

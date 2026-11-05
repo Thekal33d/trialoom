@@ -26,6 +26,8 @@ Last updated: 2026-11-05.
 - GitLab is the current code remote: `https://gitlab.com/Otaiki1/trialoom.git`. User reported GitHub is unavailable on 2026-11-01. Development can continue on GitLab; the hackathon's public GitHub requirement needs restored access or an organizer-confirmed alternative.
 - Local timezone: Africa/Lagos.
 
+- Hosting clarification (2026-11-05): the user has Railway only, with no separate Linux server. Railway Sandboxes now offer Linux VMs separately from normal services. They are a candidate requiring Docker/gVisor/systemd, network-control and crash-cleanup verification; no compatibility or production suitability is established. A separate Ubuntu VM is the direct fit for the existing runner. No additional provider or recurring purchase is selected.
+
 ## Product boundaries
 
 Start with Chromium and recorded desktop/mobile viewports, not claims of real-device coverage. Public builder registration requires wallet proof and usage limits; anonymous execution and unrestricted public operator enrollment remain excluded. Repository access and paid repair work are deferred from this free beta. Builders retain merge and deployment control. General app generation, native mobile testing, unrestricted load/security testing, cross-chain settlement, and expansion services remain outside the initial release.

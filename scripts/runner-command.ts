@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 /** Fixed argv, never a shell command supplied by an agent or target. */
 export function runnerCommand(
   args: string[],
-  env: { TRIALOOM_RUNNER_HOST?: string } = process.env,
+  env: Record<string, string | undefined> = process.env,
   platform = process.platform,
 ) {
   assert(args.length > 0 && args.every((part) => typeof part === 'string' && !part.includes('\0')));

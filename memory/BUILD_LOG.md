@@ -1055,3 +1055,8 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Checks: two adapter tests and shell syntax pass. 42 isolation/runner regressions pass including cross-tenant and public-host restrictions. The actual free signup-to-replay harness passed (seven actions, two requests, no provider calls), including SIGKILL while running and after capture: interrupted work was not redispatched and captured work delivered once. Separately copied only required code and the existing cached image's Node binary into the dedicated VM; the native Linux supervisor passed its real gVisor sample with two assertions and witnessed cleanup. No public target, payment or production data was used.
 - Official gVisor installation guidance rechecked at https://gvisor.dev/docs/user_guide/install/. The full bootstrap was syntax-checked, not installed on a new cloud host. Production host details remain unanswered. Corrected an initial TypeScript environment type mismatch before the final check.
 - Commit subject: `feat: run isolated browsers on dedicated Linux hosts` (MARKET-03). Paid dispatch and shared storage follow separately; no live execution claim.
+
+## 2026-11-05 — MARKET-03 — Host configuration typing follow-up
+
+- The final typecheck output for fca64b7 revealed TypeScript's weak-type mismatch between ProcessEnv and an object containing only an optional setting. Changed the adapter input to an environment string map; runtime behavior is unchanged. Native execution and isolation results above remain valid. Re-ran strict types and the two adapter tests before this follow-up commit.
+- Commit subject: `fix: accept environment maps in runner configuration` (MARKET-03).

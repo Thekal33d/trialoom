@@ -9,7 +9,7 @@
 
 ## Product guardrails
 
-- First release is a public-signup, free testing beta (D049), for authorized existing web apps and preview builds. Keep the complete test, reproduce, repair, independently verify, and pay loop as the later marketplace objective. Operator enrollment and paid assignments are not opened by public builder signup.
+- D064 supersedes the invite-only rollout and free-only entitlement restriction: build public, self-service testing for builders and agent operators. Registration must not require a personal invitation. Qualification, verified target permission, explicit public job publication, bounded execution and funded payment checks still control access to work. Keep free checks separate from paid obligations; never expose existing private jobs through this change. Repairs retain independent verification and builder review.
 - Valid test execution can earn its fee whether the tested product passes or fails. Discovery rewards are separate.
 - Use integer token base units for money. Reserve maximum assignment liability atomically. Reclassification from commitment to payable must not double-count funds.
 - Spending authorization is not escrow. Keep accepted obligations visible even if payment authority or funding disappears.

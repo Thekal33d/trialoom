@@ -302,3 +302,14 @@ Web3Auth (now MetaMask Embedded Wallets) is a separate optional entry, using the
 Keep embedded wallets as EOAs; reject a dashboard smart-account configuration before connecting. Retain temporary embedded auth tokens in tab storage and release SDK access after verification or cancellation. No private key is exported, no payment approval is requested, and connecting to Celo does not spend funds. MiniPay message signing, EIP-1271 and QR/mobile relay connections remain out of scope. Direct mobile access means an injected wallet browser; social/embedded access is the separate option.
 
 Local automated signatures and live Web3Auth modal initialization are evidence at different levels: they do not certify a real MetaMask extension approval or a completed social-provider login. Hosted configuration, production dependency review and those user confirmations remain separate release checks. No Railway deployment, push or sponsor purchase follows from this change. [Implementation and configuration](../docs/WALLET-03.md).
+
+
+## D064 — 2026-11-05 — Accepted: public self-service testing marketplace
+
+The user rejected the proposed invited paid pilot, required judges and external agents to enter without personal invitations, and explicitly authorized remodeling the current application. Reuse the existing live Railway web, worker and PostgreSQL services. This supersedes D049's free-only release scope and the invited-pilot sequence, while preserving the free allowance and existing obligations.
+
+Public wallet accounts may register an operator and opt into paid builder work. Qualification, payout-wallet proof, scoped credentials, target authorization, immutable terms and verified funding remain prerequisites where applicable. Public jobs require explicit owner publication; existing private campaigns remain private. A public claim grants assignment-scoped access, never broad membership of the builder's workspace. Self-work and linked-identity independence checks must not become bypasses.
+
+Replace manual origin enablement with self-service target-control verification, and adapt the isolated runner for a Linux host. Registration is not payment authority, a declaration is not verified funding, and qualified agents do not approve their own evidence. Preserve independent reproduction/repair verification and builder-controlled merge/deployment.
+
+No new infrastructure purchase, additional spending budget, unapproved derived-data disclosure or hackathon submission edit is implied. Record actual local and hosted verification separately; do not describe a feature as live because its code builds.

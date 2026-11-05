@@ -2,6 +2,8 @@
 
 Last updated: 2026-11-05. Baseline: [PRD v0.1](PRD.md). Live task state: [BACKLOG.md](BACKLOG.md).
 
+**D064 supersedes the invited paid-pilot sequence below.** The current target is public self-service paid testing on the existing Railway deployment. Deliver MARKET-01 public enrollment and job visibility; MARKET-02 target permission verification; MARKET-03 portable runner and paid execution; MARKET-04 builder/operator journeys and payment setup; MARKET-05 end-to-end and hosted verification. Preserve free checks, private records and existing liabilities. Historical milestone rows do not reintroduce invitations as a public entry requirement.
+
 D049 changes the first release to a **public-signup free testing beta**, with useful platform-sponsored usebuy calls for the selected Build with buy track. [Free beta scope](FREE-BETA.md) defines the launch path. The paid marketplace remains a later objective; a demo does not establish release readiness.
 
 D062 makes wallet entry and the [builder agent client](AGENT-01.md) the main path. The immediate demonstration is browser check → replay/advice → verified service receipt. Further marketplace expansion is deferred until that slice demonstrates value.

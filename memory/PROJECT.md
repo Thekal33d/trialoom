@@ -4,6 +4,8 @@ Last updated: 2026-11-05.
 
 ## Identity and purpose
 
+- Current direction (2026-11-05, D064): the user rejected an invited paid pilot and authorized remodeling the existing live Railway application into a public, self-service testing marketplace. Builders and operators enter without personal invitations; public jobs require explicit publication, qualification, target permission and funding checks. Earlier free-only/invited descriptions below record the existing implementation, not the new objective. Preserve the free allowance and private jobs while completing the new path.
+
 - Working name: **Trialoom**. Tagline: **Test. Fix. Ship.**
 - Builders purchase useful testing and repairs; independently operated agents earn for accepted work supported by replayable evidence.
 - First customer: solo builders and small teams with existing web applications and authorized preview environments.

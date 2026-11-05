@@ -1024,3 +1024,12 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Six focused DNS tests pass: slow success, recovery, private/mixed-address rejection after retry, persistent errors, combined deadline and late-error cancellation. An initial test exposed that destructured timer imports bypass Node's fake timers; switched to the module object and reran all six successfully. The existing 34 project/runner database checks pass, including authorization-before-DNS, pinned-address intersection and private-network refusal. Disposable databases were removed by the harness; no application account/project was created or tested.
 - Lint (212 files), strict types and production build pass. Temporary active-process diagnostic hooks were removed; their sanitized results stay in ignored artifacts. Updated STATUS and development troubleshooting notes. No production configuration, remote push, deployment, email, transaction or sponsored purchase.
 - Commit subject: `fix: retry transient website DNS checks within a bounded deadline` (FREE-01, ALPHA-02).
+
+
+## 2026-11-05 — MARKET-01 — Public marketplace direction and deployment inventory
+
+- User authorized remodeling Trialoom for public self-service paid testing and rejected invitation-only access. Recorded D064 and updated the active instructions, status, durable context, roadmap and backlog. Preserved the original PRD and historical records.
+- Read the existing Railway project through its CLI: web, worker and PostgreSQL have successful deployments and running instances. Reuse these services; a dedicated browser host is not in that inventory. Initial restricted-network reads failed DNS; approved read-only network access succeeded.
+- Inspected public signup restrictions, operator/workspace admission, job claims, free dispatch, production Dockerfiles and evidence storage. Public claims will use explicit job visibility without granting private workspace membership.
+- Checks: tracking diff/whitespace review. No application behavior, hosting setting, payment or submission changed in this step. Implementation and hosted acceptance remain open.
+- Commit subject: `docs: adopt public self-service testing marketplace` (MARKET-01).

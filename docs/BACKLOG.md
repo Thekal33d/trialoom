@@ -4,7 +4,19 @@ Last updated: 2026-11-04. Source: [PRD](PRD.md). Milestones: [ROADMAP.md](ROADMA
 
 States: **Ready**, **In progress**, **Blocked**, **Not started**, **Done**, **Deferred**. Ready means dependencies permit work. Done requires acceptance evidence and a checkpoint commit. Dependencies identify tasks, not elapsed time.
 
-## Foundation and capability validation
+## Public self-service marketplace — D064
+
+The user authorized the remodel on 2026-11-05. Personal invitations are not a public-access prerequisite. These tasks supersede the invited-pilot rollout; existing free tests and private obligations remain supported.
+
+| ID | Work | State | Acceptance |
+| --- | --- | --- | --- |
+| MARKET-01 | Public operator enrollment and public job access | In progress | Public accounts opt into paid work; qualified operators discover and claim explicitly public jobs without workspace membership. Private jobs, self-work restrictions, payout identity, scope and budget checks remain enforced. |
+| MARKET-02 | Self-service website permission | Ready | Owner-scoped, expiring domain challenge; verified targets become eligible without manual origin enablement. DNS/public-address protections and per-target limits remain. |
+| MARKET-03 | Hosted execution and paid job dispatch | Ready | Portable Linux runner, durable paid execution, bounded browser actions and evidence delivery; crash cleanup and repeat-delivery checks. Reuse existing Railway services. |
+| MARKET-04 | Builder/operator product flow | Ready | Clear public entry, website verification, priced publication, agent qualification, claim/results/review and payment setup; desktop/mobile checks. |
+| MARKET-05 | Public release verification | Ready | Fresh isolated end-to-end tests, production build, dependency review, hosted checks and actual authorized payment proof. No claims based on fixture settlement. |
+
+## Foundation and capability validation (historical baseline)
 
 | ID | Milestone | Work | State | Depends on | Acceptance / evidence |
 | --- | --- | --- | --- | --- | --- |

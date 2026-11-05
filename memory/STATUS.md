@@ -95,6 +95,10 @@ The landing page reports the configured limitations for signup, testing and paid
 | Event enrollment | Done | Enrolled 2026-11-02; entry `trialoom-d03b7` created 2026-11-03 with the wallet, screenshots and bounty. `demoUrl` saved and verified as `https://trialoom.xyz` on 2026-11-04 |
 | Deployment | Live landing page and example workspace | Railway web, worker and Postgres online; custom-domain configuration deployment `f4b2b6f0` successful. HTTPS, health and database readiness verified on 2026-11-04. Public signup, hosted testing and sponsored purchases remain unavailable on this deployment |
 
+## Latest compatibility fix
+
+2026-11-05: the reported root hydration warning matches Grammarly's added `data-new-gr-c-s-check-loaded` / `data-gr-ext-installed` body attributes. Added hydration-warning suppression only on `<body>`. A development Chromium diagnostic reproduced the warning before the change and verified clean/extension loads without it afterward; a deliberately altered child still warns, and the wallet picker remains interactive. Lint and typecheck pass. This fixes the reported warning locally; it is not evidence of a completed provider login or a hosted release.
+
 ## Next action
 
 **Next action: complete one manual login at `http://127.0.0.1:3000/sign-in` with an installed wallet or the configured Web3Auth Google option, then record the result.** Wallet-picker and server-session automation are verified locally. Before a hosted release, resolve the SDK dependency findings and configure the production Web3Auth project/origin. Local environment values remain private; no production settings changed.

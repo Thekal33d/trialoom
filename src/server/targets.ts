@@ -1,10 +1,26 @@
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
+import timers from 'node:timers/promises';
 import ipaddr from 'ipaddr.js';
 import { AppError } from '../domain/errors.ts';
 export type ResolveTarget = (hostname: string) => Promise<string[]>;
 const resolve: ResolveTarget = async (hostname) =>
   (await lookup(hostname, { all: true, verbatim: true })).map((result) => result.address);
+const retryableLookupCodes = new Set(['EAI_AGAIN', 'ESERVFAIL', 'ETIMEOUT', 'ENOTFOUND']);
+function lookupCode(error: unknown) {
+  return error && typeof error === 'object' && 'code' in error ? error.code : undefined;
+}
+async function resolveWithRetry(host: string, resolver: ResolveTarget, signal: AbortSignal) {
+  try {
+    return await resolver(host);
+  } catch (error) {
+    // OS lookups can report ENOTFOUND for temporary failures, not just missing names.
+    if (!retryableLookupCodes.has(String(lookupCode(error)))) throw error;
+    await timers.setTimeout(250, undefined, { signal });
+    signal.throwIfAborted();
+    return resolver(host);
+  }
+}
 export function parseTarget(value: string) {
   let url: URL;
   try {
@@ -49,20 +65,34 @@ export async function validateTarget(value: string, resolver: ResolveTarget = re
   if (isIP(host)) addresses = [host];
   else {
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let timedOut = false;
+    const controller = new AbortController();
     try {
       addresses = await Promise.race([
-        resolver(host),
+        resolveWithRetry(host, resolver, controller.signal),
         new Promise<never>((_, reject) => {
-          timer = setTimeout(() => reject(new Error('DNS timeout')), 3000);
+          // One total deadline includes both attempts and the retry delay.
+          timer = setTimeout(() => {
+            timedOut = true;
+            controller.abort();
+            reject(new Error('DNS timeout'));
+          }, 8000);
         }),
       ]);
-    } catch {
+    } catch (error) {
+      const unresolved = ['ENOTFOUND', 'ENODATA'].includes(String(lookupCode(error)));
       throw new AppError(
         'TARGET_UNRESOLVED',
-        'The preview hostname could not be resolved. Try again after checking its DNS.',
+        timedOut
+          ? 'Checking this website took too long. Please try adding it again.'
+          : unresolved
+            ? 'We couldn’t find this website right now. Check the address and try again.'
+            : 'We couldn’t check this website right now. Please try again in a moment.',
+        !timedOut && unresolved ? 400 : 503,
       );
     } finally {
       clearTimeout(timer);
+      controller.abort();
     }
   }
   if (

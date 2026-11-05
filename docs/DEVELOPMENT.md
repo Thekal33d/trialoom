@@ -32,6 +32,12 @@ If port 55432 is occupied, change both `DB_PORT` and the port in `DATABASE_URL` 
 
 Compose owns the `trialoom-dev` project and `trialoom-dev_postgres-data` volume. `npm run db:down` stops its container while preserving data. A changed environment password does not reset the password in an initialized PostgreSQL volume; preserve the original `.env` or change the database password deliberately. Never delete the volume as a routine fix.
 
+## Website address checks
+
+Adding a website uses the web server's operating-system DNS resolver. A lookup has an eight-second total deadline, including at most one retry after 250 ms for a temporary resolver error. Timeout and unavailable-resolver responses ask the user to retry; an unresolved address asks them to check the URL. These errors do not establish that the website's DNS configuration is broken: [Node documents that `ENOTFOUND` also covers other lookup failures](https://nodejs.org/docs/latest-v24.x/api/dns.html#dnspromiseslookuphostname-options).
+
+Diagnose from the actual web-server environment: a restricted development command can fail DNS even when the app succeeds. Never work around lookup failures by hardcoding an IP, using a different public resolver, or skipping private-address and execution-time DNS checks. The OS lookup itself cannot be cancelled; after the application deadline, late results cannot admit a target or start another retry. `node --test tests/targets.test.ts` checks slow resolution, retry limits, deadline behavior and private-address rejection without network or database access.
+
 ## Production build and smoke job
 
 ```sh

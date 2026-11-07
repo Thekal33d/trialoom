@@ -1,6 +1,6 @@
 # Core project memory
 
-Last updated: 2026-11-05.
+Last updated: 2026-11-07.
 
 ## Identity and purpose
 
@@ -25,7 +25,7 @@ Last updated: 2026-11-05.
 - The user purchased `trialoom.xyz` on 2026-11-04. **https://trialoom.xyz is the live public origin**, with verified DNS/ownership, valid HTTPS, HTTP-to-HTTPS redirect and `BETTER_AUTH_URL` switched after a successful Railway redeployment. Landing page, sample workspace and anonymous authentication checks pass. The generated Railway HTTPS address remains attached. Keep origin and sending domain configurable; connecting the domain does not verify a mail sender or enable public signup/hosted testing.
 - GitLab is the current code remote: `https://gitlab.com/Otaiki1/trialoom.git`. User reported GitHub is unavailable on 2026-11-01. Development can continue on GitLab; the hackathon's public GitHub requirement needs restored access or an organizer-confirmed alternative.
 - Local timezone: Africa/Lagos.
-- Hosting budget (2026-11-05): the user rejected the $24/month DigitalOcean proposal and requires under US$5 for everything. Treat this as a total recurring infrastructure ceiling, including any retained Railway subscription, not a separate runner allowance. No provider migration or purchase is authorized. Oracle Always Free plus private R2 is a proposed low-traffic option, contingent on free capacity and verification; transaction/model usage and domain renewal must not be silently represented as included hosting.
+- Hosting budget (2026-11-07, D068 supersedes D067): the user can spend up to US$10 per month, and no more, for total recurring infrastructure including any retained Railway subscription. They requested an alternative to Oracle. Keeping Railway plus a low-cost Linux runner is a proposal requiring actual usage/tax checks and host verification; no provider migration or purchase is authorized. Transaction/model usage and domain renewal must not be silently represented as included hosting.
 
 - Hosting clarification (2026-11-05): the user has Railway only, with no separate Linux server. Railway Sandboxes now offer Linux VMs separately from normal services. They are a candidate requiring Docker/gVisor/systemd, network-control and crash-cleanup verification; no compatibility or production suitability is established. A separate Ubuntu VM is the direct fit for the existing runner. No additional provider or recurring purchase is selected.
 

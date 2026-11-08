@@ -1451,3 +1451,13 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Nothing is custodied and nothing is signed on the builder's behalf; the panel only builds calls and reads results. Wallet rejections are reported as "Cancelled in your wallet" rather than as failures.
 - Deployed and verified: the host build contains the panel and the allowance address in its client chunk, and `/`, `/api/health`, `/api/ready` and `/sign-in` all return 200 from outside. The panel itself renders only for an owner workspace with a linked paying wallet, so it has not been exercised against a real policy yet — that happens in the two-person test.
 - Commit subject: `feat: create the spending budget inside trialoom` (PILOT-05, UX-02).
+
+## 2026-11-08 — PILOT-05 — The worker runs on Railway, tunnelled to the host database
+
+- Created a **new** Railway project `trialoom-worker` (`d6485d69-…`) rather than reviving the deleted `trialoom` project, which is still inside its 48-hour grace period and carries the retired web, worker and Postgres services. One service, `worker`, built from `Dockerfile.tunnelled-worker`.
+- It is online and reports what the Hetzner worker never could: `tunnel.ready port=55432`, `worker.sponsor adapter=buy-x402`, `worker.payments adapter=remesso`. A real test on the live site can now buy its explanation whether or not any laptop is awake.
+- Every secret was set through `railway variable set --stdin`, so no key appeared on a command line. The tunnel key is passed base64-encoded to survive a variable editor.
+- **Three builder differences cost three failed deploys, each a genuine finding.** `RAILWAY_DOCKERFILE_PATH` was ignored and the root web Dockerfile was built instead — pinned the path in `railway.json`, which the CLI warns is deprecated in favour of `.railway/railway.ts` from 2026-12-01. Railway then rejected `--mount=type=cache` without an id, and rejected a plain id as missing its namespaced cache-key prefix; the cache mount is simply gone from this image, and the other two Dockerfiles now carry named ids so they build on a strict builder.
+- **Pushing to GitHub does not deploy.** Only one deployment existed after three pushes: the repository link exists but the Railway GitHub App is evidently not installed on `Thekal33d/trialoom`, so deploys are `railway up` from the checkout for now. Worth connecting properly, or this will be forgotten and the deployed code will drift from the repository.
+- The security trade is recorded as **D070**, including the alternative that was investigated and ruled out: pre-signed authorizations cannot work, because the gateway's offer carries `maxTimeoutSeconds: 60`.
+- Commit subject: `feat: deploy the worker to railway` (PILOT-05).

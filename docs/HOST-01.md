@@ -327,38 +327,44 @@ Caddy provisions the certificate itself. Until then `BETTER_AUTH_URL` is already
 `https://trialoom.xyz`, so sign-in over loopback will refuse the origin — that is expected and
 gets verified in step 8, not here.
 
-**6 — Enrol the runner and start the controller. Blocked by step 7; the order in this plan was
-wrong.** `scripts/register-managed-runner.ts` writes a `runner_hosts` row bound to a workspace and
-refuses unless the named user owns it:
-
-> The selected user must own the administrative workspace.
-
-The database on this host has the schema and **no accounts at all** — `workspaces`, `memberships`
-and `runner_hosts` are each at zero, because step 3 migrated an empty database. The owning
-workspace exists only in the Railway database, so it arrives with the data move. Signing up here
-first is not a way around it either: `BETTER_AUTH_URL` is `https://trialoom.xyz`, which still
-resolves to Railway, and wallet signup needs a browser the loopback origin will not satisfy.
-
-**Run step 7 before this step.** The order becomes 7 → 6 → 8: move the data, enrol the runner
-against the restored owner workspace, then cut DNS over. Nothing about the steps themselves
-changes.
-
-When it runs:
+**6 — Enrol the runner and start the controller. Done 2026-11-08, except a real owned-target
+test.** After the user created the owner account through the private invitation, workspace
+`Trialoom` (`893adffd-…`) had an owner (`20a5201b-…`), and enrollment could proceed:
 
 ```bash
-cd /opt/trialoom && set -a && . /etc/trialoom/db.env && set +a
-node scripts/register-managed-runner.ts --workspace UUID --owner USER_ID \
+cd /opt/trialoom && set -a && . /etc/trialoom/db.env && . /etc/trialoom/shared.env && set +a
+node scripts/register-managed-runner.ts --workspace <id> --owner <id> \
   --name trialoom-fsn1 --output /etc/trialoom/runner-credential.env --host-check-passed
-systemctl enable --now trialoom-browser
 ```
 
-The mode-0600 credential goes only into the controller's environment file, beside
-`TRIALOOM_RUNNER_DISPATCH_KEY` (already generated in `/etc/trialoom/shared.env`),
-`TRIALOOM_RUNNER_API_ORIGIN`, the database settings and the R2 credentials. The settlement and
-sponsor signing keys must never reach it. Gate: a fresh heartbeat is visible, one real test on a
-target the user owns dispatches, executes under `runsc` and delivers reviewable evidence to R2;
-then kill the controller mid-run and confirm recovery with no duplicate execution and no slot
-freed before removal is verified.
+The host row reads `trialoom-fsn1`, contract `runner-host-v1`, sandbox `gvisor`,
+`egress_enforced` true, isolation `witnessed`, `platform_managed` true. `/etc/trialoom/runner.env`
+(0600) carries the host credential, the shared dispatch key, `TRIALOOM_RUNNER_API_ORIGIN`, the R2
+credentials and the database URL; it was **grepped to confirm no sponsor, client or Remesso
+signing key is present**. `runners/trialoom-browser.service` is installed and active, logging
+`free_runner.sponsor: unconfigured`.
+
+`scripts/check-hosted-tests.ts` then passed on this host:
+
+```json
+{"publicClaim":true,"realIsolatedBrowser":true,"evidenceSubmissions":1,
+ "repeatedExecution":false,"review":"pending","payables":0,
+ "funding":"fixture-only","publicTargetsContacted":false}
+```
+
+A listing of the bucket afterwards shows **6 objects under `evidence/`**, so evidence genuinely
+reaches R2 from this host rather than falling back to local disk.
+
+**What this does not yet prove.** The target was a fixture, not a website the user owns, and no
+funded payment was involved. The remaining gate needs the user to add a real website in the
+product, pass its DNS verification, and request a test — then a controller kill mid-run to
+confirm recovery without duplicate execution. The ten SIGKILL checkpoints in step 3 cover the
+recovery machinery, but not with a live customer target.
+
+**One deviation worth narrowing.** The controller shares `trialoom_worker`'s database role rather
+than holding one of its own. Both roles carry identical DML, so a separate role would currently
+be cosmetic, but a runner-specific role would make revocation and auditing independent of the
+payment worker. Open work, not a claim of separation.
 
 **7 — Move the data. Done 2026-11-08, and there was nothing to move.** The user took the dump
 through the authenticated Railway CLI, so no endpoint was opened and no connection string was

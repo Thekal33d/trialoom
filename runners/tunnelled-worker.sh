@@ -16,7 +16,12 @@
 # Required: TUNNEL_SSH_KEY, TUNNEL_HOST, DATABASE_URL (pointing at 127.0.0.1
 # and the local port below), plus whatever keys the worker itself needs.
 set -euo pipefail
-: "${TUNNEL_SSH_KEY:?Set TUNNEL_SSH_KEY to the private key, newlines included}"
+# A base64 copy avoids newlines in a platform's variable editor, which is the
+# usual way a private key arrives mangled and the tunnel fails for no clear reason.
+if [ -n "${TUNNEL_SSH_KEY_B64:-}" ]; then
+  TUNNEL_SSH_KEY="$(printf '%s' "$TUNNEL_SSH_KEY_B64" | base64 -d)"
+fi
+: "${TUNNEL_SSH_KEY:?Set TUNNEL_SSH_KEY_B64 or TUNNEL_SSH_KEY}"
 : "${TUNNEL_HOST:?Set TUNNEL_HOST to the database host}"
 : "${DATABASE_URL:?Set DATABASE_URL to reach 127.0.0.1 through the tunnel}"
 TUNNEL_USER="${TUNNEL_USER:-tunnel}"

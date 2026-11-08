@@ -157,10 +157,33 @@ matches `runners/setup-linux-gvisor.sh`'s exact `VERSION_ID=24.04` assertion, an
 project's **first x86 host** — the gVisor evidence on record is arm64 only. Node is not installed
 yet, and the bootstrap requires Node 24 or newer before it will run.
 
-**1 — Provision and harden the host.** Ubuntu 24.04, SSH keys only, no password login, firewall
-open on 22/80/443 only, unattended security updates, swap, a separate non-root user per zone.
-Gate: `ssh` in as a non-root user, `. /etc/os-release` reports 24.04, firewall rules read back as
-intended.
+**1 — Provision and harden the host. Done, 2026-11-08**, by
+[`runners/harden-host.sh`](../runners/harden-host.sh), which is idempotent and installs no
+application, database, Node, Docker or gVisor:
+
+```bash
+ssh -i ~/.ssh/trialoom_hetzner root@2.31.104.223 'bash -s' < runners/harden-host.sh
+```
+
+Applied: full `apt-get upgrade`; hostname `trialoom`; an administrative user `ops` in `sudo`,
+carrying the same key and NOPASSWD because the account has no password and password
+authentication is off; SSH restricted to `PermitRootLogin prohibit-password`,
+`PasswordAuthentication no`, `KbdInteractiveAuthentication no`, `AllowAgentForwarding no`,
+`AllowTcpForwarding local`, `MaxAuthTries 3`, `LoginGraceTime 30`; ufw default-deny inbound with
+only 22, 80 and 443 open; fail2ban; a 4 GB swapfile with `vm.swappiness=10`; and unattended
+security upgrades. Root keeps key access deliberately, as a recovery path that does not depend on
+`ops` or sudo. Local forwarding stays allowed so PostgreSQL can be reached over SSH during the
+data move instead of being exposed.
+
+Gate met: `ops` logs in and `sudo -n id` returns root; a password-only attempt is refused with
+`Permission denied (publickey)`; after a reboot the host returned in about fifteen seconds with
+the swapfile mounted, ufw active, fail2ban and unattended-upgrades active and no reboot pending.
+
+Two notes for later steps. The first run aborted at `sshd -t` because Ubuntu 24.04 activates sshd
+through `ssh.socket` and `/run/sshd` did not exist, so the firewall, swap and auto-update work
+never ran; the script now creates that directory first, and the recorded run is the complete one.
+And Docker writes its own iptables rules, so a published container port would bypass ufw entirely
+— runner containers must publish none.
 
 **2 — Install the runner boundary first, before any data moves.** From a checkout on the host:
 

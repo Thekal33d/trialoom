@@ -1461,3 +1461,10 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - **Pushing to GitHub does not deploy.** Only one deployment existed after three pushes: the repository link exists but the Railway GitHub App is evidently not installed on `Thekal33d/trialoom`, so deploys are `railway up` from the checkout for now. Worth connecting properly, or this will be forgotten and the deployed code will drift from the repository.
 - The security trade is recorded as **D070**, including the alternative that was investigated and ruled out: pre-signed authorizations cannot work, because the gateway's offer carries `maxTimeoutSeconds: 60`.
 - Commit subject: `feat: deploy the worker to railway` (PILOT-05).
+
+## 2026-11-08 — PILOT-05 — Sponsor wallet drained to its float
+
+- The user moved 9 CELO out of the sponsor wallet, applying D070's recorded mitigation. Read back from Celo: `0xf8Ff4F7C…22ae` now holds **0.837 CELO** and its **0.156 USD₮** float is intact, and the settlement agent `0x1B33EE92…9CED` is untouched at 2 CELO, which it needs because that path sends its own transactions.
+- What a Railway compromise would now cost: roughly a quarter of a dollar of spendable balance, plus ERC-8004 identity 10031, which remains the real exposure and the reason D070 says to separate the identity from the hot wallet after the event.
+- The sponsor wallet needs no CELO of its own: buy's facilitator pays settlement gas, which the first purchase demonstrated on chain when the transaction's sender was the facilitator rather than the payer.
+- Commit subject: `docs: record the drained sponsor wallet` (PILOT-05).

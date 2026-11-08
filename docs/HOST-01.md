@@ -52,8 +52,9 @@ host is feasible but **has not been implemented or verified**. See D069 in
 - One real isolated paid test delivered evidence end to end after a lost-acknowledgement recovery.
 
 **Unverified — treat as open work.**
-- Any Hetzner server: availability, price actually charged, x86 vs Arm behaviour, gVisor operation
-  on that kernel, and bounded single-job performance.
+- The chosen server in practice: gVisor operation on Hetzner's kernel, x86 behaviour, and bounded
+  single-job performance. Availability and the quoted price are now settled (section 3); what the
+  first invoice actually charges, including VAT treatment, is not.
 - Running web, PostgreSQL, the payment worker and the browser controller on **one** 2 vCPU / 4 GB
   machine with isolation intact.
 - A hosted private object store. Only a local authenticated S3 fixture has been exercised.
@@ -72,37 +73,42 @@ host is feasible but **has not been implemented or verified**. See D069 in
 - Writing credentials, signing keys, invitation tokens, private traces or the user's email into
   the repository or logs.
 
-## 3. Hosting cost, checked 2026-11-08
+## 3. Hosting cost, read in the account's own console on 2026-11-08
 
-Hetzner Cloud lists prices in **euro, excluding VAT**, and the USD figures come from a client-side
-currency switch. Read in the page text today:
+The user's Hetzner account is verified and holds one empty project, `Default` (id 16705156). The
+server wizard quotes this account in **US dollars, excluding VAT**. Read from the wizard, with
+Cost-Optimized selected:
 
-| Plan | Price | Resources | Architecture |
-| --- | --- | --- | --- |
-| CX23 | €5.99/mo excl. VAT | 2 vCPU, 4 GB RAM, 40 GB NVMe, 20 TB traffic | Intel/AMD (x86) |
-| CAX11 | €6.49/mo excl. VAT | 2 vCPU, 4 GB RAM, 40 GB NVMe, 20 TB traffic | Ampere (Arm) |
-| CPX02 | €6.49/mo excl. VAT | 1 vCPU, 1 GB RAM, 20 GB NVMe | AMD (x86) — too small |
-| CX33 | €8.99/mo excl. VAT | 4 vCPU, 8 GB RAM, 80 GB NVMe | Intel/AMD (x86) |
-| Backups add-on | from €1.1980/mo excl. VAT | instance-related | — |
+| Plan | Monthly | Hourly | Resources | Architecture |
+| --- | --- | --- | --- | --- |
+| **CX23** | **$6.49** | $0.010 | 2 vCPU, 4 GB RAM, 40 GB SSD, 20 TB traffic | Intel/AMD (x86) |
+| CX33 | $9.99 | $0.016 | 4 vCPU, 8 GB, 80 GB, 20 TB | Intel/AMD (x86) |
+| CX43 | $18.49 | $0.030 | 8 vCPU, 16 GB, 160 GB | Intel/AMD (x86) |
+| CPX02 | $7.49 | $0.012 | 1 vCPU, 1 GB, 20 GB | AMD (x86) — too small |
+| CPX12 | $13.49 | $0.022 | 1 vCPU, 2 GB, 40 GB | AMD (x86) |
+| Primary IPv4 | $0.60 | $0.001 | charged whether attached or not | — |
+| Backups | +20% of the server price | — | daily disk copies, volumes excluded | — |
 
-**Every shared plan was marked "Currently not available" / "not available" on 2026-11-08**, on both
-the cost-optimized and regular-performance pages. Availability must be confirmed in the user's own
-Hetzner console before anything else; an advertised price for an unavailable plan is not a plan.
-Listed locations for the cost-optimized line are Falkenstein, Nuremberg and Helsinki.
+**Availability resolved.** Cost-Optimized carries a "Limited availability" label as a category, but
+CX23 is selectable today in both **Falkenstein** and **Helsinki**, and the wizard produces a
+complete quote for it. The earlier reading of "currently not available" came from the public
+marketing pages, which do not reflect this account. Singapore adds $8.00/mo on Regular
+Performance; the other locations offered are Nuremberg, Hillsboro and Ashburn.
 
-Budget arithmetic: one CX23 at €5.99 excl. VAT replaces Railway's $5 minimum **and** the separate
-runner host, so a single-server layout is the only one of the options considered that clearly fits
-$10/month. Adding Hetzner's backup option pushes the base to about €7.19 excl. VAT, so prefer
-nightly `pg_dump` to an existing free object-storage allowance over the paid snapshot add-on, and
-confirm the real invoice currency and tax at checkout. An earlier USD reading recorded $7.09 for
-CX23 including IPv4; that number came from the USD toggle and was not reproducible from the page
-text today. Railway says plan downgrades take effect at the next billing cycle and usage can still
-be charged, so keep Railway paid until cutover is verified.
+**The budget line.** CX23 plus one IPv4 totals **$7.09/mo excluding VAT**, which is what the
+wizard's own summary shows and which matches the figure recorded earlier. Adding Hetzner's backups
+at 20% of $6.49 brings it to about **$8.39/mo**, still inside D068's $10 ceiling — so the earlier
+advice to avoid the paid backup option, based on a €1.1980 list figure, was wrong for this
+account and paid backups are affordable here. CX33 at $9.99 plus IPv4 is $10.59 and does not fit.
+Retiring Railway removes its $5 minimum; Railway downgrades take effect at the next billing cycle.
+VAT treatment is not shown in the wizard and the first invoice will settle it.
 
-Sources read 2026-11-08: `https://www.hetzner.com/cloud/`,
-`https://www.hetzner.com/cloud/cost-optimized/`, `https://www.hetzner.com/cloud/regular-performance/`.
-Railway pricing: `https://docs.railway.com/pricing/plans`. The D068 InterServer $3 candidate
-remains on record in [memory/DECISIONS.md](../memory/DECISIONS.md) if Hetzner stays unavailable.
+**Ubuntu 24.04 is available.** The image selector offers 26.04, 24.04 and 22.04, so
+`runners/setup-linux-gvisor.sh`, which asserts `VERSION_ID=24.04`, needs no change. Pick 24.04
+explicitly; the wizard defaults to 26.04.
+
+**Still to decide before buying:** an SSH key must be registered first, or Hetzner emails the root
+password instead. The project has no SSH key and no firewall yet.
 
 ## 4. Target layout on one host
 
@@ -136,12 +142,11 @@ change D064's public, self-service access.
 Each step has a gate. Do not start the next one until the gate holds, and record the outcome in
 `memory/BUILD_LOG.md` as usual.
 
-**0 — Confirm the purchase decision.** **Blocked as of 2026-11-08:** the user signed in to the Hetzner console. Account limits are clear and unused (20 shared vCPUs, 14 dedicated, 40 primary IPs, 10 load balancers, 198 snapshots, all at 0%), so nothing is restricted there, but the account has **no project** and `New project` refuses with “Verification pending — before you can create a new project, your user account data has to be verified”, directing the user to Verification at accounts.hetzner.com. Hetzner shows per-location stock and the account’s real price only inside the server wizard, which needs a project, and the Cloud API needs a token, which also needs a project. So plan availability and the quoted total remain **unread**, and no agent can clear this: account verification is identity work only the user can do. If verification is refused or slow, fall back to the D068 InterServer candidate.
-
-When it is unblocked: Check plan availability and the exact checkout total in the
-user's Hetzner console, in the invoice currency, including IPv4 and tax. Present it against the
-$10 ceiling and get an explicit instruction before buying. Gate: the user authorizes a specific
-plan and location, or picks a different provider.
+**0 — Confirm the purchase decision.** **Done except for the user's go-ahead, 2026-11-08.** The
+account is verified, the `Default` project exists, account limits are clear and unused (20 shared
+vCPUs, 14 dedicated, nothing allocated), CX23 is available in Falkenstein and Helsinki, and the
+quoted total is $7.09/mo excluding VAT. Gate: the user authorizes that specific plan and location.
+Nothing below may start until they do, and an SSH key should be registered in the project first.
 
 **1 — Provision and harden the host.** Ubuntu 24.04, SSH keys only, no password login, firewall
 open on 22/80/443 only, unattended security updates, swap, a separate non-root user per zone.
@@ -229,7 +234,8 @@ procedure. Gate: a restore from the backup into a disposable database succeeds.
 
 ## 6. Risks to keep in front of the user
 
-- **Availability.** Every Hetzner shared plan read as unavailable today. Step 0 may simply fail.
+- **Availability.** CX23 is selectable today in Falkenstein and Helsinki, but Cost-Optimized is
+  labelled "Limited availability" as a category, so stock can disappear between now and checkout.
 - **One machine, no redundancy.** A host failure takes the website, the database and the runner at
   once. Backups are the only mitigation inside this budget.
 - **Isolation on shared hardware.** The browser sandbox now sits on the same kernel as the
@@ -244,9 +250,10 @@ procedure. Gate: a restore from the backup into a disposable database succeeds.
 
 ## 7. Open questions for the user
 
-1. Which plan and location, once availability is known — and x86 (CX23) or Arm (CAX11)?
+1. CX23 in Falkenstein or Helsinki at $7.09/mo including IPv4 — go ahead, or hold? Arm (CAX11) was
+   not priced, since x86 is available and the budget fits.
 2. External object storage within a free allowance, or self-hosted on the same disk?
-3. Hetzner's paid backup add-on, or nightly dumps to off-box storage inside the budget?
+3. Hetzner's backups at +20% ($1.30/mo, total about $8.39) or nightly dumps off-box? Both fit.
 4. When should Railway be cancelled, and should the final dump be kept locally?
 5. Does the hackathon submission or the pending usebuy approval need to land before a migration
    that changes the live demo URL's hosting?

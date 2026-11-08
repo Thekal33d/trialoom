@@ -142,11 +142,20 @@ change D064's public, self-service access.
 Each step has a gate. Do not start the next one until the gate holds, and record the outcome in
 `memory/BUILD_LOG.md` as usual.
 
-**0 — Confirm the purchase decision.** **Done except for the user's go-ahead, 2026-11-08.** The
-account is verified, the `Default` project exists, account limits are clear and unused (20 shared
-vCPUs, 14 dedicated, nothing allocated), CX23 is available in Falkenstein and Helsinki, and the
-quoted total is $7.09/mo excluding VAT. Gate: the user authorizes that specific plan and location.
-Nothing below may start until they do, and an SSH key should be registered in the project first.
+**0 — Confirm the purchase decision. Done, 2026-11-08.** The user authorized and the server was
+bought in their console: **`trialoom`, CX23 (2 vCPU x86, 4 GB RAM, 40 GB NVMe, 20 TB traffic),
+Falkenstein (fsn1), Ubuntu 24.04, IPv4 + IPv6**, in project `Default` (16705156). Public IPv4
+**2.31.104.223**. Recurring cost **$7.09/mo excluding VAT** ($6.49 server + $0.60 primary IPv4),
+which is the quote shown at checkout. Backups were **not** enabled; they would add 20% ($1.30),
+and the choice is still open. The project has one SSH key, `trialoom-hetzner` (ed25519), whose
+private half lives outside this repository on the user's Mac and must never be committed. No
+firewall, volume or placement group exists yet.
+
+Verified over SSH with that key on 2026-11-08: `Ubuntu 24.04.4 LTS`, `x86_64`, kernel
+`6.8.0-138-generic`, 2 CPUs, 3819 MB RAM, 38 GB root filesystem with 35 GB free. The distribution
+matches `runners/setup-linux-gvisor.sh`'s exact `VERSION_ID=24.04` assertion, and this is the
+project's **first x86 host** — the gVisor evidence on record is arm64 only. Node is not installed
+yet, and the bootstrap requires Node 24 or newer before it will run.
 
 **1 — Provision and harden the host.** Ubuntu 24.04, SSH keys only, no password login, firewall
 open on 22/80/443 only, unattended security updates, swap, a separate non-root user per zone.

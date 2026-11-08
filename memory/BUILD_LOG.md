@@ -1394,3 +1394,9 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - **Two deployment defects in my own scripts, caught by checking the live page rather than the exit code.** `setup-services.sh` regenerates `web.env` from a template that lacked `TRIALOOM_FREE_TESTS`, so re-running it would have silently hidden the websites surface; added it. And it used `systemctl enable --now`, which does nothing when a service is already running, so the first deploy rebuilt the app and kept serving the old one — the landing page was unchanged until I looked. Changed to `enable` plus an explicit `restart`. Same class as the Caddyfile overwrite earlier today: a setup script that is not safe to re-run is not a setup script.
 - Verified live: the kicker, hero and availability copy are the new text, and the workspace shows the renamed strings. Lint, strict types and a production build pass locally and on the host.
 - Commit subject: `feat: plain-language onboarding with the wallet up front` (UX-02).
+
+## 2026-11-08 — HACK-03 — Entry screenshot refreshed to the new landing page
+
+- Recaptured the landing page at full resolution after the copy change and replaced the first entry screenshot; the `/demo` example report is unchanged as the second. The new shot shows the "Agent testing, paid on Celo" kicker, the plain-language hero and the line explaining that the wallet costs one signature, no deposit and no gas — so a judge sees the chain and the cost answer without scrolling.
+- Verified after upload: both URLs return 200 at 58,862 and 44,016 bytes, `repoUrl` is the GitHub repository and `missing` is empty.
+- Commit subject: `docs: refresh the entry screenshot` (HACK-03).

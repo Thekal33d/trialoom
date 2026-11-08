@@ -286,16 +286,46 @@ Token value next to the Secret Access Key and the shorter one was copied. The se
 characters; a 32-character value is the wrong field. The check deliberately refuses to pass
 against the local evidence directory, so a missing configuration cannot look like success.
 
-**5 — Web, worker and TLS.** Install the application under `/opt/trialoom`, run the web process
-and the payment worker as their own systemd units with mode-0600 environment files, and put a
-reverse proxy in front with a Let's Encrypt certificate for `trialoom.xyz`. Keep
-`BETTER_AUTH_URL`/`TRIALOOM_URL` as `https://trialoom.xyz` so sessions and the authentication
-origin do not change. Set `TRIALOOM_RUNNER_DISPATCH_KEY` to one private random 32-byte hex value
-shared by the web process and the browser controller, and set `TRIALOOM_RUNNER_API_ORIGIN` to the
-origin the controller should call back on. Public wallet entry needs `TRIALOOM_WALLET_LOGIN=true`
-and `TRIALOOM_PUBLIC_WALLET_SIGNUP=true`. Gate: over a private hostname or local port, not yet on
-public DNS — `/api/health`, `/api/ready`, the landing page, sign-in and a public signup all
-respond correctly, and the certificate chain validates.
+**5 — Web, worker and the reverse proxy. Done 2026-11-08, except TLS**, by
+[`runners/setup-services.sh`](../runners/setup-services.sh):
+
+```bash
+ssh -i ~/.ssh/trialoom_hetzner root@2.31.104.223 'bash /opt/trialoom/runners/setup-services.sh'
+```
+
+Two system users, `trialoom-web` and `trialoom-worker`, each with its own systemd unit and its own
+mode-0600 environment file that systemd reads before dropping privileges, so neither user can read
+the other's credentials. Units run with `NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=strict`,
+`ProtectHome` and a narrow `ReadWritePaths`. The web process holds no signing key and no Docker
+socket; the controller remains a separate unit. `/opt/trialoom/.env`, which carried the **owner**
+database URL for the migrations, is deleted — later migration runs source `/etc/trialoom/db.env`
+explicitly.
+
+Verified on the host rather than assumed:
+
+| Check | Result |
+| --- | --- |
+| `/api/health` through the proxy | 200, `mode: public-beta`, `walletLogin: enabled` |
+| `/api/ready` | 200 — the restricted role reads the current schema |
+| `/` | 200 |
+| Database roles actually connected | `trialoom_web` and `trialoom_worker`, never the owner |
+| Unit users | `User=trialoom-web`, `User=trialoom-worker` |
+| Listening sockets | `127.0.0.1:3000` (Next.js) and `127.0.0.1:8080` (Caddy) only |
+| From outside the host | every port refused, including 80, 443, 3000, 8080 and 5432 |
+
+Caddy binds **loopback only** on purpose: this deployment must not be reachable while
+`trialoom.xyz` still serves from Railway. A site address alone would not have done it — Caddy
+matches the address by Host header but still listens on every interface, so the config carries an
+explicit `bind 127.0.0.1`. The firewall is not the only thing keeping an unfinished deployment off
+the internet. Note that `admin off` closes the API behind `caddy reload`, so editing the Caddyfile
+needs `systemctl restart caddy`.
+
+**TLS is not done and moves to step 8.** A Let's Encrypt HTTP-01 challenge needs port 80 on this
+machine to answer for `trialoom.xyz`, which cannot be true until DNS moves. Attempting it now
+would only burn ACME failures. At cutover, replace the loopback block with `trialoom.xyz` and
+Caddy provisions the certificate itself. Until then `BETTER_AUTH_URL` is already
+`https://trialoom.xyz`, so sign-in over loopback will refuse the origin — that is expected and
+gets verified in step 8, not here.
 
 **6 — Enrol the runner and start the controller.**
 

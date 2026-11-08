@@ -17,11 +17,16 @@ export const sponsorLimits = {
   /** A quote this close to expiry is not worth paying against. */
   minimumQuoteSeconds: 30,
   /**
-   * What one report may cost, at most. The reviewed unsigned quote was 10,000
-   * base units — 0.01 USDC — and a ceiling the call cannot exceed is what makes
-   * a provider's own price something other than an instruction.
+   * What one report may cost, at most. A ceiling the call cannot exceed is what
+   * makes a provider's own price something other than an instruction.
+   *
+   * The live quote on 2026-11-08 was 10,000 base units — 0.01 USD₮ — and the
+   * ceiling was the same number, so any price rise would have refused every
+   * purchase silently, a correct guard giving no signal. Left at two and a half
+   * times the observed price: still far below the daily allowance, and a refusal
+   * now means the price genuinely moved rather than that it stood still.
    */
-  maxReportUnits: 10_000n,
+  maxReportUnits: 25_000n,
   /** An unanswered provider is waited on, not asked the same question faster. */
   reconcileSeconds: 600,
 } as const;

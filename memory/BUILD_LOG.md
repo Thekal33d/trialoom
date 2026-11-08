@@ -1416,3 +1416,11 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Verified from outside the host: the new heading and the GitHub link are both live at `https://trialoom.xyz/agents`, with no `gitlab.com` in the page.
 - Recorded for the product discussion that followed: Trialoom pays for inference because the free beta absorbs it deliberately and because the model is to buy inputs wholesale and price them into the test fee, not to hand customers a per-call paywall. Two real risks noted — there is no revenue yet, so every test is pure cost against the 50,000/20,000-unit caps; and the per-report ceiling of 10,000 units exactly equals the current quote, so any price rise silently refuses every purchase. Lifting that ceiling is worth doing before the next purchase.
 - Commit subject: `fix: clarify who pays and drop the last gitlab link` (UX-02).
+
+## 2026-11-08 — BUY-01 — Per-report ceiling raised above the observed price
+
+- `sponsorLimits.maxReportUnits` was 10,000 base units and the live quote was also exactly 10,000, so a price rise of one unit would have refused every purchase — a correct guard producing no signal, with the symptom being a missing explanation rather than an error. Raised to **25,000**, two and a half times the observed price and still far below the 20,000 daily and 50,000 total authorisations, which continue to bind. A refusal now means the price genuinely moved.
+- Corrected the same USDC-for-USD₮ mislabel in that comment, which described the quote as "0.01 USDC". The token is Tether USD; the comment now says so, and it records the date and the reasoning rather than only the number.
+- `tests/sponsored.test.ts` reads the ceiling directly, so it was run against the change on the host: **19 of 19 pass**. Lint and strict types pass.
+- This raises no spending authorisation: the user's existing 50,000-unit ceiling and 20,000-unit daily limit are untouched, and nothing was purchased.
+- Commit subject: `fix: give the report ceiling headroom above the quote` (BUY-01).

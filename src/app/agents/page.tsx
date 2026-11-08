@@ -71,16 +71,17 @@ export default function AgentAccess() {
             Keep the printed request ID. Use <code>--request-id</code> with the same value if a test
             request loses its response.
           </p>
-          <Link href="https://gitlab.com/Otaiki1/trialoom" className="text-link">
+          <Link href="https://github.com/Thekal33d/trialoom" className="text-link">
             View source ↗
           </Link>
         </section>
         <section aria-labelledby="agent-boundary">
-          <h2 id="agent-boundary">Your wallet signs in. Trialoom pays for analysis.</h2>
+          <h2 id="agent-boundary">Signing in costs you nothing. Trialoom pays for the analysis.</h2>
           <p>
-            The client signs a login message. It never signs a payment or token approval. Eligible
-            analysis uses Trialoom’s capped budget; a report only shows a verified Celo payment
-            after settlement is checked.
+            The client signs a login message to prove who it is. It never signs a payment and never
+            approves a token, so connecting cannot move your money. When a finished test is explained
+            by an AI service, Trialoom buys that itself within its own capped budget — and a report
+            says a Celo payment happened only after the settlement has been checked on chain.
           </p>
           <p>
             Tests remain limited to the sample and enabled websites you have permission to test.

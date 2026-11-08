@@ -1408,3 +1408,11 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Gave the new repository the metadata it was created without: description, homepage `https://trialoom.xyz`, and topics `celo, erc-8004, x402, browser-testing, qa, agents`. A judge landing on a bare repo sees none of what the project is.
 - Verified trialoom.xyz is serving the new copy: "Agent testing, paid on Celo", "Point us at your website" and "Sign in with your wallet" all present in the live HTML.
 - Commit subject: `docs: point the records at the github repository` (HACK-01).
+
+## 2026-11-08 — UX-02 — Clearer wallet/payment wording and the last GitLab link
+
+- The `/agents` heading read "Your wallet signs in. Trialoom pays for analysis.", which can be read as *Trialoom charges you for analysis* — the opposite of the intent. Changed to **"Signing in costs you nothing. Trialoom pays for the analysis."** and rewrote the paragraph: the signature proves identity, connecting cannot move the client's money, Trialoom buys the explanation within its own capped budget, and a report claims a Celo payment only after settlement is checked on chain.
+- Fixed the **last GitLab link shipped in the product**: `/agents` still offered "View source" pointing at `https://gitlab.com/Otaiki1/trialoom`. It now points at the GitHub repository the entry registers. No `gitlab.com` string remains anywhere under `src/` or `public/`.
+- Verified from outside the host: the new heading and the GitHub link are both live at `https://trialoom.xyz/agents`, with no `gitlab.com` in the page.
+- Recorded for the product discussion that followed: Trialoom pays for inference because the free beta absorbs it deliberately and because the model is to buy inputs wholesale and price them into the test fee, not to hand customers a per-call paywall. Two real risks noted — there is no revenue yet, so every test is pure cost against the 50,000/20,000-unit caps; and the per-report ceiling of 10,000 units exactly equals the current quote, so any price rise silently refuses every purchase. Lifting that ceiling is worth doing before the next purchase.
+- Commit subject: `fix: clarify who pays and drop the last gitlab link` (UX-02).

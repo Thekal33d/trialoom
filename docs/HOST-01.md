@@ -438,9 +438,40 @@ copied to `~/trialoom-owner-invite.txt` on the user's Mac at mode 0600 and **exp
 final dump first and keep it off-box. Railway downgrades apply at the next billing cycle, so
 record the date the $5 actually stops.
 
-**10 — Backups and operations.** Nightly `pg_dump` plus the evidence directory to off-box
-storage, a restore rehearsal, log rotation, disk and memory alerts, and a documented restore
-procedure. Gate: a restore from the backup into a disposable database succeeds.
+**10 — Backups. Done 2026-11-08, with a rehearsed restore.**
+[`runners/backup.sh`](../runners/backup.sh) dumps the database, compresses it, verifies the
+archive, keeps a mode-0600 local copy and sends it off the machine through
+[`scripts/backup-upload.ts`](../scripts/backup-upload.ts), which writes under the bucket's
+`backups/` prefix and prunes anything older than fourteen days. `trialoom-backup.timer` runs it
+nightly at 03:15 UTC with a randomized delay and `Persistent=true`, so a missed night still runs.
+
+First run: `backups/trialoom-20261108T102925Z.sql.gz`, 27,688 bytes, recorded with its SHA-256.
+
+**The restore was rehearsed, not assumed.** The archive was pulled **back out of the bucket**
+rather than read from local disk, verified with `gzip -t`, and restored into a throwaway
+database. It matched the live one exactly:
+
+| | Restored | Live |
+| --- | --- | --- |
+| migrations | 30 | 30 |
+| workspaces | 1 | 1 |
+| memberships | 1 | 1 |
+| runner_hosts | 1 | 1 |
+| tables | 73 | 73 |
+
+The rehearsal database was dropped and the temporary copy removed.
+
+**What this backup does not cover, deliberately.** `/etc/trialoom/*.env` is not backed up: the
+setup scripts regenerate those values, and the one exception, `BETTER_AUTH_SECRET`, costs only
+existing sessions. Evidence objects live in R2 already and are not copied a second time. And the
+backups share the evidence bucket and its credentials, so a host compromise could delete them —
+a second bucket with a write-only token, or R2 object lock, would fix that and needs a new token
+from the user. Hetzner's own snapshots (+20%, about $1.30) remain unused and would add a layer
+outside Cloudflare entirely.
+
+**Rebuilding from nothing** means: a new server, then `harden-host.sh`, `install-node24.sh`, the
+gVisor bootstrap, `setup-postgres.sh`, the restore above, `setup-services.sh`, and re-enrolling
+the runner. Every one of those is committed, which is the other half of the backup.
 
 ## 6. Risks to keep in front of the user
 

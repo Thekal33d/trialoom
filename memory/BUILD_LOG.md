@@ -1376,3 +1376,12 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Still required before anything can settle, and none of it is in place: a Remesso policy that names **this** agent address (the user's existing policy #6 authorizes Remesso's hosted agent `0x7Ff13AaE…87cA`, not ours), a payment authority registered in a workspace with that policy id and payer, then a published brief, an operator claim, submitted evidence and an accepted decision. Only an acceptance writes a payable.
 - Nothing was signed or sent. This is the operator-payout half and is not required for the Build with buy submission, which is about paid calls to services and is already evidenced.
 - Commit subject: `docs: record the funded settlement agent` (PILOT-05).
+
+## 2026-11-08 — BUY-01 — Correction: the paid call settled in USD₮, not USDC
+
+- **I recorded the wrong token.** Read both contracts on Celo: `0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e` is **USD₮, "Tether USD"**, and `0xcebA9300f2b948710d2653dD7B07f33A8B32118C` is USDC. The paid call settled in USD₮. The transaction, amount, payer, payee and token **address** were correct throughout; only the symbol was wrong, and it reached the evidence file, the build log and the live hackathon entry.
+- Root cause was a real defect: `scripts/quote-buy-report.ts` printed a hard-coded `token: 'USDC'` instead of the asset the offer names, even though `buy-report.ts` already lists both assets and exposes `pinnedAsset()` to resolve a symbol from an address. Fixed to read `pinnedAsset(quote.offer.asset)?.symbol` and to report `tokenAddress` as well. Lint and strict types pass.
+- Corrected `docs/evidence/BUY-01-paid-call.json` with the right symbol and a note recording the error, and corrected both mentions in the live entry description — the amount and the EIP-3009 sentence. Verified afterwards that the entry no longer contains the string "USDC" and names USD₮ twice.
+- **A consequence worth carrying forward:** Trialoom pays operators in **USDC** (`src/domain/values.ts`), a different token from the USD₮ this service was paid in, so a Remesso policy funding payouts must be denominated in USDC at `0xcebA9300…2118C`. The user's existing policy #6 is USD₮ and would not fund a payout.
+- Also noted from `find_agent(10031)`: the ERC-8004 registration publishes the agent wallet but **no Remesso payee profile** — "no remesso entry in its services" — so other agents can discover the address but not which tokens Trialoom accepts.
+- Commit subject: `fix: report the token the offer actually names` (BUY-01).

@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { quoteBuyReport } from '../src/server/buy-report.ts';
+import { pinnedAsset, quoteBuyReport } from '../src/server/buy-report.ts';
 
 // Synthetic, public-safe invitation observation, not private customer evidence.
 const input = {
@@ -16,7 +16,10 @@ console.log(
     service: quote.service,
     paid: false,
     amountUnits: quote.offer.maxAmountRequired,
-    token: 'USDC',
+    // Read the asset the offer actually names. A hard-coded symbol here once
+    // reported a USD₮ payment as USDC, and that label reached a submission.
+    token: pinnedAsset(quote.offer.asset)?.symbol ?? quote.offer.asset,
+    tokenAddress: quote.offer.asset,
     chainId: 42220,
     requestHash: quote.requestHash,
     path,

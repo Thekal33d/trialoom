@@ -37,10 +37,12 @@
     "payer": "0xf8Ff4F7C83404e04506785b7DFDf838CA75C22ae",
     "payee": "0x20faAca5F980E29639A0FCC6dcA6988E18ed333B",
     "units": 10000,
-    "amountUsdc": "0.01",
     "transactionSender": "0x0d74d5cefd2e7f24e623330ebe3d8d4cb45ffb48",
     "gasUsed": 84429,
-    "note": "The sender is the facilitator, not the payer: USDC on Celo implements EIP-3009, so the payer signs transferWithAuthorization off chain and the facilitator submits it and pays the gas. This is the sponsored-gas architecture the event asks entrants to describe."
+    "note": "The sender is the facilitator, not the payer: USDC on Celo implements EIP-3009, so the payer signs transferWithAuthorization off chain and the facilitator submits it and pays the gas. This is the sponsored-gas architecture the event asks entrants to describe.",
+    "tokenSymbol": "USD\u20ae (Tether USD)",
+    "amount": "0.01 USD\u20ae",
+    "correction": "First recorded as USDC. The token at 0x48065fbB\u202683D5e is Tether USD (USD\u20ae) on Celo; USDC on Celo is 0xcebA9300\u20262118C. The wrong label came from scripts/quote-buy-report.ts printing a hard-coded 'USDC' instead of the asset the offer names, now fixed. The address recorded here was always correct."
   },
   "reconciliation": {
     "state": "reconciled",
@@ -61,5 +63,6 @@
     "gitlab": "https://gitlab.com/Otaiki1/trialoom",
     "headAtRecord": "2fb0c63988ab1d18624c92cc58adb62c8145d808",
     "note": "GitHub is public and mirrors GitLab. The entry registered the GitLab URL; whether a later repoUrl change satisfies the rules' \"public GitHub repo at registration\" is unresolved and should be put to the organizers."
-  }
+  },
+  "settlementNote": "Operator payouts settle in USDC (0xcebA9300f2b948710d2653dD7B07f33A8B32118C) per domain/values.ts, a different token from the USD\u20ae this service was paid in. A Remesso policy funding payouts must therefore be denominated in USDC."
 }

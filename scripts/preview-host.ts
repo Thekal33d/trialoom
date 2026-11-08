@@ -9,6 +9,10 @@ import { runnerCommand } from './runner-command.ts';
 
 const env = { PATH: process.env.PATH, HOME: process.env.HOME, NODE_ENV: 'test' as const };
 const policy = 'application-preview-v1';
+// One tag per process. A shared tag let two concurrent builds race: the loser
+// kept an image id whose layers the winner had replaced, and every run under it
+// failed with PREVIEW_PROCESS_STOPPED for the lifetime of that process.
+const previewTag = `trialoom-preview-run:${process.pid}-${randomBytes(6).toString('hex')}`;
 export function remote(args: string[], input?: Buffer, timeout = 15000) {
   const command = runnerCommand(args);
   const result = spawnSync(command.command, command.args, {
@@ -72,7 +76,7 @@ export async function buildPreviewImage() {
         '--build-arg',
         `BASE_IMAGE=${base.Id}`,
         '-t',
-        'trialoom-preview-run:local',
+        previewTag,
         '-',
       ],
       archive.stdout,
@@ -81,9 +85,38 @@ export async function buildPreviewImage() {
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
-  const image = JSON.parse(remote(['docker', 'image', 'inspect', 'trialoom-preview-run:local']))[0];
+  const image = JSON.parse(remote(['docker', 'image', 'inspect', previewTag]))[0];
   assert.match(image.Id, /^sha256:[a-f0-9]{64}$/);
   assert.equal(Object.keys(image.Config.Volumes ?? {}).length, 0);
+  // Prove the image can actually execute before any run depends on it. A damaged
+  // image starts no process, and without this the first symptom is every test
+  // being reaped as interrupted with nothing to read.
+  const probe = `${previewTag.split(':')[1]}-probe`;
+  const reported = remote(
+    [
+      'docker',
+      'run',
+      '--rm',
+      '--name',
+      probe,
+      '--pull=never',
+      '--runtime=runsc',
+      '--network=none',
+      '--read-only',
+      '--user=65534:65534',
+      '--cap-drop=ALL',
+      '--security-opt=no-new-privileges',
+      '--memory=512m',
+      '--pids-limit=64',
+      '--log-driver=none',
+      '--entrypoint=node',
+      image.Id,
+      '--version',
+    ],
+    undefined,
+    60000,
+  );
+  assert.match(reported, /^v\d+\./, 'PREVIEW_IMAGE_UNUSABLE');
   return image.Id as string;
 }
 export async function previewIdentity(hostname: string) {

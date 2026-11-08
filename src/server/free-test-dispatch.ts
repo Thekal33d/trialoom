@@ -39,6 +39,31 @@ export async function freeRunnerHeartbeat(
   );
 }
 
+/**
+ * The only execution detail allowed out of the sandbox boundary. Anything the
+ * runner did not raise itself is reported as unclassified rather than echoed,
+ * so a target's own error text can never reach a log.
+ */
+const executionFailures = new Set([
+  'DEDICATED_HOST_COMMAND_FAILED',
+  'PREVIEW_BROKER_FAILED',
+  'PREVIEW_CANCELLED',
+  'PREVIEW_IMAGE_UNUSABLE',
+  'PREVIEW_LIMIT_INVALID',
+  'PREVIEW_ORIGINS_INVALID',
+  'PREVIEW_ORIGIN_INVALID',
+  'PREVIEW_PROCESS_STOPPED',
+  'PREVIEW_SCOPE_INVALID',
+  'PREVIEW_SCOPE_OVERLAP',
+  'RUN_CANCELLED',
+  'RUN_RESULT_MISSING',
+]);
+export function executionFailureClass(error: unknown) {
+  const raised =
+    error && typeof error === 'object' && 'message' in error ? String(error.message) : '';
+  return executionFailures.has(raised) ? raised : 'UNCLASSIFIED';
+}
+
 /** One deployment-wide session lock. A running record is NEVER automatically executed again. */
 export async function dispatchFreeTest(
   pool: Pool,
@@ -51,6 +76,7 @@ export async function dispatchFreeTest(
   const abort = new AbortController();
   let broken = false;
   let locked = false;
+  let failure: string | undefined;
   const lost = () => {
     broken = true;
     abort.abort();
@@ -132,8 +158,11 @@ export async function dispatchFreeTest(
           row = saved.rows[0];
           await checkpoint?.('captured');
         }
-      } catch {
+      } catch (error) {
         // Raw target/process exceptions never enter product records or logs.
+        // Only a fixed class leaves this boundary, so an operator can see that
+        // runs are failing and why, with no target, URL or process detail.
+        failure = executionFailureClass(error);
       } finally {
         polling.abort();
         await poll;
@@ -151,6 +180,8 @@ export async function dispatchFreeTest(
       WHERE id=$1 AND phase IN ('running','captured')`,
       [row.id],
     );
+    if (failure)
+      console.error(JSON.stringify({ event: 'free_test.execution_failed', id: row.id, failure }));
     return true;
   } finally {
     polling.abort();

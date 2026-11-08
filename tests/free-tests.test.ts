@@ -6,6 +6,7 @@ import { AppError } from '../src/domain/errors.ts';
 import type { FreeTestResult } from '../src/domain/free-tests.ts';
 import {
   dispatchFreeTest,
+  executionFailureClass,
   type FreeRunner,
   freeRunnerHeartbeat,
 } from '../src/server/free-test-dispatch.ts';
@@ -466,4 +467,22 @@ test('result projection drops private trace/page strings and distinguishes scope
     'blocked',
   );
   assert.equal(projectFreeTestResult({ ...raw, trace: 'AAAA' }, witness, true).replay, null);
+});
+
+test('an execution failure is reported as a fixed class and never echoes the error', () => {
+  assert.equal(
+    executionFailureClass(new Error('PREVIEW_PROCESS_STOPPED')),
+    'PREVIEW_PROCESS_STOPPED',
+  );
+  // A target's own text, a stack, or anything the runner did not raise itself
+  // must not survive this boundary.
+  for (const raised of [
+    new Error('https://customer.example.com returned 500: secret-token=abc'),
+    new Error(''),
+    Object.assign(new Error('PREVIEW_PROCESS_STOPPED extra detail'), { code: 'X' }),
+    'PREVIEW_PROCESS_STOPPED',
+    undefined,
+    null,
+  ])
+    assert.equal(executionFailureClass(raised), 'UNCLASSIFIED');
 });

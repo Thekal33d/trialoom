@@ -379,14 +379,26 @@ later, and the controller was left holding `sha256:0709ab…`, which fails every
 `PREVIEW_PROCESS_STOPPED`. A rebuild produced `sha256:4044aa…`, which runs correctly — the same
 execution path, the same target, only the image differing. The controller resolves its image once
 at startup and never revalidates, so one bad build disables every test for the process's
-lifetime. Worth fixing by building to a per-process tag, or by executing one throwaway run at
-startup before reporting ready.
+lifetime. **Fixed 2026-11-08:** `buildPreviewImage()` now builds to a per-process tag,
+`trialoom-preview-run:<pid>-<random>`, so two concurrent builds cannot take each other's
+image, and it then runs the built image once under `runsc` as a throwaway probe and asserts the
+process actually starts, failing with `PREVIEW_IMAGE_UNUSABLE` rather than handing out a broken
+image. Verified on the host: the controller at pid 28643 built
+`trialoom-preview-run:28643-7220f8f36e2e`, reached ready, left no probe container behind, and a
+real run on that image returned `outcome: blocked` under Chromium 156.0.8078.4. Tags accumulate
+one per process start, which costs nothing while the content is unchanged because identical
+builds resolve to the same image id.
 
 *Execution failures are invisible in production.* `free-test-dispatch.ts` catches run exceptions
 with "Raw target/process exceptions never enter product records or logs" and reaps the run to
 `interrupted`. Three consecutive failures produced no log line anywhere; the cause only emerged
-by stopping the controller and re-running the execution by hand. The privacy intent is right, but
-an operator needs a sanitized failure class — `PREVIEW_PROCESS_STOPPED` here — recorded somewhere.
+by stopping the controller and re-running the execution by hand. **Fixed 2026-11-08:** the dispatcher now classifies the failure against a
+fixed allowlist of codes the runner itself raises and logs
+`{"event":"free_test.execution_failed","id":…,"failure":…}`. Anything else is reported as
+`UNCLASSIFIED`, so a target's own error text, a stack or a URL can never reach a log. A test
+covers that boundary: `PREVIEW_PROCESS_STOPPED` passes through, while an error carrying a
+customer URL and a token, a trailing-detail variant and a bare string all come back
+`UNCLASSIFIED`. The free-test suite passes 15 of 15 on the host.
 
 ** The controller shares `trialoom_worker`'s database role rather
 than holding one of its own. Both roles carry identical DML, so a separate role would currently

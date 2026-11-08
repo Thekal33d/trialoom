@@ -1,6 +1,6 @@
 # Build backlog
 
-Last updated: 2026-11-05. Source: [PRD](PRD.md). Milestones: [ROADMAP.md](ROADMAP.md).
+Last updated: 2026-11-08. Source: [PRD](PRD.md). Milestones: [ROADMAP.md](ROADMAP.md).
 
 States: **Ready**, **In progress**, **Blocked**, **Not started**, **Done**, **Deferred**. Ready means dependencies permit work. Done requires acceptance evidence and a checkpoint commit. Dependencies identify tasks, not elapsed time.
 
@@ -15,6 +15,7 @@ The user authorized the remodel on 2026-11-05. Personal invitations are not a pu
 | MARKET-03 | Hosted execution and paid job dispatch | Done (local) | Native Linux/gVisor execution, private S3 evidence transport, durable paid homepage dispatch and lost-acknowledgement recovery verified. Real owned-target browser test delivers once; no payment is self-authorized. Dedicated production host/storage still require connection under MARKET-05. |
 | MARKET-04 | Builder/operator product flow | Done (local) | Public paid-test form, explicit budget/publication, owner-linked policy import, operator guide and durable claim CLI. All 86 desktop/mobile checks and two final publication reruns pass; local backend suite 348 and capability suite 28 pass. Hosted enablement remains MARKET-05. |
 | MARKET-05 | Public release verification | In progress | Local checks pass: 348 backend, 86 desktop/mobile, 28 capability, real paid gVisor delivery/recovery, 44-step loop and 19 Celo-fork checks. Both production images build; container smoke verifies all 30 migrations, non-root startup, shared-storage configuration and outdated-schema rejection. WebSocket advisories fixed; nested wallet dependency remediation, actual host/bucket setup, deployment and authorized live payment proof remain open. No claims based on fixture settlement. |
+| HOST-01 | Single-host consolidation and Railway retirement | Blocked on user decision | D069; plan and gates in [HOST-01](HOST-01.md). Needs an authorized server purchase, gVisor isolation evidence on the chosen architecture, a verified private bucket, TLS and a reverse proxy, the data move off Railway, verified DNS cutover and a restore-tested backup. Hetzner shared plans read as unavailable on 2026-11-08; nothing purchased, provisioned or deployed. |
 
 ## Foundation and capability validation (historical baseline)
 

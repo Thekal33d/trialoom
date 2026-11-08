@@ -44,8 +44,17 @@ for service in web worker; do
   fi
   install -d -m 700 -o "$user" -g "$user" "/var/lib/$user"
 done
-# next start writes its image cache; nothing else under the checkout is writable.
-install -d -m 755 -o trialoom-web -g trialoom-web "$APP_DIR/.next/cache"
+# next.config.ts sets output: 'standalone', so `next start` is the wrong
+# entrypoint and serves a build whose server actions the browser cannot resolve.
+# Assemble the layout the Dockerfile uses and run server.js from it.
+RUN_DIR="$APP_DIR/.next/standalone"
+test -f "$RUN_DIR/server.js"
+install -d -m 755 "$RUN_DIR/.next"
+cp -a "$APP_DIR/.next/static" "$RUN_DIR/.next/static.new"
+rm -rf "$RUN_DIR/.next/static" && mv "$RUN_DIR/.next/static.new" "$RUN_DIR/.next/static"
+cp -a "$APP_DIR/public" "$RUN_DIR/public.new"
+rm -rf "$RUN_DIR/public" && mv "$RUN_DIR/public.new" "$RUN_DIR/public"
+install -d -m 755 -o trialoom-web -g trialoom-web "$RUN_DIR/.next/cache"
 
 set -a; . "$SECRET_DIR/db.env"; set +a
 
@@ -108,9 +117,9 @@ Wants=network-online.target
 Type=simple
 User=trialoom-web
 Group=trialoom-web
-WorkingDirectory=$APP_DIR
+WorkingDirectory=$RUN_DIR
 EnvironmentFile=$SECRET_DIR/web.env
-ExecStart=/usr/bin/npm run start
+ExecStart=/usr/bin/node server.js
 Restart=on-failure
 RestartSec=5
 UMask=0077
@@ -121,7 +130,7 @@ ProtectHome=yes
 ProtectKernelTunables=yes
 ProtectControlGroups=yes
 RestrictSUIDSGID=yes
-ReadWritePaths=$APP_DIR/.next/cache /var/lib/trialoom-web
+ReadWritePaths=$RUN_DIR/.next/cache /var/lib/trialoom-web
 # No signing key and no Docker socket. The browser controller is a separate unit.
 
 [Install]
@@ -157,9 +166,13 @@ ReadWritePaths=/var/lib/trialoom-worker
 WantedBy=multi-user.target
 EOF
 
-# Loopback only until the cutover. Replacing this block with the hostname is
-# what makes the site public, and Caddy then provisions the certificate itself.
-cat > /etc/caddy/Caddyfile <<'EOF'
+# Loopback only until the cutover, and only when there is nothing to preserve.
+# Re-running this script after the cutover must never put the live site back
+# behind loopback: that is an outage, not a reset.
+if [ -f /etc/caddy/Caddyfile ] && ! grep -q '^http://127\.0\.0\.1:8080 {' /etc/caddy/Caddyfile; then
+  printf 'Keeping the existing /etc/caddy/Caddyfile; it is not the pre-cutover loopback config.\n'
+else
+  cat > /etc/caddy/Caddyfile <<'EOF'
 {
 	admin off
 }
@@ -173,6 +186,7 @@ http://127.0.0.1:8080 {
 	reverse_proxy 127.0.0.1:3000
 }
 EOF
+fi
 caddy validate --config /etc/caddy/Caddyfile >/dev/null
 # `admin off` closes the API that `caddy reload` and `systemctl reload caddy`
 # use, so changing this file later needs a restart, not a reload.

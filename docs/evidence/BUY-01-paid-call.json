@@ -1,0 +1,51 @@
+{
+  "task": "BUY-01 / HACK-02",
+  "recordedOn": "2026-11-08",
+  "timezone": "Africa/Lagos",
+  "claim": "One authorized, capped paid call settled on Celo mainnet and verified independently on chain.",
+  "approval": {
+    "disclosureApprovedByUser": true,
+    "quoteShownBeforePayment": true,
+    "payloadSent": "three boolean recorded_browser_check observations with step refs, plus the fixed prompt",
+    "payloadExcluded": ["url", "page text", "trace", "cookies", "identity"],
+    "destination": "https://gateway.usebuy.ai/cencori/v1/chat/completions"
+  },
+  "purchase": {
+    "purchaseId": "8fdbe006-c697-45ca-b0c4-7c5e85e812d3",
+    "reportInputId": "c8bd29d8-e9d9-41da-b27b-87ebaf50a1c0",
+    "freeTestId": "02dc8b1b-abd7-4653-a892-6d96e6d87535",
+    "service": "cencori.v1.chat.completions",
+    "requestHash": "efcd943ffee50e44de3bc2e857739420543b63ccb0c751e8c6fb72e73fc5e55d",
+    "quotedUnits": 10000,
+    "ceilingUnits": 10000,
+    "delivery": "usable"
+  },
+  "onChain": {
+    "verifiedBy": "direct eth_getTransactionReceipt against https://forno.celo.org, independent of the provider receipt",
+    "chainId": 42220,
+    "transaction": "0x339fe5f4bf8c0885c4070cd9700cdca935125ce2f90a952da473c977782943ef",
+    "status": "0x1",
+    "blockNumber": 82243718,
+    "token": "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e",
+    "tokenDecimals": 6,
+    "payer": "0xf8Ff4F7C83404e04506785b7DFDf838CA75C22ae",
+    "payee": "0x20faAca5F980E29639A0FCC6dcA6988E18ed333B",
+    "units": 10000,
+    "amountUsdc": "0.01",
+    "transactionSender": "0x0d74d5cefd2e7f24e623330ebe3d8d4cb45ffb48",
+    "gasUsed": 84429,
+    "note": "The sender is the facilitator, not the payer: USDC on Celo implements EIP-3009, so the payer signs transferWithAuthorization off chain and the facilitator submits it and pays the gas. This is the sponsored-gas architecture the event asks entrants to describe."
+  },
+  "reconciliation": {
+    "state": "uncertain",
+    "settledUnits": 0,
+    "reservedUnits": 10000,
+    "detail": "The adapter's resolve searched AuthorizationUsed logs in the quote-expiry window and reported no unique finalized authorization, so the purchase holds its reserve and the job reschedules every 600 seconds. Uncertainty deliberately does not free the commitment or create another transfer.",
+    "openQuestion": "Whether the expiry-bounded log window or block finality at query time is why the on-chain transfer, which is plainly present, was not matched."
+  },
+  "limitations": [
+    "One call from the project's own sponsor wallet; this is not independent-user demand",
+    "Internal accounting shows the spend reserved, not settled, until reconciliation resolves",
+    "No claim is made about bounty eligibility or scoring"
+  ]
+}

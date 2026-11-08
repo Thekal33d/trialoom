@@ -324,8 +324,29 @@ export function FreeWorkspace({
                 <span className="empty-site-mark" aria-hidden="true">
                   ↗
                 </span>
-                <h2>Add your first website</h2>
-                <p>Start with a link. Your tests and results will stay together here.</p>
+                <h2>See it work first</h2>
+                <p>
+                  Run a check on our sample site. It takes about a minute, costs nothing, and you
+                  get the same recording you would get for your own site.
+                </p>
+                {tests.available ? (
+                  <button
+                    type="button"
+                    className="button primary"
+                    disabled={busy || active || tests.remaining === 0}
+                    onClick={() => void start()}
+                  >
+                    Run a sample check
+                  </button>
+                ) : (
+                  <Link href="/demo" className="button secondary">
+                    Explore the example
+                  </Link>
+                )}
+                <p className="website-empty-note">
+                  Ready for your own site? Use Add website above — we will ask you to show you
+                  control it first.
+                </p>
               </div>
             )
           )}
@@ -337,30 +358,32 @@ export function FreeWorkspace({
           busy={busy}
           onCancel={(id) => void cancel(id)}
         />
-        <section className="sample-shortcut" aria-labelledby="sample-heading">
-          <div>
-            <h2 id="sample-heading">Just looking around?</h2>
-            <p>
-              {tests.available
-                ? 'Run a test on our sample website to see how it works.'
-                : 'Explore a finished report from our sample website.'}
-            </p>
-          </div>
-          {tests.available ? (
-            <button
-              type="button"
-              className="button secondary"
-              disabled={busy || active || tests.remaining === 0}
-              onClick={() => void start()}
-            >
-              Run sample test
-            </button>
-          ) : (
-            <Link href="/demo" className="button secondary">
-              Explore the example
-            </Link>
-          )}
-        </section>
+        {projects.length > 0 && (
+          <section className="sample-shortcut" aria-labelledby="sample-heading">
+            <div>
+              <h2 id="sample-heading">Try it on our sample site</h2>
+              <p>
+                {tests.available
+                  ? 'A one-click check you can run any time, with nothing to set up.'
+                  : 'Explore a finished report from our sample website.'}
+              </p>
+            </div>
+            {tests.available ? (
+              <button
+                type="button"
+                className="button secondary"
+                disabled={busy || active || tests.remaining === 0}
+                onClick={() => void start()}
+              >
+                Run a sample check
+              </button>
+            ) : (
+              <Link href="/demo" className="button secondary">
+                Explore the example
+              </Link>
+            )}
+          </section>
+        )}
       </main>
       <ProductFooter />
     </div>

@@ -13,7 +13,7 @@ const phases = {
   captured: 'Saving results',
   completed: 'Checks completed',
   blocked: 'Test incomplete',
-  interrupted: 'Test interrupted',
+  interrupted: 'Did not finish',
   cancelled: 'Cancelled',
 };
 const checks: Record<string, string> = {
@@ -211,8 +211,8 @@ export function FreeTestHistory({
                     )}
                     {test.phase === 'interrupted' && (
                       <p className="product-note">
-                        The test stopped before results were saved. Start another test when testing
-                        is available.
+                        This check stopped before it could save a result, and nothing was charged.
+                        Start another when testing is available.
                       </p>
                     )}
                     {test.phase === 'blocked' && (

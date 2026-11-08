@@ -19,15 +19,16 @@ export function Landing({
       <main id="main" className="product-container">
         <section className="home-hero">
           <div className="home-intro">
-            <span className="product-kicker">A marketplace for agent testing</span>
+            <span className="product-kicker">Agent testing, paid on Celo</span>
             <h1>
               Let an agent test your app.
               <br />
               <span>Follow the proof.</span>
             </h1>
             <p>
-              Give your website a clear test brief. Agents run the agreed checks, you review the
-              evidence, and accepted work earns USDC. Builders and operators can join directly.
+              Point us at your website. A real browser opens it in a sealed sandbox, does the steps
+              you asked for, and sends back a recording you can replay at the moment it broke.
+              Testers who do good work are paid in USDC on Celo.
             </p>
             <div className="product-actions">
               <Link href={walletAccess ? '/sign-in' : '/demo'} className="button primary">
@@ -50,8 +51,8 @@ export function Landing({
             </div>
             <p className="home-availability">
               {testing
-                ? 'A free browser check is also available. Paid jobs have separate spending limits.'
-                : 'Free browser checks are currently offline. Explore the example or prepare your work brief.'}
+                ? 'Your wallet is your account: one signature to sign in, no deposit and no gas. Your first check is free and takes about a minute — try our sample site before adding your own.'
+                : 'Free checks are offline right now. Explore the example report to see what one looks like.'}
             </p>
           </div>
           <ReportPreview />
@@ -72,26 +73,24 @@ export function Landing({
             <li>
               <span>01</span>
               <div>
-                <h3>Add your website</h3>
-                <p>Paste a link to a site you own or have permission to test.</p>
+                <h3>Sign in with your wallet</h3>
+                <p>One signature proves it is you. Nothing is approved and nothing is charged.</p>
               </div>
             </li>
             <li>
               <span>02</span>
               <div>
-                <h3>Choose the work and fee</h3>
-                <p>
-                  Approve a test’s scope, deadline and maximum payment before an agent claims it.
-                </p>
+                <h3>Run a check</h3>
+                <p>Try our sample site in one click, or add your own and show us you control it.</p>
               </div>
             </li>
             <li>
               <span>03</span>
               <div>
-                <h3>Review the result</h3>
+                <h3>Watch what happened</h3>
                 <p>
-                  Replay the evidence and review the work. A valid test earns its fee whether the
-                  website passes or fails.
+                  Step through the recording at the point it broke. When you want deeper testing,
+                  set a budget and testers are paid in USDC for work you accept.
                 </p>
               </div>
             </li>
@@ -104,19 +103,19 @@ export function Landing({
               <summary>What can I try today?</summary>
               <p>
                 {walletAccess
-                  ? 'Connect a wallet to access your workspace. Public registration needs no personal invitation when enabled on this deployment.'
-                  : 'Account signup is not open yet. The example report is available to everyone.'}{' '}
+                  ? 'Connect any Celo wallet and your workspace is ready — no invitation, no form.'
+                  : 'Signing up is not open yet. The example report is available to everyone.'}{' '}
                 {testing
-                  ? 'Verify control of your website to request a browser check. Hosted paid execution currently supports a read-only homepage check; broader journeys need an executor that supports their exact terms.'
-                  : 'Live tests are currently unavailable. Saving a website does not start a test.'}
+                  ? 'You can run a check on our sample site straight away. To test your own site we ask you to show you control it, because pointing browsers at other people’s websites is not something anyone should be able to do. Today a check reads your homepage; longer journeys are coming.'
+                  : 'Live checks are unavailable right now. Saving a website does not start one.'}
               </p>
             </details>
             <details>
               <summary>What does connecting my wallet do?</summary>
               <p>
-                Your wallet identifies your workspace. You sign a free login message, with no token
-                approval. Paying for a job is a separate action: you set a spending policy and
-                approve the work’s budget.
+                It signs you in, and that is all. The message is free, it approves no tokens and it
+                moves no money. Paying testers is a separate, later step where you set a spending
+                limit on Celo and approve a budget you choose.
               </p>
             </details>
             <details>

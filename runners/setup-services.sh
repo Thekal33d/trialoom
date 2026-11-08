@@ -83,6 +83,8 @@ BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
 TRIALOOM_URL=$PUBLIC_ORIGIN
 TRIALOOM_WALLET_LOGIN=true
 TRIALOOM_PUBLIC_WALLET_SIGNUP=true
+# The websites and free-checks surface only renders when this is true.
+TRIALOOM_FREE_TESTS=true
 TRIALOOM_S3_ENDPOINT=$TRIALOOM_S3_ENDPOINT
 TRIALOOM_S3_BUCKET=$TRIALOOM_S3_BUCKET
 TRIALOOM_S3_REGION=$TRIALOOM_S3_REGION
@@ -195,7 +197,10 @@ caddy validate --config /etc/caddy/Caddyfile >/dev/null
 rm -f "$APP_DIR/.env"
 
 systemctl daemon-reload
-systemctl enable --now trialoom-web trialoom-worker
+systemctl enable trialoom-web trialoom-worker
+# Restart rather than `enable --now`: on a re-run after a rebuild the services
+# are already up, and `--now` would leave them serving the previous build.
+systemctl restart trialoom-web trialoom-worker
 systemctl restart caddy
 systemctl enable caddy
 

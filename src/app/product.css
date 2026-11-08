@@ -881,6 +881,13 @@
   font-size: 15px;
   color: var(--muted);
   margin-top: 10px;
+  max-width: 52ch;
+}
+.website-empty .button {
+  margin-top: 18px;
+}
+.website-empty-note {
+  font-size: 14px;
 }
 .website-editor {
   padding: 28px;

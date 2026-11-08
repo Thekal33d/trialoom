@@ -1400,3 +1400,11 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Recaptured the landing page at full resolution after the copy change and replaced the first entry screenshot; the `/demo` example report is unchanged as the second. The new shot shows the "Agent testing, paid on Celo" kicker, the plain-language hero and the line explaining that the wallet costs one signature, no deposit and no gas — so a judge sees the chain and the cost answer without scrolling.
 - Verified after upload: both URLs return 200 at 58,862 and 44,016 bytes, `repoUrl` is the GitHub repository and `missing` is empty.
 - Commit subject: `docs: refresh the entry screenshot` (HACK-03).
+
+## 2026-11-08 — HACK-01 — Cleaned up what the GitLab-to-GitHub switch left behind
+
+- Confirmed GitHub carries the current build: local and `github/main` both at `f6ffe3b`. **GitLab is at `377118c`, eight commits behind**, and cannot be pushed from this session — there are no GitLab credentials here, so `git push origin main` is the user's to run. Keeping it current matters because GitLab is the URL that was registered at enrolment.
+- **Corrected stale claims the switch left in the records.** `memory/PROJECT.md` still said GitLab was the code remote and that GitHub was unavailable; `docs/HACKATHON.md` still carried an open checklist item saying the user's GitHub account was suspended and the public-GitHub requirement was "not ours to fix", plus a review row and a closing paragraph saying the same. All four now state that `https://github.com/Thekal33d/trialoom` is public, current and the registered URL, that the suspension no longer blocks the requirement, and that the only open question is whether a later `repoUrl` change satisfies "at registration". A judge reading the repository would otherwise have found the documentation contradicting the entry.
+- Gave the new repository the metadata it was created without: description, homepage `https://trialoom.xyz`, and topics `celo, erc-8004, x402, browser-testing, qa, agents`. A judge landing on a bare repo sees none of what the project is.
+- Verified trialoom.xyz is serving the new copy: "Agent testing, paid on Celo", "Point us at your website" and "Sign in with your wallet" all present in the live HTML.
+- Commit subject: `docs: point the records at the github repository` (HACK-01).

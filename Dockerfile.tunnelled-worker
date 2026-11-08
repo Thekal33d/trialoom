@@ -11,7 +11,8 @@ FROM base AS runtime-modules
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
   && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
-RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev
+# Railway's builder requires an id on a cache mount; BuildKit defaults it locally.
+RUN --mount=type=cache,id=trialoom-npm,target=/root/.npm npm ci --omit=dev
 
 FROM base AS worker
 RUN apt-get update && apt-get install -y --no-install-recommends openssh-client \

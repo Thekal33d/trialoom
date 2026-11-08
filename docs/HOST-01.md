@@ -361,7 +361,34 @@ product, pass its DNS verification, and request a test — then a controller kil
 confirm recovery without duplicate execution. The ten SIGKILL checkpoints in step 3 cover the
 recovery machinery, but not with a live customer target.
 
-**One deviation worth narrowing.** The controller shares `trialoom_worker`'s database role rather
+**Real execution proven on this host, 2026-11-08, with the product record still outstanding.**
+`nukko.xyz` was added through the public free-checks surface, its ownership proved by the TXT
+record at `_trialoom.nukko.xyz`, and the runner executed against it: real Chromium 156.0.8078.4,
+`outcome: blocked`, checks `homepage:false`, `scope:false`, `infrastructure:true`, after the site
+answered **HTTP 403** to the sandbox. A blocked outcome is a legitimate recorded result, not a
+failure of the runner. What is still missing is that same run arriving through the dispatcher
+into the product's own record; today's three free checks are spent, so that waits for the quota
+to reset.
+
+**Two defects found by getting there, both recorded rather than patched.**
+
+*The sandbox image can be built broken, and nothing notices.* `buildPreviewImage()` builds one
+shared tag, `trialoom-preview-run:local`, from a temporary context it deletes afterwards. The
+controller built its image at startup while `check-hosted-tests.ts` built the same tag seconds
+later, and the controller was left holding `sha256:0709ab…`, which fails every run with
+`PREVIEW_PROCESS_STOPPED`. A rebuild produced `sha256:4044aa…`, which runs correctly — the same
+execution path, the same target, only the image differing. The controller resolves its image once
+at startup and never revalidates, so one bad build disables every test for the process's
+lifetime. Worth fixing by building to a per-process tag, or by executing one throwaway run at
+startup before reporting ready.
+
+*Execution failures are invisible in production.* `free-test-dispatch.ts` catches run exceptions
+with "Raw target/process exceptions never enter product records or logs" and reaps the run to
+`interrupted`. Three consecutive failures produced no log line anywhere; the cause only emerged
+by stopping the controller and re-running the execution by hand. The privacy intent is right, but
+an operator needs a sanitized failure class — `PREVIEW_PROCESS_STOPPED` here — recorded somewhere.
+
+** The controller shares `trialoom_worker`'s database role rather
 than holding one of its own. Both roles carry identical DML, so a separate role would currently
 be cosmetic, but a runner-specific role would make revocation and auditing independent of the
 payment worker. Open work, not a claim of separation.

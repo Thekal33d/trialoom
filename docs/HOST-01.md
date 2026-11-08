@@ -360,44 +360,57 @@ target the user owns dispatches, executes under `runsc` and delivers reviewable 
 then kill the controller mid-run and confirm recovery with no duplicate execution and no slot
 freed before removal is verified.
 
-**7 — Move the data. Blocked on an approval, 2026-11-08.** Two findings from the Railway console:
-
-- The Postgres service has **no public endpoint**. Its twelve variables are `DATABASE_URL`,
-  `PGDATA`, `PGDATABASE`, `PGHOST`, `PGPASSWORD`, `PGPORT`, `PGUSER`, `POSTGRES_DB`,
-  `POSTGRES_PASSWORD`, `POSTGRES_USER`, `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` and `SSL_CERT_DAYS`,
-  and the ten Railway-provided ones include `RAILWAY_PRIVATE_DOMAIN`. There is no
-  `DATABASE_PUBLIC_URL`, so the earlier instruction to read one was wrong: that variable appears
-  only once TCP proxying is switched on.
-- The installed Railway CLI 5.68.0 is authenticated, and `railway ssh -s Postgres` can run
-  `pg_dump` **inside the service container**, so the dump needs neither a public endpoint nor a
-  connection string pasted anywhere.
-
-The CLI route is the one to use. Enabling Railway's TCP proxy would put the production database
-on the public internet, password-protected but reachable, for the length of the move; it is the
-fallback only if the CLI cannot work.
-
-This session's permission settings refuse commands that read a production service, so the dump
-needs either the user's approval for that command or the user running it themselves:
+**7 — Move the data. Done 2026-11-08, and there was nothing to move.** The user took the dump
+through the authenticated Railway CLI, so no endpoint was opened and no connection string was
+pasted:
 
 ```bash
 railway ssh -p bc70fce3-5930-4895-ac9f-65fa48ee8195 -e production -s Postgres \
   sh -c 'pg_dump --no-owner --no-privileges --format=plain "$DATABASE_URL"' > ~/trialoom-railway.sql
 ```
 
-Then, on the host: drop and recreate `trialoom`, restore, re-run `runners/setup-postgres.sh` for
-roles and grants, and apply whatever migrations Railway has not seen — expect 0026–0030, since it
-runs the pre-remodel schema. Railway keeps running untouched throughout and remains the rollback.
-Gate: row counts match the source, the application reads the restored data, and `/api/ready`
-passes on the migrated schema.
+The result is 190 KB, 66 tables, **23 migrations** — `0001` through `0023`, the pre-remodel
+schema, as expected. Exactly four tables carry rows:
 
-Two unrelated things visible in that console, for the user rather than for this migration: the
-`trialoom` project has **two staged but unapplied changes**, and the worker's most recent
-deployment **failed** three days ago while an older one stays active. Railway also shows a
-service notice about external network access being degraded.
+| Table | Rows in Railway | Rows already on the host |
+| --- | --- | --- |
+| `schema_migrations` | 23 | 30 |
+| `qualification_tasks` | 4 | 4 |
+| `sponsored_budgets` | 1 | 1 |
+| `resource_accounts` | 1 | 1 |
 
-**8 — Cut over DNS.** At Namecheap, replace the Railway target with the Hetzner server's A/AAAA
-records; lower the TTL beforehand. Verify HTTPS, the authentication origin, sign-in, a public
-signup and one hosted test on the public domain. Gate: all of that passes from outside the host.
+Those three non-migration tables are **seed data written by the migrations themselves**, and the
+host already holds identical counts. Every other table is empty, accounts included: the live
+deployment has no users, no workspaces, no memberships, no projects. So there is no data to
+carry over, no database to drop and recreate, and no restore to perform. The dump is kept at
+`~/trialoom-railway.sql` on the user's Mac as a safety copy; it contains no personal data.
+
+**This also breaks the fix made earlier today.** Step 6 was moved after step 7 on the assumption
+that the owner workspace lived in Railway. It does not live anywhere — the example workspace on
+the public site is rendered from fixtures, and the owner invitation from 2026-10-27 was local and
+never used. Runner enrollment needs an owner account that has to be **created on the new
+deployment**, and wallet signup needs the real origin, which means the DNS cutover comes first.
+
+**The order is now 8 → sign up → 6 → 10.** Cut over and get the certificate, sign up as the
+owner, enrol the runner against that workspace, then backups.
+
+**8 — Cut over DNS. Next, and it is a release decision, not a technical step.** At Namecheap,
+lower the TTL, then replace the Railway target for `trialoom.xyz` with this server's A record
+`2.31.104.223` and its AAAA record. Then replace the loopback block in `/etc/caddy/Caddyfile`
+with `trialoom.xyz { reverse_proxy 127.0.0.1:3000 }` and `systemctl restart caddy`, which lets
+Caddy answer the HTTP-01 challenge and obtain the certificate.
+
+What makes this a decision rather than a step: the live site changes from the **pre-remodel**
+build Railway serves today to the **D064 public self-service** build, with
+`TRIALOOM_PUBLIC_WALLET_SIGNUP` enabled. Strangers can register the moment DNS resolves here.
+Nothing else gates that, so it needs the user's explicit go-ahead, and it should probably wait
+until the runner is enrolled and one real test has been proven — otherwise the public site can
+take work it cannot execute.
+
+The low-risk alternative is to cut over with public signup disabled, prove the runner, then
+enable it. Rollback is simply pointing DNS back at Railway, which keeps running untouched.
+Gate: HTTPS valid, the authentication origin accepted, sign-in, a public signup and one hosted
+test all verified from outside the host.
 
 **9 — Retire Railway.** Only after the cutover has been verified and the user says so. Take a
 final dump first and keep it off-box. Railway downgrades apply at the next billing cycle, so

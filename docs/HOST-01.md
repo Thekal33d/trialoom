@@ -327,22 +327,52 @@ Caddy provisions the certificate itself. Until then `BETTER_AUTH_URL` is already
 `https://trialoom.xyz`, so sign-in over loopback will refuse the origin — that is expected and
 gets verified in step 8, not here.
 
-**6 — Enrol the runner and start the controller.**
+**6 — Enrol the runner and start the controller. Blocked by step 7; the order in this plan was
+wrong.** `scripts/register-managed-runner.ts` writes a `runner_hosts` row bound to a workspace and
+refuses unless the named user owns it:
+
+> The selected user must own the administrative workspace.
+
+The database on this host has the schema and **no accounts at all** — `workspaces`, `memberships`
+and `runner_hosts` are each at zero, because step 3 migrated an empty database. The owning
+workspace exists only in the Railway database, so it arrives with the data move. Signing up here
+first is not a way around it either: `BETTER_AUTH_URL` is `https://trialoom.xyz`, which still
+resolves to Railway, and wallet signup needs a browser the loopback origin will not satisfy.
+
+**Run step 7 before this step.** The order becomes 7 → 6 → 8: move the data, enrol the runner
+against the restored owner workspace, then cut DNS over. Nothing about the steps themselves
+changes.
+
+When it runs:
 
 ```bash
-node scripts/register-managed-runner.ts
-sudo systemctl enable --now trialoom-browser
+cd /opt/trialoom && set -a && . /etc/trialoom/db.env && set +a
+node scripts/register-managed-runner.ts --workspace UUID --owner USER_ID \
+  --name trialoom-fsn1 --output /etc/trialoom/runner-credential.env --host-check-passed
+systemctl enable --now trialoom-browser
 ```
 
-The mode-0600 credential goes only to the controller's own environment file. The controller's unit
-must not carry, and must not mount into any container, the settlement or sponsor signing key.
-Gate: a fresh heartbeat is visible, one real test on a target the user owns dispatches, executes
-under `runsc`, delivers evidence to the bucket and is reviewable; kill the controller mid-run and
-confirm recovery with no duplicate execution and no slot freed before removal is verified.
+The mode-0600 credential goes only into the controller's environment file, beside
+`TRIALOOM_RUNNER_DISPATCH_KEY` (already generated in `/etc/trialoom/shared.env`),
+`TRIALOOM_RUNNER_API_ORIGIN`, the database settings and the R2 credentials. The settlement and
+sponsor signing keys must never reach it. Gate: a fresh heartbeat is visible, one real test on a
+target the user owns dispatches, executes under `runsc` and delivers reviewable evidence to R2;
+then kill the controller mid-run and confirm recovery with no duplicate execution and no slot
+freed before removal is verified.
 
-**7 — Move the data.** `pg_dump` the Railway database, restore it on the host, then apply
-0026–0030 and compare row counts and the existing owner/workspace records. Railway stays untouched
-and running throughout. Gate: counts match, the application reads the restored data, `/api/ready`
+**7 — Move the data. Next, and it needs a credential only the user can supply.** `pg_dump` the
+Railway database, restore it here, then apply whatever migrations Railway has not yet seen.
+Railway runs the pre-remodel schema, so expect 0026–0030 to apply after the restore.
+
+The `trialoom` database on this host already has all 30 migrations applied to an empty schema, so
+it must be dropped and recreated before the restore rather than restored over — otherwise the
+dump collides with tables that already exist. `runners/setup-postgres.sh` recreates the roles and
+grants idempotently afterwards.
+
+What is needed: Railway's **public** PostgreSQL connection string, from the Postgres service's
+variables (`DATABASE_PUBLIC_URL`; the internal `.railway.internal` host is unreachable from
+outside Railway). Railway stays running and untouched throughout, so it remains the rollback.
+Gate: row counts match the source, the application reads the restored data, and `/api/ready`
 passes on the migrated schema.
 
 **8 — Cut over DNS.** At Namecheap, replace the Railway target with the Hetzner server's A/AAAA

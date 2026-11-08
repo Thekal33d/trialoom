@@ -463,10 +463,12 @@ Verified from outside the host:
 | Certificate | `CN=trialoom.xyz`, Let's Encrypt, valid to 2027-02-06 |
 | `http://trialoom.xyz/` | 308 to HTTPS |
 
-**One record is missing: there is no AAAA.** The old Railway AAAA is gone and nothing replaced it,
-on the authoritative nameserver or at `1.1.1.1` and `8.8.8.8`. The server has
-`2a01:4f8:c016:13b::1`. IPv4-only service works, and a split where IPv6 still pointed at Railway
-would have been worse, but IPv6-only clients cannot reach the site until that record exists.
+**IPv6 added later the same day.** The cutover initially left no AAAA record at all. The user
+added `@` → `2a01:4f8:c016:13b::1`, which now resolves at the authoritative nameserver and at
+both `1.1.1.1` and `8.8.8.8`, with the A record unchanged. Verified over IPv6 from outside the
+host and from the host itself: `https://trialoom.xyz/api/health` returns 200 from
+`2a01:4f8:c016:13b::1` with the certificate accepted, and Caddy's `*:443` listener covers both
+families.
 
 **Owner bootstrap done.** `node scripts/invite.ts` created the workspace and a private owner
 invitation — one workspace, one invitation, no memberships yet, no email sent. The join link was

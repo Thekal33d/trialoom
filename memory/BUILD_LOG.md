@@ -1298,3 +1298,9 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Lint over the changed files and strict types pass. Tags now accumulate one per process start; identical content resolves to the same image id, so this costs no disk until the build content changes.
 - Still outstanding: one free check arriving through the dispatcher into the product record once the daily quota resets, the sample-test fixture dead end, the missing AAAA record, and retiring Railway.
 - Commit subject: `fix: stop concurrent builds breaking the sandbox image` (HOST-01, FREE-02).
+
+## 2026-11-08 — HOST-01 — IPv6 completed for trialoom.xyz
+
+- The user added the missing AAAA record. `trialoom.xyz` now resolves to `2a01:4f8:c016:13b::1` at the authoritative nameserver and at both `1.1.1.1` and `8.8.8.8`, with the A record unchanged at `2.31.104.223`.
+- Verified rather than assumed: `https://trialoom.xyz/api/health` returns 200 over IPv6 both from outside the host and from the host itself, reporting the peer as `2a01:4f8:c016:13b::1`, with the Let's Encrypt certificate accepted on that path. Caddy's `*:443` listener serves both families.
+- Outstanding: a free check recorded through the dispatcher once the daily quota resets, the sample-test fixture dead end, and retiring Railway. Commit subject: `docs: record ipv6 for the live host` (HOST-01).

@@ -16,7 +16,7 @@ FROM base AS runtime-modules
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
   && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
-RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev
+RUN --mount=type=cache,id=trialoom-npm-worker,target=/root/.npm npm ci --omit=dev
 
 FROM base AS worker
 COPY --from=runtime-modules --chown=node:node /srv/trialoom/node_modules ./node_modules

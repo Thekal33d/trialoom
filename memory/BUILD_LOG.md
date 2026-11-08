@@ -1311,3 +1311,12 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - The sample failed for the same single cause as the two nukko.xyz runs: the damaged image. Re-run on the repaired image it **passes completely**: `outcome: completed`, Chromium 156.0.8078.4, with `homepage`, `navigation`, `scope` and `infrastructure` all passing. That is the first fully passing isolated run on this host.
 - So no fix was needed and none was made. The public "Run sample test" button works; the apparent dead end was the image defect already fixed in `a1ab25a`.
 - Check: a real sample execution through the runner on the host. No code change, no payment, no Railway change, no remote push. Commit subject: `docs: correct the sample test finding` (FREE-02).
+
+## 2026-11-08 — HOST-01 — Railway project deleted; the plan deliberately kept
+
+- Before deleting anything, verified the final dump: `~/trialoom-railway.sql`, 190 KB, 66 tables, ending in `PostgreSQL database dump complete`. It holds only migration bookkeeping and seed rows, since the Railway deployment never had accounts.
+- **Found and surfaced before acting:** the Hobby plan is **workspace-wide**, not per project, and the same workspace holds five other projects with `eezay-testnet`, `perp-pulse` and `zestful-spirit` online. Cancelling the plan to stop the $5/month would have pulled the plan out from under those too. Put the scope choice to the user, who chose to delete the Trialoom project only and keep the plan; the $5 therefore continues and only Trialoom's own usage stops.
+- Deleted the `trialoom` project — web, worker, Postgres and its volume — typing the project name to confirm. Railway applies a **48-hour grace period** during which the deletion can be cancelled or forced. The dashboard now reads 5 projects and 1 deleted, with the other projects untouched.
+- Verified immediately afterwards that the live site is unaffected: `/api/health` and `/api/ready` return 200 over both `2.31.104.223` and `2a01:4f8:c016:13b::1`, reporting `public-beta` with wallet signup and testing enabled. trialoom.xyz is served entirely by the dedicated host.
+- Rollback is now the Hetzner host plus the nightly backups and the retained dump; pointing DNS back at Railway stops being possible once the grace period ends.
+- Check: dump verification, the post-deletion external checks above. No plan cancellation, no payment, no remote push. Commit subject: `docs: record retiring the railway project` (HOST-01).

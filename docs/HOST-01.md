@@ -475,9 +475,24 @@ invitation — one workspace, one invitation, no memberships yet, no email sent.
 copied to `~/trialoom-owner-invite.txt` on the user's Mac at mode 0600 and **expires
 2026-11-11T10:19:59Z**. Signing up through it is the user's own step and unblocks step 6.
 
-**9 — Retire Railway.** Only after the cutover has been verified and the user says so. Take a
-final dump first and keep it off-box. Railway downgrades apply at the next billing cycle, so
-record the date the $5 actually stops.
+**9 — Retire Railway. Done 2026-11-08, project only.** The `trialoom` project was deleted from
+Railway — web, worker, Postgres and its volume — after confirming the final dump is complete
+(190 KB, 66 tables, ending in `PostgreSQL database dump complete`, held at
+`~/trialoom-railway.sql` on the user's Mac). Railway gives a **48-hour grace period** before the
+deletion becomes permanent, and it can be cancelled or forced during that window. The dashboard
+now reads 5 projects and 1 deleted.
+
+**The $5/month does not stop.** The Hobby plan is **workspace-wide**, not per project, and the
+same workspace holds five other projects, three of them online (`eezay-testnet`, `perp-pulse`,
+`zestful-spirit`). Cancelling the plan would have affected those too, so only the project was
+deleted — the user chose that knowing the charge continues. Trialoom's own usage is what stops.
+
+Verified after the deletion: `https://trialoom.xyz/api/health` and `/api/ready` return 200 from
+`2.31.104.223` and `2a01:4f8:c016:13b::1`, reporting `public-beta` with wallet signup and testing
+enabled. The site is served entirely by the dedicated host.
+
+**Rollback is now the Hetzner host and its backups.** Pointing DNS back at Railway is no longer
+an option once the grace period ends.
 
 **10 — Backups. Done 2026-11-08, with a rehearsed restore.**
 [`runners/backup.sh`](../runners/backup.sh) dumps the database, compresses it, verifies the

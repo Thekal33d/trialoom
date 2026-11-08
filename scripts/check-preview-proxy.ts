@@ -3,8 +3,8 @@ import { spawn, spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { cp, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
+import { runnerCommand } from './runner-command.ts';
 
-const machine = ['-m', 'trialoom-runner', '-u', 'root', '-w', '/root'];
 const env = { PATH: process.env.PATH, HOME: process.env.HOME, NODE_ENV: 'test' as const };
 const label = 'trialoom.runner.policy=preview-proxy-fixture-v1';
 const prefix = `trialoom-preview-${randomBytes(12).toString('hex')}`;
@@ -16,7 +16,10 @@ const cancel = () => abort.abort();
 process.once('SIGINT', cancel);
 process.once('SIGTERM', cancel);
 function remote(args: string[], input?: Buffer, timeout = 20_000) {
-  const result = spawnSync('orb', [...machine, ...args], {
+  // The dedicated host is OrbStack in development and the Linux machine itself
+  // in production; runnerCommand picks one and allows only the fixed commands.
+  const command = runnerCommand(args);
+  const result = spawnSync(command.command, command.args, {
     env,
     input,
     encoding: 'utf8',
@@ -196,9 +199,8 @@ function create(suffix: string, role: 'test' | 'broker' | 'browser', args: strin
   return name;
 }
 function start(name: string, data?: Buffer) {
-  const child = spawn('orb', [...machine, 'docker', 'start', '--attach', '--interactive', name], {
-    env,
-  });
+  const attach = runnerCommand(['docker', 'start', '--attach', '--interactive', name]);
+  const child = spawn(attach.command, attach.args, { env });
   let bytes = 0;
   let stdout = '';
   let stderr = '';

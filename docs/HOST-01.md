@@ -185,26 +185,44 @@ never ran; the script now creates that directory first, and the recorded run is 
 And Docker writes its own iptables rules, so a published container port would bypass ufw entirely
 — runner containers must publish none.
 
-**2 — Install the runner boundary first, before any data moves.** From a checkout on the host:
+**2 — Install the runner boundary. Done, 2026-11-08, except the recovery check.** The checkout was
+synced to `/opt/trialoom` with rsync, excluding `.git`, `node_modules`, `.env*`, `artifacts/` and
+build output — the host holds no credentials and is not a git remote. Node 24 came from
+NodeSource's signed apt repository via [`runners/install-node24.sh`](../runners/install-node24.sh)
+rather than a piped installer; Ubuntu 24.04 ships Node 18, which the bootstrap refuses. Then:
 
 ```bash
-sudo bash runners/setup-linux-gvisor.sh --dedicated-runner
+ssh -i ~/.ssh/trialoom_hetzner root@2.31.104.223
+cd /opt/trialoom && bash runners/setup-linux-gvisor.sh --dedicated-runner
 ```
 
-It installs Docker and `runsc` from signed sources, builds the preview runtime, pulls
-`node:24-bookworm-slim` and runs the gVisor browser check. Then:
+Installed and verified on the host: Docker, gVisor `runsc 20261102.0` from its signed repository,
+registered with `--host-uds=open --network=none` on the systrap platform, and the base image
+`node:24-bookworm-slim` at digest `sha256:01d566e8…`. The bootstrap's own browser check passed
+**two fresh Chromium journeys under `runsc`** (Chromium 156.0.8078.4, fixture responses 201 and
+400, fresh storage, network denied, traces of about 2.9 KB, containers removed).
 
-```bash
-node scripts/check-native-runner.ts
-npm run runner:gvisor-check
-npm run runner:proxy-check
-npm run runner:recovery-check
-```
+| Check | Result |
+| --- | --- |
+| `runners/setup-linux-gvisor.sh --dedicated-runner` | pass — two isolated Chromium journeys |
+| `scripts/check-native-runner.ts` | pass — `runner.smoke_passed`, witnessed, no public target contacted |
+| `scripts/check-preview-proxy.ts` | pass — 21 unit checks, two isolated browser runs, witness and cleanup verified |
+| `scripts/check-preview-recovery.ts` | **deferred** — needs `DATABASE_URL`; run it after step 3 |
 
-Gate: the gVisor check passes **on this machine's architecture** with real EROFS refusals and a
-failed external connection, and the proxy and recovery checks pass. If the host is Arm (CAX) note
-that the only prior passing run was also arm64; if it is x86 (CX) this is the first x86 evidence,
-so treat a pass as new information and record it.
+The proxy run exercised the egress witness end to end: unapproved CONNECT, forged Host, absolute
+URLs and write methods denied; WebSocket upgrades and nested CONNECT tunnels never reaching
+upstream; approved-origin redirects followed while private and off-origin ones were withheld;
+certificate hostname mismatch rejected; response and connection budgets closing the run; and DNS
+rotation accepting only still-present original pins. The witness recorded `ALLOWED`,
+`REDIRECT_DENIED`, `METHOD_DENIED` and `ORIGIN_DENIED`, and a browser deprived of its proxy still
+had no direct network.
+
+**This is the project's first x86 isolation evidence.** Every prior passing run was arm64 under
+OrbStack. `scripts/check-preview-proxy.ts` had to be changed to get here: it called the macOS
+`orb` CLI directly instead of the existing `scripts/runner-command.ts` dispatcher, so it could not
+run on a real Linux host at all. It now routes through that dispatcher, which produces identical
+arguments on macOS and is covered by `tests/runner-command.test.ts`; the macOS OrbStack path was
+not re-exercised in this session. Disk after the bootstrap: 9.8 GB used of 38 GB.
 
 **3 — PostgreSQL on the host.** Install PostgreSQL, create the database and one role per process
 with least privilege, loopback only. Apply the schema from the worker image or the checkout:

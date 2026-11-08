@@ -394,23 +394,39 @@ deployment**, and wallet signup needs the real origin, which means the DNS cutov
 **The order is now 8 → sign up → 6 → 10.** Cut over and get the certificate, sign up as the
 owner, enrol the runner against that workspace, then backups.
 
-**8 — Cut over DNS. Next, and it is a release decision, not a technical step.** At Namecheap,
-lower the TTL, then replace the Railway target for `trialoom.xyz` with this server's A record
-`2.31.104.223` and its AAAA record. Then replace the loopback block in `/etc/caddy/Caddyfile`
-with `trialoom.xyz { reverse_proxy 127.0.0.1:3000 }` and `systemctl restart caddy`, which lets
-Caddy answer the HTTP-01 challenge and obtain the certificate.
+**8 — Cut over DNS. Done 2026-11-08.** The user chose to cut over with public signup **off**, so
+the live site keeps reporting `invited-alpha` and `walletSignup: unavailable` exactly as Railway
+did; opening registration stays a separate, deliberate act once the runner is proven.
 
-What makes this a decision rather than a step: the live site changes from the **pre-remodel**
-build Railway serves today to the **D064 public self-service** build, with
-`TRIALOOM_PUBLIC_WALLET_SIGNUP` enabled. Strangers can register the moment DNS resolves here.
-Nothing else gates that, so it needs the user's explicit go-ahead, and it should probably wait
-until the runner is enrolled and one real test has been proven — otherwise the public site can
-take work it cannot execute.
+`TRIALOOM_PUBLIC_WALLET_SIGNUP` was set to `false` and the web service restarted before any DNS
+change. The user then replaced the records at Namecheap, and the Caddyfile's loopback block became
+`trialoom.xyz { reverse_proxy 127.0.0.1:3000 }` (the previous one is kept at
+`/etc/caddy/Caddyfile.loopback.bak`). Caddy solved the HTTP-01 challenge and the certificate was
+issued within seconds.
 
-The low-risk alternative is to cut over with public signup disabled, prove the runner, then
-enable it. Rollback is simply pointing DNS back at Railway, which keeps running untouched.
-Gate: HTTPS valid, the authentication origin accepted, sign-in, a public signup and one hosted
-test all verified from outside the host.
+Recorded before the change, so rollback is exact: `trialoom.xyz` A was `153.52.255.72` and AAAA
+`2c0f:f5c0:150:103::9934:ff48`, both Railway, on Namecheap's `dns1/dns2.registrar-servers.com`.
+Now A is `2.31.104.223`.
+
+Verified from outside the host:
+
+| Check | Result |
+| --- | --- |
+| `https://trialoom.xyz/api/health` | 200 from `2.31.104.223`, `mode: invited-alpha` |
+| `https://trialoom.xyz/api/ready` | 200 |
+| `/` and `/sign-in` | 200 |
+| Certificate | `CN=trialoom.xyz`, Let's Encrypt, valid to 2027-02-06 |
+| `http://trialoom.xyz/` | 308 to HTTPS |
+
+**One record is missing: there is no AAAA.** The old Railway AAAA is gone and nothing replaced it,
+on the authoritative nameserver or at `1.1.1.1` and `8.8.8.8`. The server has
+`2a01:4f8:c016:13b::1`. IPv4-only service works, and a split where IPv6 still pointed at Railway
+would have been worse, but IPv6-only clients cannot reach the site until that record exists.
+
+**Owner bootstrap done.** `node scripts/invite.ts` created the workspace and a private owner
+invitation — one workspace, one invitation, no memberships yet, no email sent. The join link was
+copied to `~/trialoom-owner-invite.txt` on the user's Mac at mode 0600 and **expires
+2026-11-11T10:19:59Z**. Signing up through it is the user's own step and unblocks step 6.
 
 **9 — Retire Railway.** Only after the cutover has been verified and the user says so. Take a
 final dump first and keep it off-box. Railway downgrades apply at the next billing cycle, so

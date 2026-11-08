@@ -1369,3 +1369,10 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - **Not yet usable, and nothing was sent.** The address holds **0 CELO**, so it cannot pay gas, and no builder has registered a payment authority naming it. A payout additionally requires a published brief with a funded authority, an operator claim, submitted evidence and an accepted decision — only an acceptance writes a payable. The key alone changes nothing on chain.
 - The key stays on the user's Mac. It must not reach the dedicated host, which is the browser host.
 - Commit subject: `docs: record the settlement agent address` (PILOT-05).
+
+## 2026-11-08 — PILOT-05 — Settlement agent funded for gas
+
+- The user funded the settlement agent. On Celo mainnet `0x1B33EE92407bE4E5ba762d8766E32A898cE19CED` now holds **2 CELO**, 0 USDC, and has sent **no transactions** (nonce 0). At the current 202.5 gwei a typical payout of about 120,000 gas costs roughly 0.0243 CELO, so the balance covers on the order of 82 payouts. Holding no USDC is correct: the agent signs, and the builder's own approval is what pays.
+- Still required before anything can settle, and none of it is in place: a Remesso policy that names **this** agent address (the user's existing policy #6 authorizes Remesso's hosted agent `0x7Ff13AaE…87cA`, not ours), a payment authority registered in a workspace with that policy id and payer, then a published brief, an operator claim, submitted evidence and an accepted decision. Only an acceptance writes a payable.
+- Nothing was signed or sent. This is the operator-payout half and is not required for the Build with buy submission, which is about paid calls to services and is already evidenced.
+- Commit subject: `docs: record the funded settlement agent` (PILOT-05).

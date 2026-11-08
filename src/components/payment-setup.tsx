@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { BudgetCreate } from './budget-create';
 import { api, field } from './live-types';
 
 type Setup = {
@@ -64,53 +65,72 @@ export function PaymentSetup({
                 onFocus={(event) => event.currentTarget.select()}
               />
             </label>
-            <p>
-              Open Remesso, connect your linked wallet, and create a Celo USDC policy for this
-              agent. Choose the total allowance, per-payment cap, daily cap and expiry yourself.
-              Your per-payment cap must cover each test’s maximum fee. Leave the recipient allowlist
-              off so independent operators can receive their accepted fees.
-            </p>
-            <a className="button secondary" href={data.policyUrl} target="_blank" rel="noreferrer">
-              Create spending policy in Remesso ↗
-            </a>
-            <small>
-              Creating the policy requires wallet-approved transactions and network fees. Connecting
-              it here only reads the chain. A spending allowance is not escrow.
-            </small>
-            <form
-              className="app-form"
-              onSubmit={async (event) => {
-                event.preventDefault();
-                const id = field(new FormData(event.currentTarget), 'policyId');
-                setBusy(true);
-                setError('');
-                setDone(false);
-                try {
-                  await api(`${base}/payment-setup`, 'POST', { policyId: id });
+            {data.agentAddress && (
+              <BudgetCreate
+                agentAddress={data.agentAddress}
+                onCreated={async (policyId) => {
+                  await api(`${base}/payment-setup`, 'POST', { policyId });
                   await onImported();
                   setDone(true);
-                } catch (e) {
-                  setError(e instanceof Error ? e.message : 'Could not connect this policy.');
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              <label>
-                Policy number from Remesso
-                <input
-                  name="policyId"
-                  inputMode="numeric"
-                  pattern="[1-9][0-9]*"
-                  maxLength={78}
-                  required
-                  placeholder="For example, 12"
-                />
-              </label>
-              <button className="button primary" disabled={busy} type="submit">
-                {busy ? 'Checking policy…' : 'Connect spending policy'}
-              </button>
-            </form>
+                }}
+              />
+            )}
+            <details className="product-disclosure">
+              <summary>Or create it in Remesso and paste the number</summary>
+              <p>
+                Create a Celo USDC policy for the agent above, choosing the total allowance,
+                per-payment cap, daily cap and expiry yourself. Your per-payment cap must cover each
+                test’s maximum fee. Leave the recipient allowlist off so independent operators can
+                receive their accepted fees.
+              </p>
+              <a
+                className="button secondary"
+                href={data.policyUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Create spending policy in Remesso ↗
+              </a>
+              <small>
+                Either way the transactions are signed by your wallet and you pay their network
+                fees. Connecting a policy here only reads the chain. A spending allowance is not
+                escrow.
+              </small>
+              <form
+                className="app-form"
+                onSubmit={async (event) => {
+                  event.preventDefault();
+                  const id = field(new FormData(event.currentTarget), 'policyId');
+                  setBusy(true);
+                  setError('');
+                  setDone(false);
+                  try {
+                    await api(`${base}/payment-setup`, 'POST', { policyId: id });
+                    await onImported();
+                    setDone(true);
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : 'Could not connect this policy.');
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                <label>
+                  Policy number from Remesso
+                  <input
+                    name="policyId"
+                    inputMode="numeric"
+                    pattern="[1-9][0-9]*"
+                    maxLength={78}
+                    required
+                    placeholder="For example, 12"
+                  />
+                </label>
+                <button className="button primary" disabled={busy} type="submit">
+                  {busy ? 'Checking policy…' : 'Connect spending policy'}
+                </button>
+              </form>
+            </details>
           </div>
         ))}
     </section>

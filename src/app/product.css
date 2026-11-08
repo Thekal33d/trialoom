@@ -1363,3 +1363,31 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+/* In-app budget creation: the builder signs in their own wallet, here. */
+.budget-create {
+  border: 1px solid #bac6b4;
+  border-radius: 8px;
+  padding: 20px;
+  background: var(--surface);
+}
+.budget-create h3 {
+  font-size: 17px;
+}
+.budget-create > p {
+  font-size: 14px;
+  color: var(--muted);
+  margin-top: 8px;
+  max-width: 60ch;
+}
+.budget-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.budget-grid label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}

@@ -1346,3 +1346,10 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Read back after writing: `repoUrl` is the GitHub URL, `demoUrl` is https://trialoom.xyz, two screenshots, `missing: []`. The other four description paragraphs are untouched.
 - **Open and unresolved before the 2026-11-09 09:00 GMT deadline:** `celo.hasIdentity` and `celo.firstTaggedTx` both read `null`. The rules state a project is only valid with an ERC-8004 identity registered from the agent wallet, so that null needs resolving or explaining. The "public GitHub repo at registration" question also remains unasked of the organizers, since the entry registered GitLab and changed to GitHub today. The screenshots predate today's public signup and hosted runner.
 - Commit subject: `docs: record the entry update` (HACK-01, HACK-03).
+
+## 2026-11-08 — HACK-01 — ERC-8004 identity verified on chain; the entry's null is a stale field
+
+- Read the registry directly rather than trusting either our own record or the entry. On Celo mainnet, registry `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`: `balanceOf(0xf8Ff4F7C83404e04506785b7DFDf838CA75C22ae)` returns **1**, `ownerOf(10031)` returns that same agent wallet, and `tokenURI(10031)` returns the 853-byte `data:` URI whose body is a valid `eip-8004#registration-v1` document naming Trialoom.
+- So the rules' requirement — an ERC-8004 identity registered from the agent wallet named on the entry — **is met**, and `celo.hasIdentity: null` on the entry is an unpopulated platform field rather than a missing registration. The `loops` CLI exposes no identity command to refresh it. Worth mentioning to the organizers rather than assuming they read the chain.
+- `celo.firstTaggedTx` is also null, which is consistent and expected: the only mainnet payment is an x402 settlement submitted by buy's facilitator, so no transaction of ours carries the entry's calldata tag. That reasoning is recorded in HACKATHON.md and now stated in the entry description too.
+- Commit subject: `docs: verify the erc-8004 identity on chain` (HACK-01).

@@ -1,0 +1,27 @@
+# syntax=docker/dockerfile:1
+#
+# The worker, built to run away from its database — today on Railway, so the
+# signing keys stay off the dedicated host that executes browser workloads.
+# Identical to Dockerfile.worker except for the SSH client and entry point.
+FROM node:24-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c AS base
+ENV NODE_ENV=production
+WORKDIR /srv/trialoom
+
+FROM base AS runtime-modules
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
+COPY package.json package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev
+
+FROM base AS worker
+RUN apt-get update && apt-get install -y --no-install-recommends openssh-client \
+  && rm -rf /var/lib/apt/lists/*
+COPY --from=runtime-modules --chown=node:node /srv/trialoom/node_modules ./node_modules
+COPY --chown=node:node package.json tsconfig.json next-env.d.ts ./
+COPY --chown=node:node src ./src
+COPY --chown=node:node workers ./workers
+COPY --chown=node:node scripts ./scripts
+COPY --chown=node:node runners ./runners
+COPY --chown=node:node db ./db
+USER node
+CMD ["bash", "runners/tunnelled-worker.sh"]

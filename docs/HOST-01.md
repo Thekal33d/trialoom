@@ -224,14 +224,43 @@ run on a real Linux host at all. It now routes through that dispatcher, which pr
 arguments on macOS and is covered by `tests/runner-command.test.ts`; the macOS OrbStack path was
 not re-exercised in this session. Disk after the bootstrap: 9.8 GB used of 38 GB.
 
-**3 — PostgreSQL on the host.** Install PostgreSQL, create the database and one role per process
-with least privilege, loopback only. Apply the schema from the worker image or the checkout:
+**3 — PostgreSQL on the host. Done, 2026-11-08**, by
+[`runners/setup-postgres.sh`](../runners/setup-postgres.sh), which is idempotent and prints no
+password:
 
 ```bash
-node scripts/migrate.ts
+ssh -i ~/.ssh/trialoom_hetzner root@2.31.104.223 'bash /opt/trialoom/runners/setup-postgres.sh'
 ```
 
-Gate: 30 migrations applied on an empty database, `/api/ready` returns 200 against it.
+PostgreSQL **18.6** from the PGDG signed repository, matching the `postgres:18.6` that
+[`compose.yaml`](../compose.yaml) pins for development; Ubuntu's own package is 16. It listens on
+`127.0.0.1` and `[::1]` only, with `scram-sha-256`, `max_connections = 50`,
+`shared_buffers = 256MB`, `work_mem = 8MB` and `effective_cache_size = 1GB`, sized for a 4 GB box
+that must also hold a 1 GiB sandbox.
+
+Three roles, none of them superuser: `trialoom` owns the schema and holds `CREATEDB`, because the
+project's checks build disposable databases; `trialoom_web` and `trialoom_worker` are login roles
+with `SELECT, INSERT, UPDATE, DELETE` on tables and `USAGE, SELECT` on sequences, granted both on
+what exists and by default on what the owner creates later. `PUBLIC` is revoked from the schema
+and from both databases. Two databases exist: `trialoom` for the application and `trialoom_dev`,
+which the harness requires by name before it will build a disposable database.
+
+Gate met: **all 30 migrations applied**, `0001_runtime.sql` through `0030_settlement_runtime.sql`,
+leaving 73 tables; `trialoom_web` and `trialoom_worker` hold DML on all of them; and
+`CREATE TABLE` as `trialoom_web` is refused with `permission denied for schema public`.
+`/api/ready` against this database belongs to step 5, when the web process runs.
+
+The deferred recovery check then passed here: `scripts/check-preview-recovery.ts` with
+`DATABASE_URL` on `trialoom_dev` came through **all ten real SIGKILL checkpoints** — dispatching,
+running, captured, egress, artifact, submitted, corrupt, conflict, expired and revoked — each with
+fresh-process recovery, cleanup, an unchanged commitment and no duplicate delivery. It needs
+`npm run build` first, which now succeeds on the host. After all of it the box sits at 652 MB of
+3819 MB used and 11 GB of 38 GB on disk.
+
+Generated credentials live in `/etc/trialoom/db.env`, mode 0600, outside the repository, and
+`/opt/trialoom/.env` currently carries the **owner** URL so migrations and checks can run. Step 5
+must replace it with a per-service environment file so the web process and the worker use their
+own restricted roles.
 
 **4 — Private object storage.** Either an external S3-compatible bucket within a free allowance or
 a self-hosted store on this box, configured through `TRIALOOM_S3_ENDPOINT`, `TRIALOOM_S3_REGION`,

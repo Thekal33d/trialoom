@@ -360,20 +360,40 @@ target the user owns dispatches, executes under `runsc` and delivers reviewable 
 then kill the controller mid-run and confirm recovery with no duplicate execution and no slot
 freed before removal is verified.
 
-**7 — Move the data. Next, and it needs a credential only the user can supply.** `pg_dump` the
-Railway database, restore it here, then apply whatever migrations Railway has not yet seen.
-Railway runs the pre-remodel schema, so expect 0026–0030 to apply after the restore.
+**7 — Move the data. Blocked on an approval, 2026-11-08.** Two findings from the Railway console:
 
-The `trialoom` database on this host already has all 30 migrations applied to an empty schema, so
-it must be dropped and recreated before the restore rather than restored over — otherwise the
-dump collides with tables that already exist. `runners/setup-postgres.sh` recreates the roles and
-grants idempotently afterwards.
+- The Postgres service has **no public endpoint**. Its twelve variables are `DATABASE_URL`,
+  `PGDATA`, `PGDATABASE`, `PGHOST`, `PGPASSWORD`, `PGPORT`, `PGUSER`, `POSTGRES_DB`,
+  `POSTGRES_PASSWORD`, `POSTGRES_USER`, `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` and `SSL_CERT_DAYS`,
+  and the ten Railway-provided ones include `RAILWAY_PRIVATE_DOMAIN`. There is no
+  `DATABASE_PUBLIC_URL`, so the earlier instruction to read one was wrong: that variable appears
+  only once TCP proxying is switched on.
+- The installed Railway CLI 5.68.0 is authenticated, and `railway ssh -s Postgres` can run
+  `pg_dump` **inside the service container**, so the dump needs neither a public endpoint nor a
+  connection string pasted anywhere.
 
-What is needed: Railway's **public** PostgreSQL connection string, from the Postgres service's
-variables (`DATABASE_PUBLIC_URL`; the internal `.railway.internal` host is unreachable from
-outside Railway). Railway stays running and untouched throughout, so it remains the rollback.
+The CLI route is the one to use. Enabling Railway's TCP proxy would put the production database
+on the public internet, password-protected but reachable, for the length of the move; it is the
+fallback only if the CLI cannot work.
+
+This session's permission settings refuse commands that read a production service, so the dump
+needs either the user's approval for that command or the user running it themselves:
+
+```bash
+railway ssh -p bc70fce3-5930-4895-ac9f-65fa48ee8195 -e production -s Postgres \
+  sh -c 'pg_dump --no-owner --no-privileges --format=plain "$DATABASE_URL"' > ~/trialoom-railway.sql
+```
+
+Then, on the host: drop and recreate `trialoom`, restore, re-run `runners/setup-postgres.sh` for
+roles and grants, and apply whatever migrations Railway has not seen — expect 0026–0030, since it
+runs the pre-remodel schema. Railway keeps running untouched throughout and remains the rollback.
 Gate: row counts match the source, the application reads the restored data, and `/api/ready`
 passes on the migrated schema.
+
+Two unrelated things visible in that console, for the user rather than for this migration: the
+`trialoom` project has **two staged but unapplied changes**, and the worker's most recent
+deployment **failed** three days ago while an older one stays active. Railway also shows a
+service notice about external network access being degraded.
 
 **8 — Cut over DNS.** At Namecheap, replace the Railway target with the Hetzner server's A/AAAA
 records; lower the TTL beforehand. Verify HTTPS, the authentication origin, sign-in, a public

@@ -136,7 +136,9 @@ change D064's public, self-service access.
 Each step has a gate. Do not start the next one until the gate holds, and record the outcome in
 `memory/BUILD_LOG.md` as usual.
 
-**0 — Confirm the purchase decision.** Check plan availability and the exact checkout total in the
+**0 — Confirm the purchase decision.** **Blocked as of 2026-11-08:** the user signed in to the Hetzner console. Account limits are clear and unused (20 shared vCPUs, 14 dedicated, 40 primary IPs, 10 load balancers, 198 snapshots, all at 0%), so nothing is restricted there, but the account has **no project** and `New project` refuses with “Verification pending — before you can create a new project, your user account data has to be verified”, directing the user to Verification at accounts.hetzner.com. Hetzner shows per-location stock and the account’s real price only inside the server wizard, which needs a project, and the Cloud API needs a token, which also needs a project. So plan availability and the quoted total remain **unread**, and no agent can clear this: account verification is identity work only the user can do. If verification is refused or slow, fall back to the D068 InterServer candidate.
+
+When it is unblocked: Check plan availability and the exact checkout total in the
 user's Hetzner console, in the invoice currency, including IPv4 and tax. Present it against the
 $10 ceiling and get an explicit instruction before buying. Gate: the user authorizes a specific
 plan and location, or picks a different provider.

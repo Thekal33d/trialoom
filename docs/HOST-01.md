@@ -262,13 +262,29 @@ Generated credentials live in `/etc/trialoom/db.env`, mode 0600, outside the rep
 must replace it with a per-service environment file so the web process and the worker use their
 own restricted roles.
 
-**4 — Private object storage.** Either an external S3-compatible bucket within a free allowance or
-a self-hosted store on this box, configured through `TRIALOOM_S3_ENDPOINT`, `TRIALOOM_S3_REGION`,
-`TRIALOOM_S3_BUCKET`, `TRIALOOM_S3_ACCESS_KEY_ID` and `TRIALOOM_S3_SECRET_ACCESS_KEY`. Never use
-public object ACLs. Self-hosting costs disk and loses the off-box copy; an external bucket adds a
-dependency but survives the server. Ask the user which they want. Gate: upload and retrieval
-verified from **both** the web process and the browser controller, and the bucket is unreadable
-without credentials.
+**4 — Private object storage. Done, 2026-11-08.** The user chose Cloudflare R2 over a self-hosted
+store, so evidence survives the server and stays off its 38 GB disk, and the free allowance keeps
+the bill at $7.09/mo. Bucket **`trialoom-evidence`**, Automatic location (Western Europe, near
+Falkenstein), Standard class, public access off, in the account whose S3 endpoint is
+`https://<account>.r2.cloudflarestorage.com`. The token is an Account API token scoped to
+**Object Read & Write on that bucket alone**, created by the user; this session never handled its
+issuance. Credentials live in `/etc/trialoom/s3.env`, mode 0600 root, outside the repository.
+`TRIALOOM_S3_REGION` is `auto`, which is what R2 expects and what
+[`src/server/storage.ts`](../src/server/storage.ts) defaults to; it also forces path-style
+addressing and rejects any endpoint carrying a path, query or credentials.
+
+Gate met by [`scripts/check-evidence-storage.ts`](../scripts/check-evidence-storage.ts), which
+writes one 2 KiB object, reads it back, compares digests, and then confirms an unauthenticated
+reader gets neither the object nor a bucket listing. It passed **twice**: as root, the way the
+browser controller will run, and as an unprivileged user through a systemd `EnvironmentFile`,
+which is exactly how the web process will receive its configuration. Anonymous requests to both
+the object and the bucket were refused with HTTP 400 — R2 rejects unauthenticated S3 requests
+rather than returning 403, and the dashboard separately shows public access disabled.
+
+The first attempt failed with `SignatureDoesNotMatch`, because Cloudflare's token page shows the
+Token value next to the Secret Access Key and the shorter one was copied. The secret is 64 hex
+characters; a 32-character value is the wrong field. The check deliberately refuses to pass
+against the local evidence directory, so a missing configuration cannot look like success.
 
 **5 — Web, worker and TLS.** Install the application under `/opt/trialoom`, run the web process
 and the payment worker as their own systemd units with mode-0600 environment files, and put a

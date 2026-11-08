@@ -1433,3 +1433,11 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - **Still blocked, and deliberately not fixed here: the production sponsored budget is zero.** `sponsored_budgets` on the host reads ceiling 0, and `sponsorBudgetFunded()` requires at least one report's ceiling available, so no purchase will happen however often the worker runs. The 50,000/20,000-unit authorisation exists only in the local development database. Authorising spending on production is the user's decision and was not taken.
 - **Known limitation to fix before relying on this:** the host's own worker also drains the outbox, and if it claims a `sponsored.reconcile` job it will resolve it with the unconfigured adapter, leaving the purchase uncertain and rescheduling. It recovers because the job retries and the tunnelled worker can win the next attempt, but the right fix is a topic allowlist per worker so settlement topics only run where the keys are.
 - Commit subject: `feat: run the purchasing worker over a tunnel` (BUY-01).
+
+## 2026-11-08 — BUY-01 — Production sponsor budget authorised by the user
+
+- On the user's explicit instruction, authorised the production sponsor budget through the product's own `authorizeSponsoredBudget` rather than by writing the table: it takes the budget lock, records a row in `sponsored_authorizations` carrying the stated reason, and raises the ceiling in one transaction. Production now reads ceiling **50,000**, reserved 0, settled 0, daily per account **20,000**, with one recorded authorisation — the same figures the user had already authorised in development, not an increase.
+- Confirmed afterwards with the tunnelled worker: `sponsor: buy-x402`, `payments: remesso`, budget funded. A real free check on the live site can now prepare a report and buy its explanation, which is the Build with buy evidence that genuine usage was never able to produce before.
+- At the current price of 10,000 units a report, that is five reports in total and two per account per day — comfortably more than the three daily free checks an account gets.
+- Nothing was purchased by this change, and the per-report ceiling of 25,000 still caps any single call.
+- Commit subject: `docs: record the production sponsor authorisation` (BUY-01).

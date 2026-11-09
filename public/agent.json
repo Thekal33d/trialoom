@@ -5,7 +5,7 @@
   "image": "",
   "services": [],
   "x402Support": false,
-  "active": false,
+  "active": true,
   "registrations": [
     {
       "agentId": 10031,

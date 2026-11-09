@@ -111,3 +111,31 @@ tells the user to retry forever. Options, cheapest first: say "this page is out
 of date — reload" when a server action fails with that error; set a stable
 `deploymentId` in `next.config.ts` so the mismatch is detectable; or have the
 client notice a build-id change and prompt a reload.
+
+## UX-05 — Being signed in is presented as an unrecoverable sign-in error
+
+`src/server/auth/wallet.ts:82` rejects a `sign-in` or `sign-up` challenge with
+400 when a session already exists. The client's `getNonce`
+(`src/components/wallet-modal.tsx:100`) has no branch for it, so the throw
+reaches RainbowKit, which renders its generic **"Error preparing message,
+please retry!"**.
+
+Three things make this worse than an ordinary error. The underlying state is
+*good* — the person is signed in — but it reads as a failure. The advice is
+impossible: retrying calls the same endpoint and gets the same 400 forever.
+And a reload does not clear it, because the session lives in a cookie, so the
+one thing a user naturally tries cannot work either. Hit on 2026-11-09 by the
+project owner, and previously on 2026-11-08; it will hit any returning user who
+lands on `/sign-in` or presses "Connect wallet" while already signed in.
+
+The server is right to refuse. The fix belongs in front of it:
+
+1. Redirect `/sign-in` to `/workspace` when a session exists, so the dead end
+   is never reached. Cheapest, and removes the case entirely.
+2. Have `getNonce` recognise the 400 and show the server's own sentence —
+   "You are already signed in" with a link to the workspace — instead of
+   RainbowKit's wording.
+3. Hide or relabel "Connect wallet" in the header while signed in.
+
+Worth doing before independent testers run, since it lands on first contact and
+every recovery a user would guess at fails.

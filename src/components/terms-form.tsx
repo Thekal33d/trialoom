@@ -254,7 +254,7 @@ export function TermsForm({
           </label>
         </div>
         <small>
-          Amounts are denominated in USDC on Celo. The proposed fee is editable; no funds are
+          Amounts are denominated in stablecoins on Celo. The proposed fee is editable; no funds are
           reserved or authorized when you save.
         </small>
         <div className="form-pair">

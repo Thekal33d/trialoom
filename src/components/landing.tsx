@@ -28,7 +28,7 @@ export function Landing({
             <p>
               Point us at your website. A real browser opens it in a sealed sandbox, does the steps
               you asked for, and sends back a recording you can replay at the moment it broke.
-              Testers who do good work are paid in USDC on Celo.
+              Testers who do good work are paid in stablecoins on Celo.
             </p>
             <div className="product-actions">
               <Link href={walletAccess ? '/sign-in' : '/demo'} className="button primary">
@@ -90,7 +90,7 @@ export function Landing({
                 <h3>Watch what happened</h3>
                 <p>
                   Step through the recording at the point it broke. When you want deeper testing,
-                  set a budget and testers are paid in USDC for work you accept.
+                  set a budget and testers are paid in stablecoins for work you accept.
                 </p>
               </div>
             </li>

@@ -72,7 +72,7 @@ export function PaidTestForm({
               resourceAllowanceUnits: '0',
               platformFeeBps: 0,
               paymentTerms:
-                'Accepted execution earns the stated USDC fee whether the website passes or fails. Review window: 48 hours. No paid outside resources or additional platform fee. Spending permission is not escrow; accepted obligations survive lost funding.',
+                'Accepted execution earns the stated fee whether the website passes or fails. Review window: 48 hours. No paid outside resources or additional platform fee. Spending permission is not escrow; accepted obligations survive lost funding.',
               minimumIsolation: 'witnessed',
               scopeApproved: form.get('scopeApproved') === 'on',
             });

@@ -30,7 +30,7 @@ export function PaymentSetup({
     <section className="editor-panel">
       <h2>Set up paid testing</h2>
       <p>
-        You choose a USDC spending limit in your own wallet. Accepted testing fees are paid from
+        You choose a stablecoin spending limit in your own wallet. Accepted testing fees are paid from
         that allowance; your funds remain in your wallet until payment.
       </p>
       {error && (
@@ -78,7 +78,7 @@ export function PaymentSetup({
             <details className="product-disclosure">
               <summary>Or create it in Remesso and paste the number</summary>
               <p>
-                Create a Celo USDC policy for the agent above, choosing the total allowance,
+                Create a Celo stablecoin policy for the agent above, choosing the total allowance,
                 per-payment cap, daily cap and expiry yourself. Your per-payment cap must cover each
                 test’s maximum fee. Leave the recipient allowlist off so independent operators can
                 receive their accepted fees.

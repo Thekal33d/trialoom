@@ -91,3 +91,23 @@ The user selected public signup, free bounded testing and the Build with buy bou
 | EXPAND-01 | M5 | Additional services and app creation | Deferred | Pilot demand evidence | Acceptance criteria and demonstrated demand per service |
 
 Later paid marketplace pilot completion requires every PRD requirement beyond its alpha slice. The free beta follows D049 and FREE-BETA.md. Manual operation in a demo is not an implicit waiver of the PRD.
+
+## UX-04 — A deploy breaks tabs that were already open
+
+A browser that loaded the page before a deploy still holds the previous build's
+JavaScript, so its server-action references do not match the running server.
+Next.js rejects them with `The Server Reference ID did not match the expected
+format`, and the sign-in modal surfaces that as **"Error preparing message,
+please retry!"** — wording that invites exactly the one action that cannot
+work. Observed on 2026-11-09 after the day's deploys; a hard reload fixes it.
+
+The deployment itself is sound: `.next/BUILD_ID` and the served
+`.next/static/<id>/` matched (`0mGxgUT6OHaqiSl2H6xS1`) on both the root build
+and the standalone tree, and the live page referenced that same id with zero
+server errors after the restart. Only already-open tabs are affected.
+
+Worth fixing because the failure lands on first impression, during sign-in, and
+tells the user to retry forever. Options, cheapest first: say "this page is out
+of date — reload" when a server action fails with that error; set a stable
+`deploymentId` in `next.config.ts` so the mismatch is detectable; or have the
+client notice a build-id change and prompt a reload.

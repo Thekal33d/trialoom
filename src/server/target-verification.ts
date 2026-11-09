@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { resolveTxt } from 'node:dns/promises';
+import { Resolver, resolve4, resolveNs, resolveTxt } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import type { Pool, PoolClient } from 'pg';
 import { z } from 'zod';
@@ -122,6 +122,37 @@ export async function issueTargetChallenge(
     };
   });
 }
+/**
+ * Ask the zone's own nameservers for the record, skipping the recursive
+ * resolver this host happens to be configured with.
+ *
+ * Two problems with the recursive path, both measured on 2026-11-09. It
+ * caches the *absence* of a record for as long as the zone's SOA says to, so
+ * a builder who checks once before their DNS has propagated keeps failing for
+ * as long as that negative answer lives — long after the record is live. And
+ * it is slow when cold: 6.0s for a first lookup, which is over the budget
+ * this check allows itself, against 185ms asking the zone directly.
+ *
+ * The name is always `_trialoom.<host>`, so the zone is the host or one of
+ * its parents; walk up until something answers NS.
+ */
+async function authoritativeTxt(name: string): Promise<string[][]> {
+  const labels = name.split('.');
+  for (let i = 1; i < Math.min(labels.length - 1, 4); i += 1) {
+    const zone = labels.slice(i).join('.');
+    const hosts = await resolveNs(zone).catch(() => [] as string[]);
+    if (!hosts.length) continue;
+    const addresses = (
+      await Promise.all(hosts.slice(0, 3).map((host) => resolve4(host).catch(() => [] as string[])))
+    ).flat();
+    if (!addresses.length) continue;
+    const resolver = new Resolver();
+    resolver.setServers(addresses);
+    return resolver.resolveTxt(name);
+  }
+  throw new Error('NO_AUTHORITY');
+}
+
 export async function verifyTargetChallenge(
   pool: Pool,
   actor: Actor,
@@ -150,16 +181,35 @@ export async function verifyTargetChallenge(
     return row;
   });
   const expected = record(challenge.origin, challenge.token);
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    const records = await Promise.race([
-      (deps.txt ?? resolveTxt)(expected.name),
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error('DNS_TIMEOUT')), 5000);
-      }),
-    ]);
+  // Only an answer that actually carries the record counts as a success, so
+  // the two lookups can race and the first one to find it wins.
+  const carrying = async (lookup: () => Promise<string[][]>) => {
+    const records = await lookup();
     if (records.length > 100 || !records.some((parts) => parts.join('') === expected.value))
       throw new Error('DNS_RECORD_MISSING');
+    return records;
+  };
+  // An injected resolver is a test asking for a specific answer; do not go to
+  // the network behind its back.
+  const lookups = deps.txt
+    ? [carrying(() => deps.txt!(expected.name))]
+    : [
+        carrying(() => authoritativeTxt(expected.name)),
+        carrying(() => resolveTxt(expected.name)),
+      ];
+  // If the timeout wins the race, this promise still settles later. Nothing
+  // would be listening by then, so give it a handler now: an unhandled
+  // rejection here would take the process down.
+  const found = Promise.any(lookups);
+  found.catch(() => {});
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      found,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('DNS_TIMEOUT')), 8000);
+      }),
+    ]);
   } catch {
     throw new AppError(
       'VERIFICATION_NOT_FOUND',

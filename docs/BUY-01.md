@@ -1,6 +1,6 @@
 # BUY-01 — Sponsored test explanations through buy
 
-Updated 2026-11-04 for the selected [free beta](FREE-BETA.md) and [Build with buy entry](HACKATHON.md). **Report binding, the sponsored journal, x402 signing, finalized-transfer reconciliation and explanation UI are implemented locally. No useful paid service output has been obtained yet.** Identity registration is a separate verified mainnet action. [Settlement checkpoint](evidence/BUY-01-settlement.json).
+Updated 2026-11-09 (payment settled; was 2026-11-04) for the selected [free beta](FREE-BETA.md) and [Build with buy entry](HACKATHON.md). **Report binding, the sponsored journal, x402 signing, finalized-transfer reconciliation and the explanation UI are implemented. A paid call has since settled on Celo mainnet — 0.01 USD₮ to Cencori inference through buy's gateway, transaction `0x339fe5f4bf8c0885c4070cd9700cdca935125ce2f90a952da473c977782943ef` in block 82,243,718, reconciled against finalized state ([checkpoint](evidence/BUY-01-paid-call.json)) — so the line this file used to carry, that no useful paid output had been obtained, is no longer true and has been removed. What remains unproven is demand: every call so far is from the project's own wallet.** Identity registration is a separate verified mainnet action. [Settlement checkpoint](evidence/BUY-01-settlement.json).
 
 ## Verified provider seam
 

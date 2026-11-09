@@ -101,7 +101,22 @@ export default function WalletModal({
         setError('');
         const { address } = getAccount(wagmi);
         if (!address) throw new Error('Choose a wallet to continue.');
-        proof = await api<LoginProof>('/api/auth/wallet/challenge', 'POST', { address, intent });
+        try {
+          proof = await api<LoginProof>('/api/auth/wallet/challenge', 'POST', {
+            address,
+            intent,
+          });
+        } catch (cause) {
+          // The challenge endpoint refuses a sign-in while a session exists,
+          // which is a good state wearing an error's clothes. RainbowKit would
+          // render it as "Error preparing message, please retry!" — and neither
+          // retrying nor reloading can clear a cookie, so every recovery the
+          // person would try is a dead end. Send them where they were heading.
+          const status = (cause as { status?: number }).status;
+          if (status === 400 && /already signed in/i.test(String((cause as Error).message)))
+            window.location.assign(intent === 'link' ? '/account' : '/workspace');
+          throw cause;
+        }
         return validateLoginProof(proof, address, intent, window.location.origin).nonce as string;
       },
       createMessage: ({ address, chainId, nonce }) => {

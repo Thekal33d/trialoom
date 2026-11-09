@@ -53,8 +53,15 @@ export async function api<T>(url: string, method = 'GET', body?: unknown): Promi
     cache: 'no-store',
   });
   const data = await response.json();
-  if (!response.ok)
-    throw new Error(data.error?.message ?? data.message ?? 'Unable to complete this request.');
+  if (!response.ok) {
+    const error = new Error(
+      data.error?.message ?? data.message ?? 'Unable to complete this request.',
+    );
+    // Some refusals are not failures. A caller needs to tell "you are already
+    // signed in" from a transport error, and the message alone is too thin.
+    Object.assign(error, { status: response.status });
+    throw error;
+  }
   return data;
 }
 export function field(form: FormData, name: string) {

@@ -10,8 +10,10 @@ import { scenes } from '../src/scenes.ts';
 const key = process.env.ELEVENLABS_API_KEY;
 if (!key) throw new Error('Set ELEVENLABS_API_KEY.');
 
-// Sarah — mature, reassuring, confident. Chosen for a product read.
-const voiceId = process.env.ELEVENLABS_VOICE_ID ?? 'EXAVITQu4vr4xnSDxMaL';
+// Eric — smooth and trustworthy, and the quickest of the candidates on the
+// technical line, which keeps a 45-second demo from sprawling. Chosen by the
+// user after hearing Daniel and Matilda read the same sentence.
+const voiceId = process.env.ELEVENLABS_VOICE_ID ?? 'cjVigY5qzO86Huf0OWal';
 const outDir = new URL('../public/vo/', import.meta.url);
 mkdirSync(outDir, { recursive: true });
 

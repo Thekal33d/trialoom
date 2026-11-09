@@ -1,5 +1,5 @@
 import React from 'react';
-import { AbsoluteFill, Audio, staticFile } from 'remotion';
+import { AbsoluteFill, Audio, Sequence, interpolate, staticFile, useVideoConfig } from 'remotion';
 import { TransitionSeries, linearTiming } from '@remotion/transitions';
 import { fade } from '@remotion/transitions/fade';
 import { scenes } from './scenes.ts';
@@ -22,8 +22,39 @@ const byId: Record<string, React.FC> = {
 
 export type DemoProps = { sceneDurations: number[] };
 
-export const Demo: React.FC<DemoProps> = ({ sceneDurations }) => (
+export const Demo: React.FC<DemoProps> = ({ sceneDurations }) => {
+  const { durationInFrames, fps } = useVideoConfig();
+
+  // Where each cut lands, so a whoosh can sit on it. Each scene starts one
+  // crossfade earlier than the one before would suggest, because the
+  // transition overlaps them.
+  const cuts: number[] = [];
+  let at = 0;
+  for (const duration of sceneDurations.slice(0, -1)) {
+    at += duration - CROSSFADE;
+    cuts.push(at);
+  }
+
+  return (
   <AbsoluteFill style={{ background: c.paper, fontFamily: FONT }}>
+    {/* Under everything, quiet enough that the narration never fights it. */}
+    <Audio
+      src={staticFile('audio/bed.mp3')}
+      loop
+      volume={(f) =>
+        interpolate(
+          f,
+          [0, fps, durationInFrames - fps * 1.5, durationInFrames],
+          [0, 0.09, 0.09, 0],
+          { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' },
+        )
+      }
+    />
+    {cuts.map((cut) => (
+      <Sequence key={cut} from={Math.max(0, cut - 4)} durationInFrames={fps * 2}>
+        <Audio src={staticFile('audio/whoosh.mp3')} volume={0.18} />
+      </Sequence>
+    ))}
     <TransitionSeries>
       {scenes.flatMap((scene, i) => {
         const Scene = byId[scene.id];
@@ -45,4 +76,5 @@ export const Demo: React.FC<DemoProps> = ({ sceneDurations }) => (
       })}
     </TransitionSeries>
   </AbsoluteFill>
-);
+  );
+};

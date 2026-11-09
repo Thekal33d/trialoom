@@ -219,7 +219,7 @@ export const Rents: React.FC = () => (
           </div>
         </Rise>
         <div style={{ height: 36 }} />
-        <Chips tone="ink" delay={22} items={['x402', 'Celo mainnet', 'one cent']} />
+        <Chips tone="ink" delay={22} items={['usebuy', 'x402', 'Celo mainnet', 'one cent']} />
       </div>
       <div
         style={{
@@ -237,8 +237,9 @@ export const Rents: React.FC = () => (
           </div>
         </Rise>
         <div style={{ height: 18 }} />
-        <Line k="Chain" v={proof.chain} delay={18} />
-        <Line k="Block" v={proof.block.toLocaleString('en-US')} mono delay={24} />
+        <Line k="Bought through" v={proof.boughtThrough} delay={16} />
+        <Line k="Chain" v={proof.chain} delay={20} />
+        <Line k="Block" v={proof.block.toLocaleString('en-US')} mono delay={25} />
         <Line k="Status" v={proof.status} delay={30} />
         <Line k="Transaction" v={`${proof.tx.slice(0, 14)}…${proof.tx.slice(-8)}`} mono delay={36} />
         <Line k="Check it" v={proof.explorer} mono delay={42} />
@@ -288,7 +289,7 @@ export const Payouts: React.FC = () => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
       <Node delay={2} title="You" sub="Free. No deposit, no gas, no paywall." />
       <Arrow delay={14} />
-      <Node delay={18} title="Trialoom" sub="Buys inference over x402 on Celo." accent />
+      <Node delay={18} title="Trialoom" sub="Buys inference through usebuy, over x402 on Celo." accent />
       <Arrow delay={30} />
       <Node delay={34} title="Testers" sub="Paid in USDC through Remesso." />
     </div>

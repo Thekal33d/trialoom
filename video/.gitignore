@@ -1,4 +1,5 @@
 node_modules/
 out/
 public/vo/*.mp3
+public/audio/*.mp3
 .env

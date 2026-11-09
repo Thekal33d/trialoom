@@ -31,8 +31,11 @@ export const scenes: Scene[] = [
   // The money beat is three shots, not one. Fourteen seconds on a single
   // static panel reads as a stall, and this is the part judges watch.
   {
+    // "use buy" is spelled with a space on purpose: it is the text handed to
+    // the speech model, and it guarantees the brand is pronounced rather than
+    // mangled. On screen it is written "usebuy".
     id: '06-rents',
-    vo: 'Trialoom rents what it needs. It bought that explanation on Celo, over x402, for one cent, from its own wallet.',
+    vo: 'Trialoom rents what it needs. It bought that explanation through the use buy gateway, over x402 on Celo, for one cent, from its own wallet.',
     tail: 0.7,
   },
   { id: '06-payouts', vo: 'The same rail pays testers, in USDC, through Remesso.', tail: 0.5, min: 4.5 },
@@ -42,6 +45,7 @@ export const scenes: Scene[] = [
 
 /** Read from Celo mainnet on 2026-11-09; shown on screen, never spoken. */
 export const proof = {
+  boughtThrough: 'usebuy · x402',
   chain: 'Celo mainnet',
   tx: '0x339fe5f4bf8c0885c4070cd9700cdca935125ce2f90a952da473c977782943ef',
   block: 82_243_718,

@@ -1561,3 +1561,10 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - `--screenshot` replaces the set rather than appending, so both were uploaded together. Readback confirms two screenshots, both URLs changed, and both fetch HTTP 200 as `image/png` at exactly the byte sizes uploaded (324,118 and 192,800) — so they were stored intact rather than re-encoded or truncated. `name`, `tagline`, `description`, `repoUrl`, `demoUrl`, `videoUrl`, `bountyIds` and `slug` are all unchanged, and `missing: []`.
 - The demo video still shows the earlier "paid in USDC on Celo" line in its landing shots. Left as it is: one line of copy does not justify re-rendering and re-uploading a published video, and the entry's screenshots are what a judge compares against the live site.
 - Commit subject: `docs: record the re-shot entry screenshots` (HACK-03).
+
+## 2026-11-09 — HACK-03 — Brand PNGs and the entry logo
+
+- Rendered the logo to PNG from `LoomMark` in `src/components/icons.tsx` — the two paths the product actually draws — rather than tracing or recreating it, so the files match the live site exactly. Colours are the product's own tokens and the wordmark is Manrope 800, the site's display face.
+- Seven files, committed to [docs/brand/](../docs/brand/) with a README saying which to use where: the square mark at 512 and 1024 transparent with 25% padding so a circular crop does not clip it, the same on brand paper, a version reversed out of ink for dark backgrounds, and the full wordmark in all three treatments.
+- **Set the entry's `logo`**, which had been empty, to the paper variant — the safe choice when the card background is unknown, since a transparent ink mark would disappear on a dark card. Readback: `logoUrl` fetches HTTP 200 as `image/png` at 5,498 bytes and the downloaded bytes are **identical** to the file uploaded, so it was stored unaltered. `name`, `tagline`, `description`, `repoUrl`, `demoUrl`, `videoUrl`, `screenshotUrls`, `bountyIds` and `slug` all unchanged, `missing: []`.
+- Commit subject: `feat: add brand PNGs and set the entry logo` (HACK-03).

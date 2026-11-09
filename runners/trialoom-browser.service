@@ -18,7 +18,13 @@ Restart=on-failure
 RestartSec=10
 TimeoutStopSec=90
 KillMode=control-group
-UMask=0077
+# 0022, not 0077: the sandbox runs as uid 65534 and must read the run's own
+# files. Under 0077 every execution died with PREVIEW_PROCESS_STOPPED, which
+# was verified by running one execution under each umask against the same
+# image. Secrets are not protected by this umask anyway — the identity and
+# build directories are created 0700 explicitly, and the credential files
+# live in /etc/trialoom at 0600.
+UMask=0022
 LimitCORE=0
 # The trusted controller owns Docker and the external watchdog. Browser processes
 # run as uid 65534 inside gVisor with their own CPU/memory/network restrictions.

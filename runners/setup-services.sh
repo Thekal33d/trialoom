@@ -201,6 +201,10 @@ systemctl enable trialoom-web trialoom-worker
 # Restart rather than `enable --now`: on a re-run after a rebuild the services
 # are already up, and `--now` would leave them serving the previous build.
 systemctl restart trialoom-web trialoom-worker
+# The browser controller holds its sandbox image and its code in memory from
+# the moment it started, so a deploy that leaves it running serves the previous
+# build and the previous image. Restart it too, when it exists.
+systemctl is-enabled trialoom-browser >/dev/null 2>&1 && systemctl restart trialoom-browser || true
 systemctl restart caddy
 systemctl enable caddy
 

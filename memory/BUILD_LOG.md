@@ -1488,3 +1488,12 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Refreshed every stale row in `docs/HACKATHON.md`. All four `Pending` rows are now resolved or state precisely what is outstanding: the mainnet receipt is recorded with its transaction, the identity row no longer says no paid call has been made, the screenshots row describes the two deployed-site shots the entry actually carries (`--screenshot` replaces rather than appends), the enrolment row no longer claims the project record does not exist, and a new row records the automatic purchase decision running in production.
 - Checks: no code changed, so no suite was run. The identity verification is a live `eth_call` against `forno.celo.org`; the entry readback is the platform's own response.
 - Commit subject: `docs: review the entry against the live rubric` (HACK-03).
+
+## 2026-11-09 — HACK-03 — Entry description records the automatic purchase decision
+
+- Added one sentence to the entry description, on the user's explicit approval of that exact sentence: the purchase decision now runs in production, the 00:10 UTC check completed with all four checks passing, and the hosted worker recorded `skipped: all_checks_passed`, declining to spend because a passing test has nothing to explain. It answers the depth-of-integration criterion with something that happened rather than something built.
+- Showed the draft first (`loops project update` without `--confirm` returns `DRAFT_NOT_CONFIRMED` with the full text) and confirmed only after the user agreed, as the installed Loops skill requires.
+- Readback against a snapshot taken before the write: description 3,354 → 3,655 characters, and `name`, `tagline`, `pitch`, `repoUrl`, `demoUrl`, `videoUrl`, `logoUrl`, `screenshotUrls`, `bountyIds`, `slug` and `projectId` all byte-identical. `missing: []`. `celo.hasIdentity` and `firstTaggedTx` still read `null`, unchanged by this edit and still contradicted by the chain.
+- One build note worth keeping: the first attempt to assemble the sentence used an unquoted heredoc, so the shell command-substituted the backticked `skipped: all_checks_passed` and silently dropped it from the text. Caught by printing the result before sending. Quote the delimiter when the payload contains backticks.
+- Checks: no code changed. The verification is the platform's own readback, diffed field by field against the pre-write snapshot.
+- Commit subject: `docs: record the entry description amendment` (HACK-03).

@@ -1578,3 +1578,16 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Rewrote the organiser message accordingly: the identity question is dropped, and what remains is the repository-at-registration question and a sharper attribution question that now asks them to choose between the Build with buy FAQ (no tag needed) and the general rules (tag required), and states plainly that we declined to send a transaction purely to register a tag.
 - Updated `docs/HACKATHON.md`, `docs/HACKATHON-REVIEW-2026-11-09.md` and `memory/STATUS.md`, keeping the original note in the review beneath the correction rather than deleting it.
 - Commit subject: `docs: hasIdentity was unchecked, not missing` (HACK-01).
+
+## 2026-11-09 — UX-03 — The TXT check now asks the zone, not a cache
+
+- The user reported that the DNS verification step feels slow. Measured rather than guessed: a cold lookup through the system's recursive resolver took **6,051 ms**, 65 ms once cached, against **185 ms** asking the zone's own nameservers. The cold figure is over the 5,000 ms budget the check allowed itself, so a first attempt could report "not visible yet" about a record that was already published.
+- **The worse problem is negative caching.** A recursive resolver caches the *absence* of a record for as long as the zone's SOA dictates, commonly 5–60 minutes. The natural user behaviour — add the record, immediately press Check — therefore poisons the next several attempts, and the builder keeps failing long after DNS is live. This is almost certainly what the slowness actually was.
+- `authoritativeTxt()` resolves the zone's NS records, walking up from `_trialoom.<host>` through at most three parent labels, resolves those nameservers to addresses and queries them directly with a dedicated `Resolver`. That skips every cache in between.
+- **It cannot find fewer records than before.** Both lookups race through `Promise.any`, and each is wrapped so that only an answer actually carrying the expected value counts as success — a resolver that answers quickly with the wrong content does not win the race. The budget went from 5 s to 8 s to cover the extra NS hop.
+- An injected `deps.txt` short-circuits both paths, so tests never reach the network and stay deterministic.
+- Guarded an unhandled rejection: when the timeout wins the race the `Promise.any` still settles later with nobody listening, which would take the process down. It gets a no-op handler at creation.
+- Checks: 36/36 in `tests/target-verification.test.ts` against the host's `trialoom_dev`, strict types clean, and a real-network check on the host — `_dmarc.github.com` resolves authoritatively, and a miss returns in 22 ms rather than hanging.
+- **Honest limit:** on the host both paths are fast, because its resolver is good. The latency win is situational; the negative-cache bypass is the part that always helps.
+- Noticed while measuring: `_trialoom.nukko.xyz` no longer resolves, so that domain's TXT record has been removed. The stored verification stands until it expires, but the record needs restoring before nukko.xyz is used for a demo.
+- Commit subject: `fix: ask the zone directly when checking the TXT record` (UX-03), committed as `8b60b1b`.

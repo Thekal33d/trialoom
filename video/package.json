@@ -1,0 +1,24 @@
+{
+  "name": "trialoom-video",
+  "private": true,
+  "version": "1.0.0",
+  "description": "The Trialoom hackathon demo video. Separate from the product so Remotion never enters the app's dependency tree.",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts TrialoomDemo out/trialoom-demo.mp4 --codec=h264",
+    "voiceover": "node --experimental-strip-types scripts/generate-voiceover.ts"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.541",
+    "@remotion/google-fonts": "^4.0.541",
+    "@remotion/transitions": "4.0.541",
+    "mediabunny": "1.65.2",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "remotion": "4.0.541"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.2",
+    "typescript": "5.9.3"
+  }
+}

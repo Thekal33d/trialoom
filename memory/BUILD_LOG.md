@@ -1553,3 +1553,11 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Verified against the live site rather than the build output: `https://trialoom.xyz/` returns 200, contains "paid in stablecoins on Celo" and no longer contains "paid in USDC on Celo", `https://trialoom.xyz/agent.json` now serves `active: true`, and all four services report active.
 - **Known drift, not fixed:** the entry's landing screenshot and the demo video were captured before this change and still show "paid in USDC on Celo". Cosmetic, and re-shooting the video is not worth it for one line.
 - Commit subject: `copy: say stablecoins rather than naming the token` (UX-02), already committed as `3b030d6`; this entry records the deploy.
+
+## 2026-11-09 — HACK-03 — Entry screenshots re-shot after the copy change
+
+- Re-captured both entry screenshots from the live site so they match the deployed wording: the landing page, which now reads "paid in stablecoins on Celo" and contains no `USDC`, and the public example report at `/demo`. Captured at 1440×900 with a 2× device pixel ratio, as before.
+- Asserted the copy in the captured page rather than trusting the deploy: the landing capture's text contains "stablecoins" and does not contain "USDC".
+- `--screenshot` replaces the set rather than appending, so both were uploaded together. Readback confirms two screenshots, both URLs changed, and both fetch HTTP 200 as `image/png` at exactly the byte sizes uploaded (324,118 and 192,800) — so they were stored intact rather than re-encoded or truncated. `name`, `tagline`, `description`, `repoUrl`, `demoUrl`, `videoUrl`, `bountyIds` and `slug` are all unchanged, and `missing: []`.
+- The demo video still shows the earlier "paid in USDC on Celo" line in its landing shots. Left as it is: one line of copy does not justify re-rendering and re-uploading a published video, and the entry's screenshots are what a judge compares against the live site.
+- Commit subject: `docs: record the re-shot entry screenshots` (HACK-03).

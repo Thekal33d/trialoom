@@ -69,6 +69,7 @@ are no independent users yet.
   browsers and disposable machines as demand grows" is conditional and defensible,
   but a skeptical judge reads quickly. Wiring a second service is a multi-hour
   build and is not advisable at this hour.
+- **Resolved after this review was written: `celo.hasIdentity` is `true`.** The entry page runs the ERC-8004 check on demand behind a "Check on Celo" button; the null meant unchecked, not missing. `firstTaggedTx` is still null and is expected to be — our x402 payment is submitted by the facilitator under EIP-3009, so no transaction of ours carries calldata to tag. The original note follows.
 - **`celo.hasIdentity` and `firstTaggedTx` read `null` on the platform.** The
   identity is six days old and verifiable on chain, so this is the platform's
   indexing. `missing: []` suggests it does not block validity, but it is worth

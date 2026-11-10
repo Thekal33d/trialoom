@@ -1623,3 +1623,13 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Checks: 68/68 across `sponsored`, `buy-report` and `buy-x402` against the host's `trialoom_dev`; strict types clean.
 - **Not deployed.** This runs on Railway, not the Hetzner host, so it needs a `railway up`. Two prepared reports are waiting, and deploying this will cause them to be bought with real funds.
 - Commit subject: `fix: let the worker that holds the key buy the report` (BUY-02).
+
+## 2026-11-10 — BUY-02 — Two paid calls, triggered by someone else
+
+- **The chain closed.** An independent user ran two checks against their own website; both were refused with HTTP 403 and recorded as `blocked`; both prepared reports; and the worker holding the sponsor key bought both, unprompted. Transactions `0xc719767c…ba5669` (block 82,406,524) and `0x1069afda…932d7e` (block 82,406,554), 0.010000 USD₮ each, verified by decoding the Transfer logs from `forno.celo.org`. Both explanations delivered `usable`. [Checkpoint](../docs/evidence/BUY-02-independent-user.json).
+- Every earlier paid call was initiated by hand. These were not, and that is the whole difference: the demand is somebody else's.
+- **A second cause had to be found before it worked.** Deploying the keyed worker was not enough — thirteen minutes passed with no purchase. `sponsorBudgetFunded` compares the daily allowance against `maxReportUnits`, and the cap raised to 25,000 on 2026-11-08 sat above a daily allowance of 20,000, so the condition could never be true. The comment I wrote beside that raise asserted the cap was "far below the daily allowance"; it was above it. The raise meant to stop silent refusals caused them.
+- Raised the allowance to 50,000 on the user's explicit approval, through `authorizeSponsoredBudget` so the authorisation is recorded rather than the table edited behind its own audit trail. The schema requires `amount_units > 0`, so the ceiling went up by **1 base unit** — one millionth of a dollar — purely to satisfy that constraint; this was stated before doing it, not after.
+- Added `sponsorBudgetUnreachable()`, which names an unspendable configuration instead of leaving it to be discovered by an unbought report two days later, and corrected the false premise in the `sponsorLimits` comment.
+- **State is `uncertain`, not settled.** Both transactions succeeded on chain and both explanations were delivered, but reconciliation has not confirmed finalized state, so the ledger does not call them settled and neither does the checkpoint. `reserved_units` is 50,000 of a 50,001 ceiling while both reservations are held, which will fall to the actual 20,000 once reconciled.
+- Commit subject: `feat: record two paid calls from an independent user` (BUY-02).

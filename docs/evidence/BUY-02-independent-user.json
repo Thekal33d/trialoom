@@ -1,0 +1,55 @@
+{
+  "task": "BUY-02",
+  "checkpoint": "Two paid calls on Celo mainnet, triggered by an independent user's tests and bought by the production worker",
+  "recordedOn": "2026-11-10",
+  "timezone": "Africa/Lagos",
+  "whyThisIsDifferent": "Every earlier paid call was initiated by hand. These were not: an independent builder, not the project owner, ran checks against their own website from the live site, the site answered the sandbox with HTTP 403, the runner recorded the outcome as blocked, the reports were prepared automatically, and the worker holding the sponsor key bought both without anyone asking it to.",
+  "trigger": {
+    "testsRunBy": "an independent user, on their own website",
+    "outcome": "blocked",
+    "cause": "the target answered the isolated browser with HTTP 403, which is bot protection declining an automated visitor rather than a fault in the site",
+    "freeTestIds": [
+      "6f497269-c962-40e3-a8da-3d472ddb6f43",
+      "c4cacd93-0d7d-41fd-ab78-fec1bd262d90"
+    ]
+  },
+  "purchases": [
+    {
+      "id": "23aaa7a7",
+      "transaction": "0xc719767c171ffa0a2cc93dd2bd13469d87e1b8db70ffad1e776da913e2ba5669",
+      "block": 82406524,
+      "status": "success",
+      "amount": "0.010000 USD₮",
+      "quotedUnits": 10000,
+      "ceilingUnits": 25000,
+      "delivery": "usable",
+      "state": "uncertain",
+      "reason": "settlement_uncertain, pending reconciliation"
+    },
+    {
+      "id": "cc381995",
+      "transaction": "0x1069afdacf07303e79fcb6f6b9ab1c9d852b97fe4b6973b95e77d193ec932d7e",
+      "block": 82406554,
+      "status": "success",
+      "amount": "0.010000 USD₮",
+      "quotedUnits": 10000,
+      "ceilingUnits": 25000,
+      "delivery": "usable",
+      "state": "uncertain",
+      "reason": "settlement_uncertain, pending reconciliation"
+    }
+  ],
+  "verifiedOnChain": {
+    "method": "eth_getTransactionReceipt against https://forno.celo.org, Transfer logs decoded",
+    "payer": "0xf8Ff4F7C83404e04506785b7DFDf838CA75C22ae",
+    "payee": "0x20faAca5F980E29639A0FCC6dcA6988E18ed333B",
+    "token": "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e",
+    "onChainSender": "0x0d74d5cefd2e7f24e623330ebe3d8d4cb45ffb48",
+    "senderNote": "buy's facilitator, because USD₮ implements EIP-3009 and the payer signs off chain. No transaction of ours exists to carry an attribution tag."
+  },
+  "whatHadToBeFixedFirst": [
+    "The only code that initiated a purchase ran on the host, which has no sponsor key; the key was on Railway in a worker that only reconciled. Fixed in workers/main.ts (commit 8b23ab3).",
+    "The per-report cap had been raised to 25,000 on 2026-11-08 while the daily allowance stayed at 20,000, so sponsorBudgetFunded could never return true and every purchase was refused silently. The allowance was raised to 50,000 on 2026-11-10 with the user's explicit approval."
+  ],
+  "notClaimed": "Settlement is recorded as uncertain until reconciliation confirms finalized state. Both transactions are successful on chain and both explanations were delivered usable, but the ledger does not call them settled yet, and neither does this file."
+}

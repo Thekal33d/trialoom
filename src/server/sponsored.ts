@@ -22,9 +22,15 @@ export const sponsorLimits = {
    *
    * The live quote on 2026-11-08 was 10,000 base units — 0.01 USD₮ — and the
    * ceiling was the same number, so any price rise would have refused every
-   * purchase silently, a correct guard giving no signal. Left at two and a half
-   * times the observed price: still far below the daily allowance, and a refusal
-   * now means the price genuinely moved rather than that it stood still.
+   * purchase silently, a correct guard giving no signal. Raised to two and a
+   * half times the observed price so a refusal means the price genuinely moved.
+   *
+   * That raise shipped with a false premise written right here: that 25,000 was
+   * "far below the daily allowance". The allowance was 20,000, so this cap sat
+   * above it, `sponsorBudgetFunded` could never return true, and every purchase
+   * stopped — silently, which is exactly the failure the raise was meant to
+   * prevent. The allowance was raised to 50,000 on 2026-11-10. Keep this number
+   * at or below the daily allowance, and see `assertSponsorBudgetReachable`.
    */
   maxReportUnits: 25_000n,
   /** An unanswered provider is waited on, not asked the same question faster. */
@@ -632,6 +638,31 @@ export async function reconcileSponsoredPurchase(
  * Whether anything has been authorized to spend. The worker asks before trying
  * a purchase, so an unfunded build does not loop refusing the same report.
  */
+/**
+ * A per-report cap above the daily allowance is not a tight budget, it is a
+ * budget that can never be spent: both `sponsorBudgetFunded` and the
+ * per-purchase guard compare the daily allowance against this cap, so every
+ * call is refused and nothing says why. That configuration held from
+ * 2026-11-08 to 2026-11-10 and was found only because an independent user's
+ * report sat unbought.
+ *
+ * Returns what is wrong, or null when the budget can actually be spent.
+ */
+export async function sponsorBudgetUnreachable(db: Pool | PoolClient): Promise<string | null> {
+  const { rows } = await db.query<{ daily_user_units: string; available: string }>(
+    `SELECT daily_user_units, (ceiling_units-reserved_units-settled_units)::text AS available
+    FROM sponsored_budgets WHERE id='platform'`,
+  );
+  const budget = rows[0];
+  if (!budget) return 'no sponsored budget row exists';
+  const cap = sponsorLimits.maxReportUnits;
+  if (BigInt(budget.daily_user_units) < cap)
+    return `the daily allowance (${budget.daily_user_units}) is below the per-report cap (${cap}), so no purchase can ever be authorized`;
+  if (BigInt(budget.available) < cap)
+    return `the remaining ceiling (${budget.available}) is below the per-report cap (${cap})`;
+  return null;
+}
+
 export async function sponsorBudgetFunded(db: Pool | PoolClient): Promise<boolean> {
   const { rows } = await db.query<{ funded: boolean }>(
     `SELECT (ceiling_units-reserved_units-settled_units>=$1 AND daily_user_units>=$1) AS funded

@@ -12,7 +12,7 @@ const phases = {
   running: 'Testing your page',
   captured: 'Saving results',
   completed: 'Checks completed',
-  blocked: 'Test incomplete',
+  blocked: 'Blocked by the website',
   interrupted: 'Did not finish',
   cancelled: 'Cancelled',
 };
@@ -217,8 +217,26 @@ export function FreeTestHistory({
                     )}
                     {test.phase === 'blocked' && (
                       <p className="product-note">
-                        Some checks couldn’t finish within the allowed test limits. This doesn’t
-                        mean your website is broken.
+                        {/*
+                          This used to read "couldn't finish within the allowed
+                          test limits", which blamed our limits for something
+                          the website did. A blocked run means the site turned
+                          our browser away, and saying so is the difference
+                          between a person checking their bot protection and a
+                          person waiting for us to raise a limit.
+                        */}
+                        Your website turned our browser away
+                        {(() => {
+                          const refused = test.result?.replay?.requests.find(
+                            (request) => request.status >= 400,
+                          );
+                          return refused ? ` with HTTP ${refused.status}` : '';
+                        })()}
+                        , so the checks below never ran. That is usually a security service
+                        declining an automated visitor, and it does not mean your website is
+                        broken — a person opening it in their own browser may see it load
+                        perfectly. To test a site behind that kind of protection, allow our
+                        browser through and run the check again.
                       </p>
                     )}
                     {test.phase === 'cancelled' && (
@@ -238,7 +256,15 @@ export function FreeTestHistory({
                                 {item.passed ? '✓' : '–'}
                               </span>
                               <span>{checks[item.check]}</span>
-                              <strong>{item.passed ? 'Passed' : 'Incomplete'}</strong>
+                              {/* A check that never ran did not fail, and on a
+                                  blocked run none of them ran at all. */}
+                              <strong>
+                                {item.passed
+                                  ? 'Passed'
+                                  : test.phase === 'blocked'
+                                    ? 'Not run'
+                                    : 'Incomplete'}
+                              </strong>
                             </li>
                           ))}
                         </ul>

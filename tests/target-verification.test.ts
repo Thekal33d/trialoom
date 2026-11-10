@@ -229,3 +229,28 @@ test('a fresh verified target executes through the durable free dispatcher witho
     'completed',
   );
 });
+
+test('a record published under a doubled domain is named, not blamed on propagation', async () => {
+  const challenge = await issue();
+  // example.com is the project's origin, so this is what a provider that
+  // appends the zone produces when the fully qualified name is pasted in.
+  const doubled = `${challenge.record.name}.example.com`;
+  await assert.rejects(
+    check(challenge, { txt: async (name: string) => (name === doubled ? [[challenge.record.value]] : []) }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError && error.code === 'VERIFICATION_NOT_FOUND');
+      assert.match((error as AppError).message, new RegExp(doubled.replace(/\./g, '\\.')));
+      assert.match((error as AppError).message, /only "_trialoom"/);
+      return true;
+    },
+  );
+  // Absent everywhere still reads as propagation, because that is what it is.
+  await assert.rejects(
+    check(challenge, { txt: async () => [] }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError && error.code === 'VERIFICATION_NOT_FOUND');
+      assert.match((error as AppError).message, /not visible yet/);
+      return true;
+    },
+  );
+});

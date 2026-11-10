@@ -8,6 +8,20 @@ type Challenge = {
   record: { type: string; name: string; value: string };
 };
 type Verification = { verified: boolean; expiresAt: string | null; challenge: Challenge | null };
+/**
+ * The part of the record name a provider expects when it appends the zone
+ * itself, which most of them do. `_trialoom.site.com` becomes `_trialoom`,
+ * and `_trialoom.preview.site.com` becomes `_trialoom.preview`.
+ *
+ * The zone is taken to be the last two labels. That is right for the common
+ * cases and wrong for a two-part suffix like `.co.uk`, which is why the full
+ * name stays on screen underneath rather than being replaced by this.
+ */
+function relativeName(name: string) {
+  const labels = name.split('.');
+  return labels.length > 2 ? labels.slice(0, -2).join('.') : name;
+}
+
 export function TargetVerification({
   base,
   onVerified,
@@ -64,17 +78,30 @@ export function TargetVerification({
         {view?.challenge ? (
           <>
             <p>
-              Record type: <strong>TXT</strong>. If your DNS provider adds the zone name
-              automatically, enter only the part before it, such as _trialoom or _trialoom.preview.
+              Record type: <strong>TXT</strong>.
             </p>
             <label>
               DNS record name
               <input
                 readOnly
-                value={view.challenge.record.name}
+                value={relativeName(view.challenge.record.name)}
                 onFocus={(e) => e.currentTarget.select()}
               />
             </label>
+            {/*
+              Most providers — Namecheap, Cloudflare, GoDaddy — append the
+              domain to whatever goes in this field, so offering the full name
+              as the thing to copy is what produces `_trialoom.site.com.site.com`.
+              Lead with the part that is right nearly everywhere and keep the
+              full name available for the few that want it.
+            */}
+            <p className="product-note">
+              Most providers add your domain for you, so the name above is usually all you type.
+              If yours wants the whole thing, use <strong>{view.challenge.record.name}</strong> —
+              but do not enter both, or the record lands at{' '}
+              <code>{view.challenge.record.name}.{view.challenge.record.name.split('.').slice(1).join('.')}</code>{' '}
+              and never verifies.
+            </p>
             <label>
               DNS record value
               <textarea

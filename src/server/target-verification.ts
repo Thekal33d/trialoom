@@ -191,33 +191,47 @@ export async function verifyTargetChallenge(
   };
   // An injected resolver is a test asking for a specific answer; do not go to
   // the network behind its back.
-  const lookups = deps.txt
-    ? [carrying(() => deps.txt!(expected.name))]
-    : [
-        carrying(() => authoritativeTxt(expected.name)),
-        carrying(() => resolveTxt(expected.name)),
-      ];
-  // If the timeout wins the race, this promise still settles later. Nothing
-  // would be listening by then, so give it a handler now: an unhandled
-  // rejection here would take the process down.
-  const found = Promise.any(lookups);
-  found.catch(() => {});
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    await Promise.race([
+  const find = (name: string, budgetMs: number) => {
+    const lookups = deps.txt
+      ? [carrying(() => deps.txt!(name))]
+      : [carrying(() => authoritativeTxt(name)), carrying(() => resolveTxt(name))];
+    // If the timeout wins the race, this promise still settles later. Nothing
+    // would be listening by then, so give it a handler now: an unhandled
+    // rejection here would take the process down.
+    const found = Promise.any(lookups);
+    found.catch(() => {});
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    return Promise.race([
       found,
       new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error('DNS_TIMEOUT')), 8000);
+        timer = setTimeout(() => reject(new Error('DNS_TIMEOUT')), budgetMs);
       }),
-    ]);
+    ]).finally(() => clearTimeout(timer));
+  };
+  try {
+    await find(expected.name, 8000);
   } catch {
+    // The commonest failure is a misplaced record, not a missing one. Most
+    // providers append the zone to whatever goes in their host field, so
+    // pasting the fully-qualified name publishes `_trialoom.<host>.<host>`.
+    // Telling that person to wait for DNS is advice that can never come true,
+    // so look there before saying anything about propagation.
+    //
+    // An injected resolver is asked too, so this branch is testable: a stub
+    // that answers only the doubled name proves the message, and one that
+    // answers neither still reports plain propagation.
+    const doubled = `${expected.name}.${parseTarget(challenge.origin).host}`;
+    const misplaced = await find(doubled, 4000).then(
+      () => true,
+      () => false,
+    );
     throw new AppError(
       'VERIFICATION_NOT_FOUND',
-      'The verification TXT record is not visible yet. Check its name and value, allow DNS to update, then try again.',
+      misplaced
+        ? `The record is published at ${doubled}, which means your DNS provider added the domain to the name you typed. Edit the record and put only "${expected.name.split('.')[0]}" in its name field.`
+        : 'The verification TXT record is not visible yet. Check its name and value, allow DNS to update, then try again.',
       409,
     );
-  } finally {
-    clearTimeout(timer);
   }
   const target = await validateTarget(challenge.origin, deps.resolver);
   return transaction(pool, async (db) => {

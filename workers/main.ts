@@ -16,7 +16,11 @@ import {
 } from '../src/server/remesso.ts';
 import { reconcilePurchase } from '../src/server/resources.ts';
 import { dispatchPayout } from '../src/server/settlement.ts';
-import { reconcileSponsoredPurchase } from '../src/server/sponsored.ts';
+import {
+  purchaseNextSponsoredReport,
+  reconcileSponsoredPurchase,
+  sponsorBudgetFunded,
+} from '../src/server/sponsored.ts';
 
 const url = databaseUrl();
 const pool = createPool(url);
@@ -60,6 +64,24 @@ try {
       const settled = await releaseSettledAssignments(pool);
       if (settled.assignments)
         console.log(JSON.stringify({ event: 'assignments.settled', count: settled.assignments }));
+      // A finished test prepares a report; buying it needs the sponsor key,
+      // and the key is here rather than on the host that runs the tests.
+      // `workers/free-tests.ts` makes the same call, but that runner reports
+      // its sponsor as unconfigured in production, so without this nothing
+      // ever acts on a prepared report and it sits forever.
+      if (sponsor && (await sponsorBudgetFunded(pool).catch(() => false))) {
+        const bought = await purchaseNextSponsoredReport(pool, sponsor).catch((error: unknown) => {
+          console.error(
+            JSON.stringify({
+              event: 'sponsored_report.purchase_failed',
+              detail: redactText(error instanceof Error ? error.message : String(error), [url])
+                .text.slice(0, 300),
+            }),
+          );
+          return null;
+        });
+        if (bought) console.log(JSON.stringify({ event: 'sponsored_report.purchased' }));
+      }
     }
     // With no funded payment authority configured the default adapter blocks
     // every payout with a visible reason instead of pretending to pay it.

@@ -139,3 +139,32 @@ The server is right to refuse. The fix belongs in front of it:
 
 Worth doing before independent testers run, since it lands on first contact and
 every recovery a user would guess at fails.
+
+## UX-06 — The DNS panel shows the full name and invites the commonest mistake
+
+The "DNS record name" field displays the fully-qualified `_trialoom.<host>`,
+which is the natural thing to copy into a provider's Host box. Namecheap,
+Cloudflare, GoDaddy and most others append the zone themselves, so copying it
+produces `_trialoom.<host>.<host>` — a record that exists, looks right in the
+provider's table, and never verifies. The warning that this might happen sits
+above the field in smaller type, phrased conditionally ("If your DNS provider
+adds the zone name automatically"), which asks the user to know something about
+their provider that they usually do not.
+
+Hit on 2026-11-10 against nukko.xyz: the value was byte-perfect and the record
+was live at `_trialoom.nukko.xyz.nukko.xyz`.
+
+Fixes, cheapest first:
+
+1. Show the host-only label (`_trialoom`) as the primary copyable value, with
+   the fully-qualified name demoted to a secondary line for the providers that
+   want it.
+2. When a check fails, also query `_trialoom.<host>.<host>`. If the record is
+   found there, say so exactly: the record is at the wrong name because the
+   provider added the domain, and the Host field should be `_trialoom` alone.
+   This turns the commonest failure into a self-correcting message.
+3. Give each a copy button, so neither is retyped.
+
+The second is worth the most: it converts the one error users actually make
+into instructions, instead of "not visible yet", which points at patience as
+the remedy when patience cannot help.

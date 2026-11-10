@@ -23,8 +23,10 @@
       "quotedUnits": 10000,
       "ceilingUnits": 25000,
       "delivery": "usable",
-      "state": "uncertain",
-      "reason": "settlement_uncertain, pending reconciliation"
+      "state": "reconciled",
+      "costUnits": 10000,
+      "reconciledAt": "2026-11-10T11:31:44Z",
+      "reconcileNote": "Deferred once. The first attempt at 11:11:36 found the transaction not yet final and rescheduled itself to 11:31:37 rather than claiming settlement, which is the intended separation of transaction inclusion from finality. The second purchase needed no deferral and reconciled at 11:12:06."
     },
     {
       "id": "cc381995",
@@ -35,8 +37,9 @@
       "quotedUnits": 10000,
       "ceilingUnits": 25000,
       "delivery": "usable",
-      "state": "uncertain",
-      "reason": "settlement_uncertain, pending reconciliation"
+      "state": "reconciled",
+      "costUnits": 10000,
+      "reconciledAt": "2026-11-10T11:12:06Z"
     }
   ],
   "verifiedOnChain": {
@@ -51,5 +54,11 @@
     "The only code that initiated a purchase ran on the host, which has no sponsor key; the key was on Railway in a worker that only reconciled. Fixed in workers/main.ts (commit 8b23ab3).",
     "The per-report cap had been raised to 25,000 on 2026-11-08 while the daily allowance stayed at 20,000, so sponsorBudgetFunded could never return true and every purchase was refused silently. The allowance was raised to 50,000 on 2026-11-10 with the user's explicit approval."
   ],
-  "notClaimed": "Settlement is recorded as uncertain until reconciliation confirms finalized state. Both transactions are successful on chain and both explanations were delivered usable, but the ledger does not call them settled yet, and neither does this file."
+  "notClaimed": "Both purchases are now reconciled against finalized chain state, each costing exactly its 10,000-unit quote, and the budget reads 20,000 settled with nothing reserved. What is still not claimed: this is one independent user, not adoption, and the explanations were delivered but their usefulness to that builder has not been measured or asked about.",
+  "ledgerAfter": {
+    "ceilingUnits": 50001,
+    "reservedUnits": 0,
+    "settledUnits": 20000,
+    "dailyUserUnits": 50000
+  }
 }

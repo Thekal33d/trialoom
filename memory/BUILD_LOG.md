@@ -1633,3 +1633,11 @@ Each entry records: date, task ID, work completed, validation and outcome, limit
 - Added `sponsorBudgetUnreachable()`, which names an unspendable configuration instead of leaving it to be discovered by an unbought report two days later, and corrected the false premise in the `sponsorLimits` comment.
 - **State is `uncertain`, not settled.** Both transactions succeeded on chain and both explanations were delivered, but reconciliation has not confirmed finalized state, so the ledger does not call them settled and neither does the checkpoint. `reserved_units` is 50,000 of a 50,001 ceiling while both reservations are held, which will fall to the actual 20,000 once reconciled.
 - Commit subject: `feat: record two paid calls from an independent user` (BUY-02).
+
+## 2026-11-10 — BUY-02 — Both purchases reconciled against finalized state
+
+- Both paid calls are now `reconciled`, each costing exactly its 10,000-unit quote. The budget reads `reserved 0, settled 20,000` of a 50,001 ceiling, so the reservations released cleanly and roughly 30,000 is available again.
+- **One job deferred itself, correctly.** The reconcile for `23aaa7a7` first ran at 11:11:36, found the transaction not yet final, and rescheduled to 11:31:37 instead of claiming settlement; it completed at 11:31:44. `cc381995` needed no deferral and reconciled at 11:12:06. That is the project's rule about separating transaction inclusion from finality doing its job on real money.
+- **I misread this twice while watching it.** First I called reconciliation broken when the jobs were simply scheduled 30 minutes out rather than the 10 I had inferred from `reconcileSeconds`; my watcher stopped six minutes early. Then I called the second job stuck when it had deferred itself by design. Both times the queue said plainly what was happening — `pending`, zero attempts, a future `available_at` — and both times I read a watcher's silence as a fault instead of reading the queue.
+- Updated [the checkpoint](../docs/evidence/BUY-02-independent-user.json) from "uncertain, pending reconciliation" to the settled figures, and narrowed what it does not claim: one independent user is not adoption, and whether the delivered explanations were actually useful to that builder has not been asked.
+- Commit subject: `docs: both independent-user purchases reconciled` (BUY-02).

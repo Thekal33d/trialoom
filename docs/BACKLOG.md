@@ -168,3 +168,23 @@ Fixes, cheapest first:
 The second is worth the most: it converts the one error users actually make
 into instructions, instead of "not visible yet", which points at patience as
 the remedy when patience cannot help.
+
+## OPS-01 — A worker connection is stuck idle in transaction
+
+`pg_stat_activity` on 2026-11-10 shows a `trialoom_worker` backend open since
+2026-11-08 23:20:05, `idle in transaction`, its last statement
+`UPDATE outbox_jobs SET state='dead',lease_token=...`. A second backend from
+2026-11-09 00:08 still holds `pg_try_advisory_lock(42120703)`.
+
+Neither blocked today's work — a new deployment connected at 10:24 and ran
+normally — but a transaction left open for two days holds its row locks and
+pins the oldest transaction id, which stops vacuum reclaiming anything newer.
+On a small instance that is a slow leak rather than an incident, and it is
+invisible until something blocks on one of those rows.
+
+Likely cause: the container was replaced while a job was mid-transaction and
+the server never noticed the peer had gone, because the SSH tunnel keeps the
+socket open from Postgres's point of view. Worth setting
+`idle_in_transaction_session_timeout` so an abandoned transaction cannot
+outlive the process that opened it, and `tcp_keepalives_idle` so a tunnel that
+dies takes its backends with it.
